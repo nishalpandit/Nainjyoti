@@ -1,0 +1,115 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User Sign In · Phone &amp; OTP · Nainjyoti</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/user_auth.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="user-auth-wrapper">
+        <div class="user-auth-card">
+            <!-- Brand Emblem -->
+            <div class="user-auth-header">
+                <a href="{% url 'user_login' %}" class="brand-emblem">
+                    <div class="emblem-icon">N</div>
+                    <div class="emblem-text">Nain<span>jyoti</span></div>
+                </a>
+
+                {% if step == 'phone' %}
+                    <h1 class="auth-title">Welcome Back</h1>
+                    <p class="auth-sub">Enter your mobile phone number to sign in or get started.</p>
+                {% else %}
+                    <h1 class="auth-title">Verify Phone</h1>
+                    <p class="auth-sub">Enter the 6-digit code sent to <strong>+91 {{ phone }}</strong></p>
+                {% endif %}
+            </div>
+
+            <!-- Flash Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="user-alert {% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% else %}info{% endif %}">
+                        <i class="fa-solid {% if 'error' in message.tags %}fa-circle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                        <div>{{ message }}</div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if step == 'phone' %}
+                <!-- STEP 1: Enter Phone Number -->
+                <form action="{% url 'user_login' %}" method="post" class="user-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="send_otp">
+
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Mobile Phone Number</label>
+                        <div class="phone-input-wrap">
+                            <div class="country-prefix">
+                                <span>🇮🇳 +91</span>
+                            </div>
+                            <input type="tel" id="phone" name="phone" class="phone-input" required placeholder="98765 43210" maxlength="15" autofocus value="{{ phone }}">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-auth-primary">
+                        <span>Get Verification Code</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+
+            {% else %}
+                <!-- STEP 2: Enter OTP Code -->
+                <form action="{% url 'user_login' %}" method="post" class="user-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="verify_otp">
+                    <input type="hidden" name="phone" value="{{ phone }}">
+
+                    <div class="form-group text-center">
+                        <label class="form-label">6-Digit One-Time Password</label>
+                        <div class="otp-box-wrap">
+                            <input type="text" id="otp" name="otp" class="otp-big-input" maxlength="6" pattern="[0-9]{6}" required placeholder="••••••" autofocus autocomplete="one-time-code" value="{{ otp_debug }}">
+                        </div>
+                        {% if otp_debug %}
+                            <div style="font-size:12px;color:var(--gold-accent);margin-top:-6px;">
+                                <i class="fa-solid fa-key"></i> Dev OTP: <strong>{{ otp_debug }}</strong> (or fallback <code>123456</code>)
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn-auth-primary">
+                        <span>Verify &amp; Continue</span>
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                </form>
+
+                <div class="otp-helpers-row">
+                    <!-- Resend OTP -->
+                    <form action="{% url 'user_login' %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="resend_otp">
+                        <button type="submit" class="btn-auth-secondary">Resend OTP</button>
+                    </form>
+
+                    <!-- Change Phone -->
+                    <form action="{% url 'user_login' %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="change_phone">
+                        <button type="submit" class="btn-auth-secondary">Change Phone</button>
+                    </form>
+                </div>
+            {% endif %}
+
+            <div class="auth-footer-prompt">
+                New to Nainjyoti? <a href="{% url 'user_register' %}">Create user account</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

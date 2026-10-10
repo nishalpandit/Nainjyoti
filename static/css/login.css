@@ -1,0 +1,609 @@
+/* Nainjyoti Marketplace - Bespoke Full-Screen Merchant Authentication
+   Aesthetic: Heritage Luxury Indian Commerce (Desi Royal Forest, Warm Parchment & Antique Gold)
+   100% Full-Screen Layout - Pure Authentication Flow, Absolutely Zero Navbars or Website Footers
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --forest-black: #06110c;
+  --forest-dark: #0a1812;
+  --forest-deep: #0f241a;
+  --forest-mid: #163628;
+  --forest-surface: #122b1f;
+  --gold-accent: #c59b27;
+  --gold-light: #dfb749;
+  --gold-warm: #f1cf75;
+  --gold-soft: rgba(197, 155, 39, 0.12);
+  --parchment-cream: #faf8f3;
+  --parchment-text: #e7e3d8;
+  --parchment-muted: #a1b0a7;
+  --parchment-sub: #788a80;
+  --input-bg: rgba(10, 24, 18, 0.75);
+  --input-border: rgba(197, 155, 39, 0.28);
+  --input-focus: #c59b27;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--forest-dark);
+  color: var(--parchment-text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   Full-Screen Container (100vh × 100vw, Zero Navbars)
+   ========================================================================== */
+.fullscreen-login-page {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: 
+    radial-gradient(circle at 12% 18%, rgba(22, 54, 40, 0.5) 0%, transparent 45%),
+    radial-gradient(circle at 88% 82%, rgba(20, 48, 35, 0.45) 0%, transparent 45%),
+    linear-gradient(180deg, #07130e 0%, #0a1812 40%, #0d2118 100%);
+  position: relative;
+  padding: 40px 60px;
+}
+
+/* Organic woven texture overlay */
+.fullscreen-login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(rgba(197, 155, 39, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* ==========================================================================
+   Main Full-Screen Body (Expansive 2-Column Grid, Zero Navbars)
+   ========================================================================== */
+.fullscreen-main {
+  position: relative;
+  z-index: 5;
+  max-width: 1420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.fullscreen-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.95fr;
+  gap: 80px;
+  align-items: center;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Left Column: Hero Branding, Editorial Storytelling & Live Market Trust
+   -------------------------------------------------------------------------- */
+.editorial-col {
+  padding-right: 20px;
+}
+
+.brand-identity-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.brand-monogram {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #c59b27, #997415);
+  color: #06110c;
+  display: grid;
+  place-items: center;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(197, 155, 39, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 23px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+.brand-name span {
+  color: var(--gold-light);
+}
+
+.brand-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--parchment-muted);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.editorial-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.editorial-eyebrow span {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold-accent);
+}
+
+.editorial-eyebrow::before {
+  content: '';
+  width: 24px;
+  height: 2px;
+  background: var(--gold-accent);
+}
+
+.editorial-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 46px;
+  line-height: 1.18;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.6px;
+  margin-bottom: 22px;
+}
+
+.editorial-title em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gold-warm);
+}
+
+.editorial-desc {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--parchment-muted);
+  margin-bottom: 36px;
+  max-width: 580px;
+}
+
+/* Live Market Metric Highlights */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-item {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  transition: all 0.25s ease;
+}
+
+.metric-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(197, 155, 39, 0.3);
+  transform: translateY(-2px);
+}
+
+.metric-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 750;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.metric-value span {
+  color: var(--gold-accent);
+}
+
+.metric-label {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--parchment-muted);
+  font-weight: 500;
+}
+
+/* Trust Badges */
+.editorial-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  background: rgba(15, 36, 26, 0.6);
+  border: 1px solid rgba(197, 155, 39, 0.22);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--parchment-cream);
+}
+
+.trust-pill i {
+  color: var(--gold-accent);
+  font-size: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   Right Column: Full-Screen Form (NO CARD, NO POPUP, DIRECT ON CANVAS)
+   -------------------------------------------------------------------------- */
+.form-col {
+  position: relative;
+  width: 100%;
+}
+
+.form-content {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(197, 155, 39, 0.1);
+  border: 1px solid rgba(197, 155, 39, 0.3);
+  border-radius: 100px;
+  padding: 5px 14px;
+  margin-bottom: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--gold-light);
+  text-transform: uppercase;
+}
+
+.form-badge-pill i {
+  font-size: 11px;
+}
+
+.form-heading {
+  font-family: 'Outfit', sans-serif;
+  font-size: 34px;
+  font-weight: 750;
+  color: #ffffff;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.form-subheading {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--parchment-muted);
+  margin-bottom: 26px;
+}
+
+/* Alert Notifications */
+.form-alert {
+  border-radius: 12px;
+  padding: 13px 18px;
+  margin-bottom: 22px;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.form-alert.alert-pending {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+}
+
+.form-alert.alert-pending i {
+  color: #fbbf24;
+  margin-top: 3px;
+}
+
+.form-alert.alert-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.form-alert.alert-error i {
+  color: #f87171;
+  margin-top: 3px;
+}
+
+.form-alert.alert-success {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #86efac;
+}
+
+.form-alert.alert-success i {
+  color: #4ade80;
+  margin-top: 3px;
+}
+
+/* Form Inputs */
+.login-full-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-label {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--parchment-cream);
+}
+
+.input-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgot-link {
+  font-size: 12px;
+  color: var(--gold-light);
+  text-decoration: none;
+  font-weight: 550;
+  transition: color 0.2s ease;
+}
+
+.forgot-link:hover {
+  color: var(--gold-warm);
+  text-decoration: underline;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 18px;
+  color: var(--parchment-sub);
+  font-size: 14px;
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.custom-input {
+  width: 100%;
+  height: 52px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  padding: 0 18px 0 48px;
+  font-family: inherit;
+  font-size: 15px;
+  color: #ffffff;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.custom-input::placeholder {
+  color: var(--parchment-sub);
+}
+
+.custom-input:focus {
+  border-color: var(--gold-accent);
+  background: rgba(15, 36, 26, 0.95);
+  box-shadow: 0 0 0 4px rgba(197, 155, 39, 0.15);
+}
+
+.custom-input:focus + .input-icon,
+.custom-input:focus ~ .input-icon {
+  color: var(--gold-accent);
+}
+
+/* Password Toggle */
+.password-toggle {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--parchment-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover {
+  color: var(--gold-warm);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Options Row */
+.options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -2px;
+}
+
+.remember-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--parchment-muted);
+  cursor: pointer;
+}
+
+.custom-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gold-accent);
+  cursor: pointer;
+}
+
+/* Main Login Button */
+.btn-submit-login {
+  height: 52px;
+  width: 100%;
+  margin-top: 6px;
+  background: linear-gradient(135deg, #c59b27 0%, #a8811d 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #06110c;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(197, 155, 39, 0.3);
+}
+
+.btn-submit-login:hover {
+  background: linear-gradient(135deg, #dfb749 0%, #bfa035 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px rgba(197, 155, 39, 0.4);
+}
+
+.btn-submit-login:active {
+  transform: translateY(0);
+}
+
+/* Prompts & Bottom Links */
+.form-actions-footer {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.register-prompt,
+.status-prompt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--parchment-muted);
+}
+
+.link-register-now {
+  color: var(--gold-warm);
+  font-weight: 650;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.link-register-now:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.link-track-status {
+  color: var(--parchment-cream);
+  font-weight: 550;
+  text-decoration: none;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.link-track-status:hover {
+  color: var(--gold-warm);
+}
+
+/* ==========================================================================
+   Responsive Adaptations
+   ========================================================================== */
+@media (max-width: 1080px) {
+  .fullscreen-login-page {
+    padding: 36px 24px;
+  }
+  .fullscreen-grid {
+    grid-template-columns: 1fr;
+    gap: 44px;
+  }
+  .editorial-col {
+    padding-right: 0;
+    text-align: center;
+  }
+  .brand-identity-hero {
+    justify-content: center;
+  }
+  .editorial-title {
+    font-size: 36px;
+  }
+  .editorial-desc {
+    margin: 0 auto 28px;
+  }
+  .metrics-grid {
+    max-width: 600px;
+    margin: 0 auto 24px;
+  }
+  .editorial-trust {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 680px) {
+  .fullscreen-login-page {
+    padding: 24px 16px;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .editorial-title {
+    font-size: 30px;
+  }
+  .register-prompt,
+  .status-prompt {
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+}

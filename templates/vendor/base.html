@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+    {% block page_css %}{% endblock %}
+{% endblock %}
+
+{% block layout %}
+    <aside class="sidebar">
+        <a class="brand text-white text-decoration-none" href="index.html">
+            <span class="brand-mark"><i class="fa-solid fa-store"></i></span>
+            <span class="brand-name">BharatBazaar</span>
+        </a>
+        <div class="nav-label">Workspace</div>
+        <a class="{% block nav_dashboard %}{% endblock %}" href="index.html"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+        <a class="{% block nav_products %}{% endblock %}" href="products.html"><i class="fa-solid fa-box"></i><span>Products</span></a>
+        <a class="{% block nav_orders %}{% endblock %}" href="orders.html"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
+        <a class="{% block nav_inventory %}{% endblock %}" href="inventory.html"><i class="fa-solid fa-warehouse"></i><span>Inventory</span></a>
+        <a class="{% block nav_earnings %}{% endblock %}" href="earnings.html"><i class="fa-solid fa-wallet"></i><span>Earnings</span></a>
+        <a class="{% block nav_withdrawals %}{% endblock %}" href="withdrawals.html"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
+        <div class="nav-label mt-3">Account</div>
+        <a class="{% block nav_settings %}{% endblock %}" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+        <div class="side-bottom">
+            <a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &amp; support</span></a>
+        </div>
+    </aside>
+
+    <div class="workspace">
+        <header class="topbar">
+            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong class="text-dark">{% block breadcrumb %}Dashboard{% endblock %}</strong></div>
+            <div class="profile-mini">
+                <button class="btn btn-light border d-none d-sm-inline-block" type="button" aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="avatar">JD</div>
+                <div class="d-none d-md-block">
+                    <strong style="font-size:12px">Aanya Sharma</strong>
+                    <div class="text-secondary" style="font-size:10px">Store owner</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            {% block vendor_content %}{% endblock %}
+            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample dashboard data for demonstration</footer>
+        </main>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'vendor/js/app.js' %}"></script>
+    {% block page_js %}{% endblock %}
+{% endblock %}

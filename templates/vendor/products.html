@@ -1,0 +1,248 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Products · BharatBazaar Seller</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/css/products.css' %}" rel="stylesheet">
+</head>
+
+<body>
+    <aside class="sidebar"><a class="brand text-white text-decoration-none" href="index.html"><span
+                class="brand-mark"><i class="fa-solid fa-store"></i></span><span
+                class="brand-name">BharatBazaar</span></a>
+        <div class="nav-label">Workspace</div><a class="" href="index.html"><i
+                class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a><a class="active" href="products.html"><i
+                class="fa-solid fa-box"></i><span>Products</span></a><a class="" href="orders.html"><i
+                class="fa-solid fa-bag-shopping"></i><span>Orders</span></a><a class="" href="inventory.html"><i
+                class="fa-solid fa-warehouse"></i><span>Inventory</span></a><a class="" href="earnings.html"><i
+                class="fa-solid fa-wallet"></i><span>Earnings</span></a><a class="" href="withdrawals.html"><i
+                class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
+        <div class="nav-label mt-3">Account</div><a class="" href="settings.html"><i
+                class="fa-solid fa-gear"></i><span>Settings</span></a>
+        <div class="side-bottom"><a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &
+                    support</span></a></div>
+    </aside>
+    <div class="workspace">
+        <header class="topbar">
+            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong
+                    class="text-dark">Products</strong></div>
+            <div class="profile-mini"><button class="btn btn-light border d-none d-sm-inline-block" type="button"
+                    aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
+                <div class="avatar">JD</div>
+                <div class="d-none d-md-block"><strong style="font-size:12px">Aanya Sharma</strong>
+                    <div class="text-secondary" style="font-size:10px">Store owner</div>
+                </div>
+            </div>
+        </header>
+        <main class="main">
+            <div class="page-head">
+                <div>
+                    <h1>Products</h1>
+                    <p class="sub">Manage your catalog and product listings.</p>
+                </div><a class="btn btn-primary" href="product-form.html"><i class="fa-solid fa-plus me-2"></i>Add
+                    product</a>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <div class="toolbar"><input class="form-control" type="search" placeholder="Search products"
+                            aria-label="Search products"><select class="form-select" style="width:145px">
+                            <option>All categories</option>
+                            <option>Home & Kitchen</option>
+                            <option>Home</option>
+                        </select></div><span class="text-secondary small">36 products</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
+                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Home & Kitchen</td>
+                                <td>₹1,899</td>
+                                <td>42</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
+                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Handcrafted Accessories</td>
+                                <td>₹799</td>
+                                <td>18</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
+                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
+                                    </div>
+                                </td>
+                                <td>Home</td>
+                                <td>₹1,250</td>
+                                <td>0</td>
+                                <td><span class="badge-soft warning">Out of stock</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
+                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Home & Kitchen</td>
+                                <td>₹1,899</td>
+                                <td>42</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
+                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Handcrafted Accessories</td>
+                                <td>₹799</td>
+                                <td>18</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
+                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
+                                    </div>
+                                </td>
+                                <td>Home</td>
+                                <td>₹1,250</td>
+                                <td>0</td>
+                                <td><span class="badge-soft warning">Out of stock</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
+                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Home & Kitchen</td>
+                                <td>₹1,899</td>
+                                <td>42</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
+                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Handcrafted Accessories</td>
+                                <td>₹799</td>
+                                <td>18</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
+                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
+                                    </div>
+                                </td>
+                                <td>Home</td>
+                                <td>₹1,250</td>
+                                <td>0</td>
+                                <td><span class="badge-soft warning">Out of stock</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
+                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Home & Kitchen</td>
+                                <td>₹1,899</td>
+                                <td>42</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
+                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>Handcrafted Accessories</td>
+                                <td>₹799</td>
+                                <td>18</td>
+                                <td><span class="badge-soft success">Active</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="product-cell">
+                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
+                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
+                                    </div>
+                                </td>
+                                <td>Home</td>
+                                <td>₹1,250</td>
+                                <td>0</td>
+                                <td><span class="badge-soft warning">Out of stock</span></td>
+                                <td><a href="product-form.html">Edit</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample
+                dashboard data for demonstration</footer>
+        </main>
+    </div>
+    <script src="{% static 'vendor/js/app.js' %}"></script>
+</body>
+
+</html>

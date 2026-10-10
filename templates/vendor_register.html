@@ -1,0 +1,233 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vendor Registration &amp; Onboarding · Nainjyoti Marketplace</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    <!-- Vendor Registration Stylesheet -->
+    <link href="{% static 'css/vendor_register.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="fullscreen-register-page">
+        <!-- Main Form Container (Clean & Focused, Absolutely No Navbar) -->
+        <main class="fullscreen-reg-main">
+            <!-- Centered Brand Identity -->
+            <div class="reg-brand-header">
+                <a href="{% url 'login' %}" class="brand-identity">
+                    <div class="brand-monogram">N</div>
+                    <div class="brand-text">
+                        <span class="brand-name">Nain<span>jyoti</span></span>
+                        <span class="brand-tag">SELLER HUB · MERCHANT ONBOARDING</span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="reg-intro-section">
+                <h1 class="reg-page-title">Register Your Store on Nainjyoti</h1>
+            </div>
+
+            <!-- Error Messages -->
+            {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                        <div class="reg-alert alert-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <div>{{ message }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+
+            <!-- Multi-Section Registration Form -->
+            <form action="{% url 'vendor_register' %}" method="post" enctype="multipart/form-data" class="full-reg-form">
+                {% csrf_token %}
+
+                <!-- Section 1: Business Profile -->
+                <div class="form-section-block">
+                    <div class="section-block-head">
+                        <div class="section-index">01</div>
+                        <div class="section-head-info">
+                            <h2 class="section-heading">Store &amp; Owner Profile</h2>
+                            <p class="section-subtext">Basic store identity and primary point of contact</p>
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="business_name">Store / Business Name *</label>
+                            <input class="form-control" id="business_name" name="business_name" type="text" required placeholder="e.g. Royal Handlooms" value="{{ request.POST.business_name }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="owner_name">Owner Full Name *</label>
+                            <input class="form-control" id="owner_name" name="owner_name" type="text" required placeholder="e.g. Ramesh Patel" value="{{ request.POST.owner_name }}">
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="email">Business Email (Login Username) *</label>
+                            <input class="form-control" id="email" name="email" type="email" required placeholder="seller@yourbusiness.com" value="{{ request.POST.email }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="phone">Mobile / Contact Number *</label>
+                            <input class="form-control" id="phone" name="phone" type="tel" required placeholder="+91 98765 43210" value="{{ request.POST.phone }}">
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="category">Primary Product Category *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="Fashion & Textiles">Fashion &amp; Textiles</option>
+                                <option value="Electronics & Accessories">Electronics &amp; Accessories</option>
+                                <option value="Home & Living">Home &amp; Living</option>
+                                <option value="Beauty & Wellness">Beauty &amp; Wellness</option>
+                                <option value="Organic Food & Spices">Organic Food &amp; Spices</option>
+                                <option value="Handicrafts & Art">Handicrafts &amp; Art</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="business_type">Business Entity Type *</label>
+                            <select class="form-select" id="business_type" name="business_type" required>
+                                <option value="Sole Proprietorship">Sole Proprietorship</option>
+                                <option value="Partnership Firm">Partnership Firm</option>
+                                <option value="Private Limited Company">Private Limited Company</option>
+                                <option value="Artisan / Individual">Artisan / Individual</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Account Password -->
+                <div class="form-section-block">
+                    <div class="section-block-head">
+                        <div class="section-index">02</div>
+                        <div class="section-head-info">
+                            <h2 class="section-heading">Login Credentials</h2>
+                            <p class="section-subtext">Set up your password for accessing the seller dashboard</p>
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="password">Create Password *</label>
+                            <input class="form-control" id="password" name="password" type="password" required placeholder="Minimum 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="confirm_password">Confirm Password *</label>
+                            <input class="form-control" id="confirm_password" name="confirm_password" type="password" required placeholder="Re-type password">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Tax Details & Address -->
+                <div class="form-section-block">
+                    <div class="section-block-head">
+                        <div class="section-index">03</div>
+                        <div class="section-head-info">
+                            <h2 class="section-heading">Tax Details &amp; Business Address</h2>
+                            <p class="section-subtext">Required for GST billing and courier dispatch pickup</p>
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="gst_number">GSTIN Number *</label>
+                            <input class="form-control" id="gst_number" name="gst_number" type="text" placeholder="e.g. 08AABCU9603R1ZM" value="{{ request.POST.gst_number }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pan_number">Business / Personal PAN *</label>
+                            <input class="form-control" id="pan_number" name="pan_number" type="text" required placeholder="e.g. AABCU9603R" value="{{ request.POST.pan_number }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="address">Registered Business Address *</label>
+                        <input class="form-control" id="address" name="address" type="text" required placeholder="Shop/Office No, Street, Landmark" value="{{ request.POST.address }}">
+                    </div>
+
+                    <div class="fields-grid-3">
+                        <div class="form-group">
+                            <label class="form-label" for="city">City *</label>
+                            <input class="form-control" id="city" name="city" type="text" required placeholder="e.g. Jaipur" value="{{ request.POST.city }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="state">State *</label>
+                            <input class="form-control" id="state" name="state" type="text" required placeholder="e.g. Rajasthan" value="{{ request.POST.state }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pincode">Pincode *</label>
+                            <input class="form-control" id="pincode" name="pincode" type="text" required placeholder="e.g. 302001" value="{{ request.POST.pincode }}">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Document Uploads -->
+                <div class="form-section-block">
+                    <div class="section-block-head">
+                        <div class="section-index">04</div>
+                        <div class="section-head-info">
+                            <h2 class="section-heading">Document Uploads</h2>
+                            <p class="section-subtext">Upload digital copies of your registration certificates</p>
+                        </div>
+                    </div>
+
+                    <div class="fields-grid-3">
+                        <div class="form-group">
+                            <label class="form-label" for="gst_document">GST / Shop License</label>
+                            <div class="file-upload-box">
+                                <input class="file-input" type="file" id="gst_document" name="gst_document" accept=".pdf,.png,.jpg,.jpeg">
+                                <div class="upload-hint">PDF or JPG (Max 5MB)</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="pan_document">PAN Card Copy *</label>
+                            <div class="file-upload-box">
+                                <input class="file-input" type="file" id="pan_document" name="pan_document" accept=".pdf,.png,.jpg,.jpeg">
+                                <div class="upload-hint">PDF or JPG (Max 5MB)</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="id_proof">Owner ID Proof *</label>
+                            <div class="file-upload-box">
+                                <input class="file-input" type="file" id="id_proof" name="id_proof" accept=".pdf,.png,.jpg,.jpeg">
+                                <div class="upload-hint">Aadhaar / Passport / Voter ID</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terms & Declarations -->
+                <div class="terms-declaration-row">
+                    <input type="checkbox" id="terms" required checked class="custom-terms-checkbox">
+                    <label for="terms">I declare that all business information and documents provided are authentic and agree to marketplace seller terms.</label>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="submit-action-wrap">
+                    <button type="submit" class="btn-submit-application">
+                        <span>Submit Store Application</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Back to Sign In Link -->
+                <div class="reg-bottom-login-prompt">
+                    Already registered as a seller? <a href="{% url 'login' %}">Sign in to Seller Hub →</a>
+                </div>
+            </form>
+        </main>
+    </div>
+</body>
+</html>

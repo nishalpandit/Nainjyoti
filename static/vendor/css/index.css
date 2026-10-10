@@ -1,0 +1,119 @@
+/* BharatBazaar Vendor - Dashboard Overview Styles */
+.stat-card {
+  padding: 23px 22px;
+  min-height: 138px;
+  height: 100%;
+}
+
+.stat-label {
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #77847a;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 500;
+  margin: 8px 0 3px;
+  letter-spacing: -0.7px;
+  color: #203429;
+}
+
+.stat-foot {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.icon-tile {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #eaf0e4;
+  color: #557a5c;
+}
+
+.mini-chart {
+  height: 190px;
+  position: relative;
+  display: flex;
+  align-items: end;
+  gap: 15px;
+  padding: 10px 12px 27px;
+  border-bottom: 1px solid #e6e9e1;
+}
+
+.bar-group {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  position: relative;
+}
+
+.bar {
+  flex: 1;
+  border-radius: 5px 5px 0 0;
+  background: #dce6d6;
+  min-width: 5px;
+}
+
+.bar.alt {
+  background: #6e9470;
+}
+
+.bar-label {
+  position: absolute;
+  bottom: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #8792a2;
+}
+
+.legend {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+  background: #6e9470;
+}
+
+.dot.alt {
+  background: #dce6d6;
+}
+
+.trend {
+  color: #387858;
+  font-weight: 650;
+}
+
+.progress {
+  height: 7px;
+  background: #ebeee8;
+}
+
+.progress-bar {
+  background: #4f7659;
+}
+
+.alert-note {
+  padding: 12px 14px;
+  background: #f0f3e8;
+  color: #53674c;
+  border-radius: 7px;
+  font-size: 12px;
+}

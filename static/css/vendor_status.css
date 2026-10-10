@@ -1,0 +1,223 @@
+/* Nainjyoti Marketplace - Vendor Status Styles */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Outfit:wght@500;600;700;800&display=swap');
+
+:root {
+  --forest-deep: #12281e;
+  --forest-mid: #1b3d2f;
+  --gold-accent: #c59b27;
+  --gold-soft: #fbf5e6;
+  --parchment-bg: #f8f6f0;
+  --card-bg: #ffffff;
+  --card-border: #e6e2d6;
+  --ink-primary: #15221b;
+  --ink-secondary: #56645c;
+  --ink-muted: #84938a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--parchment-bg);
+  color: var(--ink-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.status-wrapper {
+  max-width: 620px;
+  width: 100%;
+  margin: auto;
+}
+
+.status-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 44px 38px;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(18, 40, 30, 0.04);
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--gold-soft);
+  border: 1px solid rgba(197, 155, 39, 0.3);
+  border-radius: 100px;
+  padding: 6px 18px 6px 8px;
+  margin-bottom: 20px;
+}
+
+.brand-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--forest-deep);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 13px;
+}
+
+.brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #634707;
+}
+
+.status-badge-lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+.status-badge-lg.pending {
+  background: #fdf6e7;
+  border: 1.5px solid #ebd09b;
+  color: #8d6212;
+}
+
+.status-badge-lg.approved {
+  background: #edf6eb;
+  border: 1.5px solid #c2e2be;
+  color: #2d6a36;
+}
+
+.status-badge-lg.rejected {
+  background: #fdf0ee;
+  border: 1.5px solid #f2bdb5;
+  color: #a13224;
+}
+
+.timeline {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 32px 0 28px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: #e6e2d6;
+  z-index: 1;
+}
+
+.timeline-step {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  flex: 1;
+}
+
+.step-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #dcd8cc;
+  color: #84938a;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 10px;
+  font-size: 14px;
+}
+
+.step-icon.done {
+  background: #edf6eb;
+  border-color: #2d6a36;
+  color: #2d6a36;
+}
+
+.step-icon.active {
+  background: #fdf6e7;
+  border-color: var(--gold-accent);
+  color: #8d6212;
+  box-shadow: 0 0 12px rgba(197, 155, 39, 0.25);
+}
+
+.step-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.step-sub {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.summary-card {
+  background: #faf8f3;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eeebe2;
+  font-size: 13px;
+}
+
+.summary-row:last-child {
+  border: none;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  color: var(--ink-secondary);
+}
+
+.summary-val {
+  font-weight: 650;
+  color: var(--ink-primary);
+}
+
+.btn-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 48px;
+  background: var(--forest-deep);
+  color: #ffffff;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(18, 40, 30, 0.18);
+  transition: all 0.2s;
+}
+
+.btn-primary-action:hover {
+  background: var(--forest-mid);
+  transform: translateY(-1px);
+}

@@ -1,0 +1,25 @@
+/* Bazaar Admin - Send Notification Form Styles */
+.form-card {
+  max-width: 800px;
+}
+
+.form-card .card-body {
+  padding: 25px;
+}
+
+.notice {
+  background: #f1f4ec;
+  color: #596c55;
+  font-size: 10px;
+  padding: 11px 13px;
+  border-radius: 6px;
+}
+
+.notice i {
+  margin-right: 7px;
+}
+
+.form-text {
+  font-size: 10px;
+  color: #87928a;
+}

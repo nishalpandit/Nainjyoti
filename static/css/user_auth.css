@@ -1,0 +1,436 @@
+/* Nainjyoti Marketplace - Customer User Mobile & Web Auth Styles
+   Aesthetic: Contemporary Mobile-First Commerce, Warm Parchment & Royal Forest Accents
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap');
+
+:root {
+  --forest-dark: #0a1812;
+  --forest-deep: #0f241a;
+  --forest-mid: #163628;
+  --gold-accent: #c59b27;
+  --gold-light: #dfb749;
+  --gold-warm: #f1cf75;
+  --parchment-bg: #f8f6f0;
+  --card-bg: #ffffff;
+  --border-light: #e8e3d8;
+  --ink-primary: #122119;
+  --ink-secondary: #4a5c52;
+  --ink-muted: #798c80;
+  --input-bg: #faf9f6;
+  --input-border: #dcd6c7;
+  --input-focus: #0f241a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--parchment-bg);
+  color: var(--ink-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.user-auth-wrapper {
+  width: 100%;
+  max-width: 480px;
+  margin: auto;
+}
+
+/* Auth Card */
+.user-auth-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  padding: 40px 32px;
+  box-shadow: 0 10px 36px rgba(15, 36, 26, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+/* Header */
+.user-auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.brand-emblem {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  text-decoration: none;
+}
+
+.emblem-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #c59b27, #997415);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(197, 155, 39, 0.28);
+}
+
+.emblem-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.emblem-text span {
+  color: var(--gold-accent);
+}
+
+.auth-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  letter-spacing: -0.4px;
+  margin-bottom: 8px;
+}
+
+.auth-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}
+
+.auth-sub strong {
+  color: var(--ink-primary);
+}
+
+/* Alert Notification */
+.user-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 20px;
+}
+
+.user-alert.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.user-alert.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.user-alert.info {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+/* Forms */
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-primary);
+}
+
+.form-label span {
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+/* Input Fields */
+.phone-input-wrap {
+  display: flex;
+  align-items: center;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.country-prefix {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  border-right: 1px solid var(--border-light);
+  background: #f4f0e6;
+  height: 48px;
+}
+
+.phone-input {
+  flex: 1;
+  height: 48px;
+  border: none;
+  background: transparent;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink-primary);
+  outline: none;
+  letter-spacing: 0.5px;
+}
+
+.phone-input-wrap:focus-within {
+  border-color: var(--forest-deep);
+  box-shadow: 0 0 0 3px rgba(15, 36, 26, 0.08);
+  background: #ffffff;
+}
+
+.text-input,
+.select-input {
+  width: 100%;
+  height: 48px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 12px;
+  padding: 0 16px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-primary);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.text-input:focus,
+.select-input:focus {
+  border-color: var(--forest-deep);
+  box-shadow: 0 0 0 3px rgba(15, 36, 26, 0.08);
+  background: #ffffff;
+}
+
+/* OTP Specific Input */
+.otp-box-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 14px;
+}
+
+.otp-big-input {
+  width: 100%;
+  max-width: 260px;
+  height: 56px;
+  text-align: center;
+  letter-spacing: 12px;
+  font-size: 26px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 2px solid var(--gold-accent);
+  border-radius: 14px;
+  outline: none;
+  color: var(--forest-deep);
+  box-shadow: 0 4px 14px rgba(197, 155, 39, 0.15);
+}
+
+.otp-big-input:focus {
+  box-shadow: 0 0 0 4px rgba(197, 155, 39, 0.25);
+}
+
+/* Profile Photo Upload Widget */
+.photo-upload-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.avatar-preview-box {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px dashed var(--gold-accent);
+  background: #f7f4eb;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.avatar-preview-box:hover {
+  background: #f1ecde;
+  transform: scale(1.02);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--gold-accent);
+  font-size: 24px;
+}
+
+.camera-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--forest-deep);
+  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  border: 2px solid #ffffff;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.photo-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* Buttons */
+.btn-auth-primary {
+  height: 50px;
+  width: 100%;
+  background: var(--forest-deep);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(15, 36, 26, 0.2);
+  margin-top: 6px;
+}
+
+.btn-auth-primary:hover {
+  background: var(--forest-mid);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(15, 36, 26, 0.28);
+}
+
+.btn-auth-secondary {
+  background: transparent;
+  border: none;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 6px;
+}
+
+.btn-auth-secondary:hover {
+  color: var(--forest-deep);
+}
+
+/* Secondary Actions */
+.otp-helpers-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.auth-footer-prompt {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.auth-footer-prompt a {
+  color: var(--forest-deep);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-footer-prompt a:hover {
+  text-decoration: underline;
+}
+
+/* API Tester & Docs specific */
+.api-tester-container {
+  max-width: 980px;
+  width: 100%;
+  margin: 40px auto;
+}
+
+.api-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+}
+
+.api-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.badge-post { background: #e0f2fe; color: #0369a1; }
+.badge-get { background: #dcfce7; color: #15803d; }
+.badge-put { background: #fef3c7; color: #b45309; }
+
+.code-box {
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 16px;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  overflow-x: auto;
+  margin: 12px 0;
+}

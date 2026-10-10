@@ -1,0 +1,98 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ profile.full_name }} · User Profile · Nainjyoti</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/user_auth.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="user-auth-wrapper">
+        <div class="user-auth-card">
+            <div class="user-auth-header">
+                <a href="{% url 'user_profile' %}" class="brand-emblem">
+                    <div class="emblem-icon">N</div>
+                    <div class="emblem-text">Nain<span>jyoti</span></div>
+                </a>
+            </div>
+
+            <!-- Flash Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="user-alert {% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% else %}info{% endif %}">
+                        <i class="fa-solid {% if 'error' in message.tags %}fa-circle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                        <div>{{ message }}</div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- User Avatar & Identity -->
+            <div style="text-align:center;margin-bottom:24px;">
+                <div style="width:96px;height:96px;border-radius:50%;margin:0 auto 14px;overflow:hidden;border:3px solid var(--gold-accent);background:#f7f4eb;display:grid;place-items:center;">
+                    {% if profile.profile_photo %}
+                        <img src="{{ profile.profile_photo.url }}" alt="{{ profile.full_name }}" style="width:100%;height:100%;object-fit:cover;">
+                    {% else %}
+                        <i class="fa-solid fa-user" style="font-size:36px;color:var(--forest-deep);"></i>
+                    {% endif %}
+                </div>
+                <h1 style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:700;color:var(--ink-primary);margin-bottom:4px;">{{ profile.full_name }}</h1>
+                <div style="font-size:13px;color:var(--ink-secondary);"><i class="fa-solid fa-phone me-1"></i> +91 {{ profile.phone }}</div>
+            </div>
+
+            <!-- Profile Details List -->
+            <div style="background:#faf8f3;border:1px solid var(--border-light);border-radius:14px;padding:18px 20px;margin-bottom:24px;display:flex;flex-direction:column;gap:12px;font-size:13px;">
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">First Name:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.first_name }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">Last Name:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.last_name }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">Phone Number:</span>
+                    <strong style="color:var(--ink-primary);">+91 {{ profile.phone }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">Email:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.email|default:"Not provided" }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">Date of Birth:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.dob|default:"Not provided" }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee7db;padding-bottom:8px;">
+                    <span style="color:var(--ink-muted);">Gender:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.gender }}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--ink-muted);">Member Since:</span>
+                    <strong style="color:var(--ink-primary);">{{ profile.created_at|date:"M d, Y" }}</strong>
+                </div>
+            </div>
+
+            <!-- Mobile Auth Token for Testing -->
+            <div style="background:#0f172a;color:#f8fafc;border-radius:12px;padding:14px;margin-bottom:20px;font-size:11px;">
+                <div style="color:#94a3b8;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                    <span><i class="fa-solid fa-key me-1"></i> Mobile App Auth Token</span>
+                    <span style="color:#38bdf8;">Bearer Token</span>
+                </div>
+                <code style="word-break:break-all;color:#38bdf8;font-family:monospace;">{{ profile.auth_token }}</code>
+            </div>
+
+            <!-- Logout Button -->
+            <a href="{% url 'user_logout' %}" class="btn-auth-primary" style="background:#b91c1c;text-decoration:none;">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

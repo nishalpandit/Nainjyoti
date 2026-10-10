@@ -1,0 +1,141 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Application Status · Nainjyoti Seller Hub</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/vendor_status.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="status-wrapper">
+        <div class="status-card">
+            <div class="brand-badge">
+                <div class="brand-icon-box"><i class="fa-solid fa-store"></i></div>
+                <div class="brand-title">Nain<span>jyoti</span> Seller Hub</div>
+            </div>
+
+            {% if vendor %}
+                <h1 style="font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;color:var(--ink-primary);margin-bottom:8px;">Application Status</h1>
+                <p style="font-size:13px;color:var(--ink-secondary);margin-bottom:20px;">Tracking reference for <strong>{{ vendor.business_name }}</strong></p>
+
+                {% if vendor.status == 'PENDING' %}
+                    <div class="status-badge-lg pending">
+                        <i class="fa-solid fa-hourglass-half"></i> Under Admin Review
+                    </div>
+                {% elif vendor.status == 'APPROVED' %}
+                    <div class="status-badge-lg approved">
+                        <i class="fa-solid fa-circle-check"></i> Store Approved &amp; Active
+                    </div>
+                {% elif vendor.status == 'REJECTED' %}
+                    <div class="status-badge-lg rejected">
+                        <i class="fa-solid fa-circle-xmark"></i> Application Rejected
+                    </div>
+                {% endif %}
+
+                <!-- Timeline Progression -->
+                <div class="timeline">
+                    <div class="timeline-step">
+                        <div class="step-icon done"><i class="fa-solid fa-check"></i></div>
+                        <div class="step-label">Submitted</div>
+                        <div class="step-sub">{{ vendor.created_at|date:"d M Y" }}</div>
+                    </div>
+                    <div class="timeline-step">
+                        <div class="step-icon {% if vendor.status == 'PENDING' %}active{% elif vendor.status == 'APPROVED' %}done{% else %}active{% endif %}">
+                            <i class="fa-solid {% if vendor.status == 'APPROVED' %}fa-check{% else %}fa-user-shield{% endif %}"></i>
+                        </div>
+                        <div class="step-label">Admin Review</div>
+                        <div class="step-sub">{% if vendor.status == 'PENDING' %}In Progress{% elif vendor.status == 'APPROVED' %}Verified{% else %}Declined{% endif %}</div>
+                    </div>
+                    <div class="timeline-step">
+                        <div class="step-icon {% if vendor.status == 'APPROVED' %}done{% endif %}">
+                            <i class="fa-solid {% if vendor.status == 'APPROVED' %}fa-check{% else %}fa-lock{% endif %}"></i>
+                        </div>
+                        <div class="step-label">Dashboard</div>
+                        <div class="step-sub">{% if vendor.status == 'APPROVED' %}Active{% else %}Locked{% endif %}</div>
+                    </div>
+                </div>
+
+                <!-- Summary Details -->
+                <div class="summary-card">
+                    <div class="summary-row">
+                        <span class="summary-label">Reference ID:</span>
+                        <span class="summary-val">{{ vendor.vendor_code }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Business Name:</span>
+                        <span class="summary-val">{{ vendor.business_name }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Owner Name:</span>
+                        <span class="summary-val">{{ vendor.owner_name }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Registered Email:</span>
+                        <span class="summary-val">{{ vendor.user.email }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Category:</span>
+                        <span class="summary-val">{{ vendor.category }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">State:</span>
+                        <span class="summary-val">{{ vendor.state }}</span>
+                    </div>
+                </div>
+
+                {% if vendor.status == 'PENDING' %}
+                    <div style="background:#fcf8ee;border:1px solid #ebd09b;border-radius:10px;padding:14px;margin-bottom:24px;text-align:left;font-size:12px;color:#795708;line-height:1.5;">
+                        <i class="fa-solid fa-circle-info me-1" style="color:var(--gold-accent);"></i>
+                        <strong>Verification Note:</strong> Your documents (GST, PAN, Bank Details) are currently being checked by our compliance team. You will be able to log in to your vendor dashboard as soon as the Admin approves your profile.
+                    </div>
+                    <a href="{% url 'login' %}" class="btn-primary-action">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Return to Seller Sign In
+                    </a>
+                {% elif vendor.status == 'APPROVED' %}
+                    <div style="background:#edf6eb;border:1px solid #c2e2be;border-radius:10px;padding:14px;margin-bottom:24px;text-align:left;font-size:12px;color:#2d6a36;line-height:1.5;">
+                        <i class="fa-solid fa-circle-check me-1" style="color:#2e7d32;"></i>
+                        <strong>Store Approved!</strong> Your business documents have been verified. You can now log in with your credentials to start listing products.
+                    </div>
+                    <a href="{% url 'login' %}" class="btn-primary-action">
+                        <span>Sign In to Your Dashboard</span>
+                        <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                {% elif vendor.status == 'REJECTED' %}
+                    <div style="background:#fdf0ee;border:1px solid #f2bdb5;border-radius:10px;padding:14px;margin-bottom:24px;text-align:left;font-size:12px;color:#a13224;line-height:1.5;">
+                        <i class="fa-solid fa-circle-xmark me-1" style="color:#c53030;"></i>
+                        <strong>Application Declined:</strong> {{ vendor.rejection_reason|default:"Documents could not be validated." }}
+                    </div>
+                    <a href="{% url 'vendor_register' %}" class="btn-primary-action">
+                        <i class="fa-solid fa-rotate-right me-1"></i> Submit New Application
+                    </a>
+                {% endif %}
+
+            {% else %}
+                <h1 style="font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:700;color:var(--ink-primary);margin-bottom:8px;">Track Application Status</h1>
+                <p style="font-size:13px;color:var(--ink-secondary);margin-bottom:24px;">Enter your application reference code or registered email to view progress.</p>
+
+                <form action="{% url 'vendor_status_lookup' %}" method="get" style="text-align:left;margin-bottom:20px;">
+                    <div style="margin-bottom:18px;">
+                        <label style="display:block;font-size:12px;font-weight:650;margin-bottom:7px;" for="lookup">Application Code / Email</label>
+                        <input style="width:100%;height:46px;border:1.5px solid #dcd8cc;border-radius:9px;padding:0 14px;font-size:13.5px;" id="lookup" name="query" type="text" placeholder="e.g. VEND-10001 or seller@business.com" required>
+                    </div>
+                    <button type="submit" class="btn-primary-action">
+                        <span>Check Status</span>
+                        <i class="fa-solid fa-magnifying-glass ms-1"></i>
+                    </button>
+                </form>
+
+                <div style="margin-top:20px;font-size:12px;">
+                    <a href="{% url 'login' %}" style="color:var(--forest-deep);font-weight:650;text-decoration:none;"><i class="fa-solid fa-arrow-left me-1"></i> Back to Seller Sign In</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

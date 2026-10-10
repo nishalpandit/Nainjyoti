@@ -1,0 +1,137 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create User Account · Nainjyoti</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'css/user_auth.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="user-auth-wrapper">
+        <div class="user-auth-card">
+            <!-- Brand Emblem -->
+            <div class="user-auth-header">
+                <a href="{% url 'user_login' %}" class="brand-emblem">
+                    <div class="emblem-icon">N</div>
+                    <div class="emblem-text">Nain<span>jyoti</span></div>
+                </a>
+                <h1 class="auth-title">Create Account</h1>
+                <p class="auth-sub">Enter your details to register as a shopper on Nainjyoti.</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="user-alert {% if 'error' in message.tags %}error{% elif 'success' in message.tags %}success{% else %}info{% endif %}">
+                        <i class="fa-solid {% if 'error' in message.tags %}fa-circle-exclamation{% elif 'success' in message.tags %}fa-circle-check{% else %}fa-circle-info{% endif %}"></i>
+                        <div>{{ message }}</div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Registration Form with Requested Fields -->
+            <form action="{% url 'user_register' %}" method="post" enctype="multipart/form-data" class="user-form">
+                {% csrf_token %}
+
+                <!-- Profile Photo (File) with Live Circular Preview -->
+                <div class="photo-upload-container">
+                    <div class="avatar-preview-box" onclick="document.getElementById('profile_photo').click()" title="Click to upload profile photo">
+                        <img id="avatarPreview" class="avatar-img" src="#" alt="Preview">
+                        <div id="avatarPlaceholder" class="avatar-placeholder">
+                            <i class="fa-regular fa-user"></i>
+                        </div>
+                        <div class="camera-badge">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="profile_photo" name="profile_photo" accept="image/*" class="file-input-hidden" onchange="previewAvatar(this)">
+                    <span class="photo-hint">Profile Photo (Optional)</span>
+                </div>
+
+                <!-- First Name & Last Name (Side by Side) -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label" for="first_name">First Name *</label>
+                        <input type="text" id="first_name" name="first_name" class="text-input" required placeholder="e.g. Rahul" value="{{ form_data.first_name|default:'' }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="last_name">Last Name *</label>
+                        <input type="text" id="last_name" name="last_name" class="text-input" required placeholder="e.g. Sharma" value="{{ form_data.last_name|default:'' }}">
+                    </div>
+                </div>
+
+                <!-- Phone -->
+                <div class="form-group">
+                    <label class="form-label" for="phone">Phone Number *</label>
+                    <div class="phone-input-wrap">
+                        <div class="country-prefix">
+                            <span>🇮🇳 +91</span>
+                        </div>
+                        <input type="tel" id="phone" name="phone" class="phone-input" required placeholder="98765 43210" maxlength="15" value="{{ form_data.phone|default:'' }}">
+                    </div>
+                </div>
+
+                <!-- Email (Optional) -->
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address <span>(Optional)</span></label>
+                    <input type="email" id="email" name="email" class="text-input" placeholder="rahul@example.com" value="{{ form_data.email|default:'' }}">
+                </div>
+
+                <!-- DOB & Gender (Side by Side) -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <!-- DOB -->
+                    <div class="form-group">
+                        <label class="form-label" for="dob">Date of Birth</label>
+                        <input type="date" id="dob" name="dob" class="text-input" value="{{ form_data.dob|default:'' }}">
+                    </div>
+
+                    <!-- Gender -->
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Gender</label>
+                        <select id="gender" name="gender" class="select-input">
+                            <option value="Male" {% if form_data.gender == 'Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if form_data.gender == 'Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if form_data.gender == 'Other' %}selected{% endif %}>Other</option>
+                            <option value="Prefer not to say" {% if not form_data.gender or form_data.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-auth-primary">
+                    <span>Create Account</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="auth-footer-prompt">
+                Already registered? <a href="{% url 'user_login' %}">Sign in with phone &amp; OTP</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Avatar Preview Script -->
+    <script>
+        function previewAvatar(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('avatarPreview');
+                    const placeholder = document.getElementById('avatarPlaceholder');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+/* BharatBazaar Vendor - Products Catalog Styles */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar .form-control {
+  width: 230px;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  margin: 0;
+}
+
+.table thead th {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: #818d83;
+  padding: 15px 18px;
+  font-weight: 650;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 16px 18px;
+  font-size: 12px;
+  color: #45534a;
+  border-color: #f0f2f5;
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: #fafbf8;
+}
+
+.table-responsive {
+  border-radius: 0 0 13px 13px;
+}
+
+
+.product-cell {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 190px;
+}
+
+.product-thumb {
+  width: 39px;
+  height: 39px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #f1f2e9;
+  color: #54765b;
+  font-size: 16px;
+}
+
+.product-cell strong {
+  display: block;
+  font-size: 12px;
+}
+
+.product-cell small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+
+@media (max-width: 600px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .toolbar .form-control {
+    width: 100%;
+  }
+}

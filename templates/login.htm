@@ -1,0 +1,156 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Seller Sign In · Nainjyoti Marketplace</title>
+
+    <!-- Bespoke Google Fonts Pairing -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    <!-- Full-Screen Stylesheet -->
+    <link href="{% static 'css/login.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="fullscreen-login-page">
+        <!-- Main Full-Screen Body (Zero Navbars, Pure Focused Authentication) -->
+        <main class="fullscreen-main">
+            <div class="fullscreen-grid">
+                <!-- Left Editorial Storytelling & Live Market Trust -->
+                <div class="editorial-col">
+                    <div class="brand-identity-hero">
+                        <div class="brand-monogram">N</div>
+                        <div class="brand-text">
+                            <span class="brand-name">Nain<span>jyoti</span></span>
+                            <span class="brand-tag">SELLER HUB · MERCHANT OPERATING SYSTEM</span>
+                        </div>
+                    </div>
+
+                    <div class="editorial-eyebrow">
+                        <span>OFFICIAL MERCHANT GATEWAY</span>
+                    </div>
+                    <h1 class="editorial-title">
+                        Empowering India’s finest <em>artisans, manufacturers &amp; brands.</em>
+                    </h1>
+                    <p class="editorial-desc">
+                        Access your unified merchant console for sovereign catalog management, automated GST e-invoicing, pan-India logistics fulfillment, and guaranteed next-day bank disbursements.
+                    </p>
+
+                    <!-- Live Market Metric Highlights -->
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-value">₹48.2 <span>Cr+</span></div>
+                            <div class="metric-label">Seller payouts disbursed this fiscal</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">42,000 <span>+</span></div>
+                            <div class="metric-label">Verified merchants in 28 states</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">0 <span>%</span></div>
+                            <div class="metric-label">Onboarding fee &amp; instant KYC</div>
+                        </div>
+                    </div>
+
+                    <!-- Trust Points -->
+                    <div class="editorial-trust">
+                        <div class="trust-pill"><i class="fa-solid fa-shield-halved"></i> RBI &amp; GST Compliant</div>
+                        <div class="trust-pill"><i class="fa-solid fa-truck-fast"></i> Integrated 28,000+ Pincodes</div>
+                        <div class="trust-pill"><i class="fa-solid fa-bolt"></i> T+1 Automated Settlements</div>
+                    </div>
+                </div>
+
+                <!-- Right Form Column (Full Height, No Card Box, Seamlessly Blends on Screen) -->
+                <div class="form-col">
+                    <div class="form-content">
+                        <div class="form-badge-pill">
+                            <i class="fa-solid fa-lock"></i>
+                            <span>SECURE MERCHANT ACCESS</span>
+                        </div>
+                        <h2 class="form-heading">Sign In to Seller Hub</h2>
+                        <p class="form-subheading">Enter your registered business email and credentials to manage your store.</p>
+
+                        <!-- Flash Messages -->
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="form-alert {% if 'pending' in message.tags or 'warning' in message.tags %}alert-pending{% elif 'error' in message.tags %}alert-error{% else %}alert-success{% endif %}">
+                                    <i class="fa-solid {% if 'pending' in message.tags or 'warning' in message.tags %}fa-hourglass-half{% elif 'error' in message.tags %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>
+                                    <span>{{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <form action="{% url 'login' %}" method="post" class="login-full-form">
+                            {% csrf_token %}
+
+                            <div class="input-block">
+                                <label for="username" class="input-label">Work Email or Seller ID</label>
+                                <div class="input-wrapper">
+                                    <i class="fa-regular fa-envelope input-icon"></i>
+                                    <input type="text" id="username" name="username" class="custom-input" placeholder="seller@yourbusiness.com" autocomplete="username" required autofocus>
+                                </div>
+                            </div>
+
+                            <div class="input-block">
+                                <div class="input-label-row">
+                                    <label for="password" class="input-label">Password</label>
+                                    <a href="javascript:void(0)" class="forgot-link" onclick="alert('Password reset instructions will be sent to your registered merchant email address.')">Forgot password?</a>
+                                </div>
+                                <div class="input-wrapper">
+                                    <i class="fa-solid fa-lock input-icon"></i>
+                                    <input type="password" id="password" name="password" class="custom-input" placeholder="••••••••••••" autocomplete="current-password" required>
+                                    <button type="button" class="password-toggle" id="toggleBtn" onclick="togglePasswordVisibility()">Show</button>
+                                </div>
+                            </div>
+
+                            <div class="options-row">
+                                <label class="remember-label">
+                                    <input type="checkbox" name="remember" checked class="custom-checkbox">
+                                    <span>Remember this device for 30 days</span>
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn-submit-login">
+                                <span>Sign In to Seller Dashboard</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </form>
+
+                        <div class="form-actions-footer">
+                            <div class="register-prompt">
+                                <span>New seller wanting to sell on Nainjyoti?</span>
+                                <a href="{% url 'vendor_register' %}" class="link-register-now">Register Your Store →</a>
+                            </div>
+                            <div class="status-prompt">
+                                <span>Already submitted application?</span>
+                                <a href="{% url 'vendor_status' %}" class="link-track-status">Track Verification Status →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Interactive Script -->
+    <script>
+        function togglePasswordVisibility() {
+            const pwd = document.getElementById('password');
+            const btn = document.getElementById('toggleBtn');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                pwd.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+    </script>
+</body>
+</html>
