@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-16T12:25:38Z",
+  "generated_at": "2026-10-17T05:12:56Z",
   "server_url": "http://127.0.0.1:8000",
-  "test_vendor_code": "VEND-85140",
+  "test_vendor_code": "VEND-11488",
   "total_tests": 17,
   "passed_tests": 17,
   "tests": [
@@ -16,7 +16,7 @@
       },
       "token_used": false,
       "status_code": 400,
-      "elapsed_ms": 25.37,
+      "elapsed_ms": 2.2,
       "response_data": {
         "success": false,
         "message": "Both 'business_name' and 'owner_name' are required fields."
@@ -30,13 +30,13 @@
       "request_payload": {
         "business_name": "Varanasi Silk Hub",
         "owner_name": "Rohan Gupta",
-        "email": "merchant_1792153528@crafts.in",
-        "phone": "9792153528",
+        "email": "merchant_1792213967@crafts.in",
+        "phone": "9792213967",
         "password": "123"
       },
       "token_used": false,
       "status_code": 400,
-      "elapsed_ms": 2.22,
+      "elapsed_ms": 3.19,
       "response_data": {
         "success": false,
         "message": "Password must be at least 6 characters in length."
@@ -48,10 +48,10 @@
       "method": "POST",
       "endpoint": "/api/vendor/register/",
       "request_payload": {
-        "business_name": "Kashmir Pashmina & Crafts",
+        "business_name": "Himalayan Artisans Guild 1792213967",
         "owner_name": "Farooq Ahmed",
-        "email": "merchant_1792153528@crafts.in",
-        "phone": "9792153528",
+        "email": "merchant_1792213967@crafts.in",
+        "phone": "9792213967",
         "password": "SellerSecure@2026",
         "business_type": "Manufacturer & Artisan",
         "category": "Handicrafts & Handlooms",
@@ -59,29 +59,29 @@
         "city": "Srinagar",
         "state": "Jammu and Kashmir",
         "pincode": "190001",
-        "gst_number": "01AAAAA0000A1Z5",
-        "pan_number": "ABCDE1234F",
+        "gst_number": "01TESTG3967A1Z5",
+        "pan_number": "TESTP3967F",
         "bank_name": "HDFC Bank",
         "account_number": "50100492817291",
         "ifsc_code": "HDFC0000123"
       },
       "token_used": false,
       "status_code": 201,
-      "elapsed_ms": 1141.73,
+      "elapsed_ms": 970.72,
       "response_data": {
         "success": true,
         "message": "Vendor registration submitted successfully! Your application is under compliance review.",
-        "vendor_code": "VEND-85140",
+        "vendor_code": "VEND-11488",
         "status": "PENDING",
-        "token": "edcdf99aed5acc14491cd5d376e9dba74b4661b2bc70da69c2082fd4cc3409f8",
+        "token": "07a80611288842eef681c0d5e2f8798ff7f40c7ada653e86a917c1ca5ee64e7c",
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
-          "business_name": "Kashmir Pashmina & Crafts",
+          "id": 8,
+          "vendor_code": "VEND-11488",
+          "business_name": "Himalayan Artisans Guild 1792213967",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
+          "email": "merchant_1792213967@crafts.in",
           "support_email": "",
-          "phone": "9792153528",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "",
@@ -90,8 +90,8 @@
           "status": "PENDING",
           "status_display": "Pending Approval",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "HDFC Bank",
           "account_number": "50100492817291",
           "ifsc_code": "HDFC0000123",
@@ -102,8 +102,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:29.774145+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:48.305854+00:00"
         }
       }
     },
@@ -113,10 +113,10 @@
       "method": "POST",
       "endpoint": "/api/vendor/register/",
       "request_payload": {
-        "business_name": "Kashmir Pashmina & Crafts",
+        "business_name": "Himalayan Artisans Guild 1792213967",
         "owner_name": "Farooq Ahmed",
-        "email": "merchant_1792153528@crafts.in",
-        "phone": "9792153528",
+        "email": "merchant_1792213967@crafts.in",
+        "phone": "9792213967",
         "password": "SellerSecure@2026",
         "business_type": "Manufacturer & Artisan",
         "category": "Handicrafts & Handlooms",
@@ -124,39 +124,39 @@
         "city": "Srinagar",
         "state": "Jammu and Kashmir",
         "pincode": "190001",
-        "gst_number": "01AAAAA0000A1Z5",
-        "pan_number": "ABCDE1234F",
+        "gst_number": "01TESTG3967A1Z5",
+        "pan_number": "TESTP3967F",
         "bank_name": "HDFC Bank",
         "account_number": "50100492817291",
         "ifsc_code": "HDFC0000123"
       },
       "token_used": false,
       "status_code": 400,
-      "elapsed_ms": 4.57,
+      "elapsed_ms": 5.34,
       "response_data": {
         "success": false,
-        "message": "An account with email 'merchant_1792153528@crafts.in' already exists. Please log in."
+        "message": "An account with email 'merchant_1792213967@crafts.in' already exists. Please log in."
       }
     },
     {
       "test_id": "TC-V05",
       "name": "Track Vendor Application Status by reference code",
       "method": "GET",
-      "endpoint": "/api/vendor/status/?code=VEND-85140",
+      "endpoint": "/api/vendor/status/?code=VEND-11488",
       "request_payload": null,
       "token_used": false,
       "status_code": 200,
-      "elapsed_ms": 5.99,
+      "elapsed_ms": 4.9,
       "response_data": {
         "success": true,
-        "vendor_code": "VEND-85140",
-        "business_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-11488",
+        "business_name": "Himalayan Artisans Guild 1792213967",
         "owner_name": "Farooq Ahmed",
         "status": "PENDING",
         "status_display": "Pending Approval",
         "rejection_reason": null,
-        "submitted_at": "2026-10-16T12:25:29.774120+00:00",
-        "updated_at": "2026-10-16T12:25:29.774145+00:00"
+        "submitted_at": "2026-10-17T05:12:48.305829+00:00",
+        "updated_at": "2026-10-17T05:12:48.305854+00:00"
       }
     },
     {
@@ -165,17 +165,17 @@
       "method": "POST",
       "endpoint": "/api/vendor/login/",
       "request_payload": {
-        "username": "merchant_1792153528@crafts.in",
+        "username": "merchant_1792213967@crafts.in",
         "password": "SellerSecure@2026"
       },
       "token_used": false,
       "status_code": 403,
-      "elapsed_ms": 926.6,
+      "elapsed_ms": 944.79,
       "response_data": {
         "success": false,
         "status": "PENDING",
-        "vendor_code": "VEND-85140",
-        "message": "Application Under Review: Your store 'Kashmir Pashmina & Crafts' (VEND-85140) is awaiting Admin review. You will be able to access the dashboard once approved."
+        "vendor_code": "VEND-11488",
+        "message": "Application Under Review: Your store 'Himalayan Artisans Guild 1792213967' (VEND-11488) is awaiting Admin review. You will be able to access the dashboard once approved."
       }
     },
     {
@@ -184,12 +184,12 @@
       "method": "POST",
       "endpoint": "/api/vendor/login/",
       "request_payload": {
-        "username": "merchant_1792153528@crafts.in",
+        "username": "merchant_1792213967@crafts.in",
         "password": "WrongPassword999"
       },
       "token_used": false,
       "status_code": 401,
-      "elapsed_ms": 974.57,
+      "elapsed_ms": 984.11,
       "response_data": {
         "success": false,
         "message": "Invalid seller credentials. Please verify your email/username and password."
@@ -201,26 +201,26 @@
       "method": "POST",
       "endpoint": "/api/vendor/login/",
       "request_payload": {
-        "username": "merchant_1792153528@crafts.in",
+        "username": "merchant_1792213967@crafts.in",
         "password": "SellerSecure@2026"
       },
       "token_used": false,
       "status_code": 200,
-      "elapsed_ms": 1146.1,
+      "elapsed_ms": 1540.56,
       "response_data": {
         "success": true,
-        "message": "Login successful. Welcome back to your seller console, Kashmir Pashmina & Crafts!",
+        "message": "Login successful. Welcome back to your seller console, Himalayan Artisans Guild 1792213967!",
         "status": "APPROVED",
         "role": "VENDOR",
-        "token": "edcdf99aed5acc14491cd5d376e9dba74b4661b2bc70da69c2082fd4cc3409f8",
+        "token": "07a80611288842eef681c0d5e2f8798ff7f40c7ada653e86a917c1ca5ee64e7c",
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
-          "business_name": "Kashmir Pashmina & Crafts",
+          "id": 8,
+          "vendor_code": "VEND-11488",
+          "business_name": "Himalayan Artisans Guild 1792213967",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
+          "email": "merchant_1792213967@crafts.in",
           "support_email": "",
-          "phone": "9792153528",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "",
@@ -229,8 +229,8 @@
           "status": "APPROVED",
           "status_display": "Approved",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "HDFC Bank",
           "account_number": "50100492817291",
           "ifsc_code": "HDFC0000123",
@@ -241,8 +241,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:31.709323+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:50.268398+00:00"
         }
       }
     },
@@ -252,26 +252,26 @@
       "method": "POST",
       "endpoint": "/api/vendor/login/",
       "request_payload": {
-        "username": "VEND-85140",
+        "username": "VEND-11488",
         "password": "SellerSecure@2026"
       },
       "token_used": false,
       "status_code": 200,
-      "elapsed_ms": 1076.12,
+      "elapsed_ms": 1009.09,
       "response_data": {
         "success": true,
-        "message": "Login successful. Welcome back to your seller console, Kashmir Pashmina & Crafts!",
+        "message": "Login successful. Welcome back to your seller console, Himalayan Artisans Guild 1792213967!",
         "status": "APPROVED",
         "role": "VENDOR",
-        "token": "edcdf99aed5acc14491cd5d376e9dba74b4661b2bc70da69c2082fd4cc3409f8",
+        "token": "07a80611288842eef681c0d5e2f8798ff7f40c7ada653e86a917c1ca5ee64e7c",
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
-          "business_name": "Kashmir Pashmina & Crafts",
+          "id": 8,
+          "vendor_code": "VEND-11488",
+          "business_name": "Himalayan Artisans Guild 1792213967",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
+          "email": "merchant_1792213967@crafts.in",
           "support_email": "",
-          "phone": "9792153528",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "",
@@ -280,8 +280,8 @@
           "status": "APPROVED",
           "status_display": "Approved",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "HDFC Bank",
           "account_number": "50100492817291",
           "ifsc_code": "HDFC0000123",
@@ -292,8 +292,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:31.709323+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:50.268398+00:00"
         }
       }
     },
@@ -305,7 +305,7 @@
       "request_payload": null,
       "token_used": false,
       "status_code": 401,
-      "elapsed_ms": 3.15,
+      "elapsed_ms": 2.51,
       "response_data": {
         "success": false,
         "message": "Authentication required. Pass valid Vendor Bearer token in 'Authorization' header."
@@ -319,17 +319,17 @@
       "request_payload": null,
       "token_used": true,
       "status_code": 200,
-      "elapsed_ms": 4.68,
+      "elapsed_ms": 5.29,
       "response_data": {
         "success": true,
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
-          "business_name": "Kashmir Pashmina & Crafts",
+          "id": 8,
+          "vendor_code": "VEND-11488",
+          "business_name": "Himalayan Artisans Guild 1792213967",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
+          "email": "merchant_1792213967@crafts.in",
           "support_email": "",
-          "phone": "9792153528",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "",
@@ -338,8 +338,8 @@
           "status": "APPROVED",
           "status_display": "Approved",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "HDFC Bank",
           "account_number": "50100492817291",
           "ifsc_code": "HDFC0000123",
@@ -350,8 +350,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:31.709323+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:50.268398+00:00"
         }
       }
     },
@@ -362,28 +362,28 @@
       "endpoint": "/api/vendor/profile/",
       "request_payload": {
         "business_name": "Kashmir Pashmina & Royal Silk Co.",
-        "phone": "9792153528",
+        "phone": "9792213967",
         "city": "Srinagar (Old Market)",
         "bank_name": "State Bank of India",
         "account_number": "30199482710",
         "ifsc_code": "SBIN0001234",
         "store_description": "Finest handwoven Pashmina shawls, artisanal stoles, and traditional Kashmiri handicrafts.",
-        "support_email": "support_1792153528@crafts.in"
+        "support_email": "support_1792213967@crafts.in"
       },
       "token_used": true,
       "status_code": 200,
-      "elapsed_ms": 22.64,
+      "elapsed_ms": 24.79,
       "response_data": {
         "success": true,
         "message": "Store profile updated successfully",
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
+          "id": 8,
+          "vendor_code": "VEND-11488",
           "business_name": "Kashmir Pashmina & Royal Silk Co.",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
-          "support_email": "support_1792153528@crafts.in",
-          "phone": "9792153528",
+          "email": "merchant_1792213967@crafts.in",
+          "support_email": "support_1792213967@crafts.in",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "Finest handwoven Pashmina shawls, artisanal stoles, and traditional Kashmiri handicrafts.",
@@ -392,8 +392,8 @@
           "status": "APPROVED",
           "status_display": "Approved",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "State Bank of India",
           "account_number": "30199482710",
           "ifsc_code": "SBIN0001234",
@@ -404,8 +404,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:33.969468+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:52.848504+00:00"
         }
       }
     },
@@ -420,7 +420,7 @@
       },
       "token_used": true,
       "status_code": 400,
-      "elapsed_ms": 948.13,
+      "elapsed_ms": 943.12,
       "response_data": {
         "success": false,
         "message": "Current password is incorrect. Please re-enter."
@@ -437,11 +437,11 @@
       },
       "token_used": true,
       "status_code": 200,
-      "elapsed_ms": 2071.49,
+      "elapsed_ms": 1934.98,
       "response_data": {
         "success": true,
         "message": "Password updated successfully. New token generated.",
-        "token": "2681b2de4fc8d35174f795e7b9cf7646f39a7eeb62178e1eb2568bf9040377f7"
+        "token": "3c3cb7974b3bec955ec0d8acdf71d8471deab0d4809f6fd6b8a9b0dcfa44e6c2"
       }
     },
     {
@@ -450,26 +450,26 @@
       "method": "POST",
       "endpoint": "/api/vendor/login/",
       "request_payload": {
-        "username": "merchant_1792153528@crafts.in",
+        "username": "merchant_1792213967@crafts.in",
         "password": "BrandNewPassword@2026"
       },
       "token_used": false,
       "status_code": 200,
-      "elapsed_ms": 1038.88,
+      "elapsed_ms": 1024.96,
       "response_data": {
         "success": true,
         "message": "Login successful. Welcome back to your seller console, Kashmir Pashmina & Royal Silk Co.!",
         "status": "APPROVED",
         "role": "VENDOR",
-        "token": "2681b2de4fc8d35174f795e7b9cf7646f39a7eeb62178e1eb2568bf9040377f7",
+        "token": "3c3cb7974b3bec955ec0d8acdf71d8471deab0d4809f6fd6b8a9b0dcfa44e6c2",
         "vendor": {
-          "id": 6,
-          "vendor_code": "VEND-85140",
+          "id": 8,
+          "vendor_code": "VEND-11488",
           "business_name": "Kashmir Pashmina & Royal Silk Co.",
           "owner_name": "Farooq Ahmed",
-          "email": "merchant_1792153528@crafts.in",
-          "support_email": "support_1792153528@crafts.in",
-          "phone": "9792153528",
+          "email": "merchant_1792213967@crafts.in",
+          "support_email": "support_1792213967@crafts.in",
+          "phone": "9792213967",
           "business_type": "Manufacturer & Artisan",
           "category": "Handicrafts & Handlooms",
           "store_description": "Finest handwoven Pashmina shawls, artisanal stoles, and traditional Kashmiri handicrafts.",
@@ -478,8 +478,8 @@
           "status": "APPROVED",
           "status_display": "Approved",
           "rejection_reason": "",
-          "gst_number": "01AAAAA0000A1Z5",
-          "pan_number": "ABCDE1234F",
+          "gst_number": "01TESTG3967A1Z5",
+          "pan_number": "TESTP3967F",
           "bank_name": "State Bank of India",
           "account_number": "30199482710",
           "ifsc_code": "SBIN0001234",
@@ -490,8 +490,8 @@
           "gst_document": null,
           "pan_document": null,
           "id_proof": null,
-          "created_at": "2026-10-16T12:25:29.774120+00:00",
-          "updated_at": "2026-10-16T12:25:33.969468+00:00"
+          "created_at": "2026-10-17T05:12:48.305829+00:00",
+          "updated_at": "2026-10-17T05:12:52.848504+00:00"
         }
       }
     },
@@ -503,7 +503,7 @@
       "request_payload": null,
       "token_used": true,
       "status_code": 200,
-      "elapsed_ms": 20.17,
+      "elapsed_ms": 19.51,
       "response_data": {
         "success": true,
         "message": "Vendor successfully logged out"
@@ -517,7 +517,7 @@
       "request_payload": null,
       "token_used": true,
       "status_code": 401,
-      "elapsed_ms": 4.49,
+      "elapsed_ms": 6.36,
       "response_data": {
         "success": false,
         "message": "Authentication required. Pass valid Vendor Bearer token in 'Authorization' header."

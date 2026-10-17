@@ -83,6 +83,39 @@ urlpatterns = [
     path('api/categories/slug/<str:slug>/', api_views.api_category_detail, name='api_category_detail_by_slug'),
 
     # =========================================================================
+    # Vendor Product Management Endpoints (api/vendor/product/...)
+    # =========================================================================
+    path('api/vendor/product/list/', api_views.api_product_list, name='api_vendor_product_list'),
+    path('api/vendor/product/create/', api_views.api_product_create, name='api_vendor_product_create'),
+    path('api/vendor/product/detail/<int:product_id>/', api_views.api_product_detail, name='api_vendor_product_detail'),
+    path('api/vendor/product/update/<int:product_id>/', api_views.api_product_update, name='api_vendor_product_update'),
+    path('api/vendor/product/delete/<int:product_id>/', api_views.api_product_delete, name='api_vendor_product_delete'),
+
+    # =========================================================================
+    # Admin Product Management Endpoints (api/admin/product/...)
+    # =========================================================================
+    path('api/admin/product/list/', api_views.api_product_list, name='api_admin_product_list'),
+    path('api/admin/product/create/', api_views.api_product_create, name='api_admin_product_create'),
+    path('api/admin/product/detail/<int:product_id>/', api_views.api_product_detail, name='api_admin_product_detail'),
+    path('api/admin/product/update/<int:product_id>/', api_views.api_product_update, name='api_admin_product_update'),
+    path('api/admin/product/delete/<int:product_id>/', api_views.api_product_delete, name='api_admin_product_delete'),
+
+    # =========================================================================
+    # General / Direct Product Endpoints (api/product/...)
+    # =========================================================================
+    path('api/product/list/', api_views.api_product_list, name='api_product_list'),
+    path('api/product/create/', api_views.api_product_create, name='api_product_create'),
+    path('api/product/detail/<int:product_id>/', api_views.api_product_detail, name='api_product_detail'),
+    path('api/product/update/<int:product_id>/', api_views.api_product_update, name='api_product_update'),
+    path('api/product/delete/<int:product_id>/', api_views.api_product_delete, name='api_product_delete'),
+
+    # Legacy / REST Product Aliases
+    path('api/products/', api_views.api_product_list_create, name='api_products_list_create'),
+    path('api/products/<int:product_id>/', api_views.api_product_detail_update_delete, name='api_products_detail'),
+    path('api/products/<int:product_id>/update/', api_views.api_product_update, name='api_products_update_legacy'),
+    path('api/products/<int:product_id>/delete/', api_views.api_product_delete, name='api_products_delete_legacy'),
+
+    # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)
     # =========================================================================
     path('user/login/', user_views.user_login_view, name='user_login'),

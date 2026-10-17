@@ -9,11 +9,11 @@
       "success": true,
       "message": "Category created successfully",
       "category": {
-        "id": 8,
+        "id": 11,
         "name": "Handicrafts & Handlooms",
         "status": "ACTIVE",
-        "created_at": "2026-10-17T04:55:52.867505+00:00",
-        "updated_at": "2026-10-17T04:55:52.867541+00:00"
+        "created_at": "2026-10-17T05:12:41.984104+00:00",
+        "updated_at": "2026-10-17T05:12:41.984129+00:00"
       }
     }
   },
@@ -27,11 +27,11 @@
       "success": true,
       "message": "Category created successfully",
       "category": {
-        "id": 9,
+        "id": 12,
         "name": "Spices & Dry Fruits",
         "status": "ACTIVE",
-        "created_at": "2026-10-17T04:55:52.891417+00:00",
-        "updated_at": "2026-10-17T04:55:52.891464+00:00"
+        "created_at": "2026-10-17T05:12:42.007743+00:00",
+        "updated_at": "2026-10-17T05:12:42.007769+00:00"
       }
     }
   },
@@ -39,7 +39,7 @@
     "status": 200,
     "response": {
       "success": true,
-      "count": 7,
+      "count": 8,
       "categories": [
         {
           "id": 2,
@@ -47,6 +47,13 @@
           "status": "ACTIVE",
           "created_at": "2026-10-17T04:34:09.041989+00:00",
           "updated_at": "2026-10-17T04:34:09.042016+00:00"
+        },
+        {
+          "id": 10,
+          "name": "Electronics & Gadgets",
+          "status": "ACTIVE",
+          "created_at": "2026-10-17T05:11:44.202699+00:00",
+          "updated_at": "2026-10-17T05:11:44.202731+00:00"
         },
         {
           "id": 1,
@@ -63,11 +70,11 @@
           "updated_at": "2026-10-17T04:34:09.100835+00:00"
         },
         {
-          "id": 8,
+          "id": 11,
           "name": "Handicrafts & Handlooms",
           "status": "ACTIVE",
-          "created_at": "2026-10-17T04:55:52.867505+00:00",
-          "updated_at": "2026-10-17T04:55:52.867541+00:00"
+          "created_at": "2026-10-17T05:12:41.984104+00:00",
+          "updated_at": "2026-10-17T05:12:41.984129+00:00"
         },
         {
           "id": 7,
@@ -84,11 +91,11 @@
           "updated_at": "2026-10-17T04:34:09.070967+00:00"
         },
         {
-          "id": 9,
+          "id": 12,
           "name": "Spices & Dry Fruits",
           "status": "ACTIVE",
-          "created_at": "2026-10-17T04:55:52.891417+00:00",
-          "updated_at": "2026-10-17T04:55:52.891464+00:00"
+          "created_at": "2026-10-17T05:12:42.007743+00:00",
+          "updated_at": "2026-10-17T05:12:42.007769+00:00"
         }
       ]
     }
@@ -98,11 +105,11 @@
     "response": {
       "success": true,
       "category": {
-        "id": 8,
+        "id": 11,
         "name": "Handicrafts & Handlooms",
         "status": "ACTIVE",
-        "created_at": "2026-10-17T04:55:52.867505+00:00",
-        "updated_at": "2026-10-17T04:55:52.867541+00:00"
+        "created_at": "2026-10-17T05:12:41.984104+00:00",
+        "updated_at": "2026-10-17T05:12:41.984129+00:00"
       }
     }
   },
@@ -115,11 +122,11 @@
       "success": true,
       "message": "Category updated successfully",
       "category": {
-        "id": 8,
+        "id": 11,
         "name": "Handicrafts & Handlooms",
         "status": "INACTIVE",
-        "created_at": "2026-10-17T04:55:52.867505+00:00",
-        "updated_at": "2026-10-17T04:55:52.923913+00:00"
+        "created_at": "2026-10-17T05:12:41.984104+00:00",
+        "updated_at": "2026-10-17T05:12:42.037273+00:00"
       }
     }
   },
@@ -127,15 +134,15 @@
     "status": 200,
     "response": {
       "success": true,
-      "message": "Category 'Spices & Dry Fruits' (ID: 9) deleted successfully.",
-      "category_id": 9
+      "message": "Category 'Spices & Dry Fruits' (ID: 12) deleted successfully.",
+      "category_id": 12
     }
   },
   "list_active_categories": {
     "status": 200,
     "response": {
       "success": true,
-      "count": 5,
+      "count": 6,
       "categories": [
         {
           "id": 2,
@@ -143,6 +150,13 @@
           "status": "ACTIVE",
           "created_at": "2026-10-17T04:34:09.041989+00:00",
           "updated_at": "2026-10-17T04:34:09.042016+00:00"
+        },
+        {
+          "id": 10,
+          "name": "Electronics & Gadgets",
+          "status": "ACTIVE",
+          "created_at": "2026-10-17T05:11:44.202699+00:00",
+          "updated_at": "2026-10-17T05:11:44.202731+00:00"
         },
         {
           "id": 1,

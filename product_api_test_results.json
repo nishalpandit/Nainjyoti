@@ -1,0 +1,222 @@
+{
+  "1_product_create_multipart": {
+    "status_code": 201,
+    "response": {
+      "success": true,
+      "message": "Product created successfully",
+      "product": {
+        "id": 3,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Wireless Noise Cancelling Smart Watch Pro",
+        "sku": "WATCH-1EBF7D",
+        "description": "High-performance smartwatch featuring OLED display, health tracking, and 7-day battery life.",
+        "price": 3499.0,
+        "discount_price": 2999.0,
+        "stock_quantity": 50,
+        "unit": "Piece",
+        "image": "/media/products/smart_watch_PEwugrO.png",
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.568900+00:00",
+        "updated_at": "2026-10-17T05:12:37.568922+00:00"
+      }
+    }
+  },
+  "2_product_detail": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "product": {
+        "id": 3,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Wireless Noise Cancelling Smart Watch Pro",
+        "sku": "WATCH-1EBF7D",
+        "description": "High-performance smartwatch featuring OLED display, health tracking, and 7-day battery life.",
+        "price": 3499.0,
+        "discount_price": 2999.0,
+        "stock_quantity": 50,
+        "unit": "Piece",
+        "image": "/media/products/smart_watch_PEwugrO.png",
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.568900+00:00",
+        "updated_at": "2026-10-17T05:12:37.568922+00:00"
+      }
+    }
+  },
+  "3_product_update": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "message": "Product updated successfully",
+      "product": {
+        "id": 3,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Wireless Noise Cancelling Smart Watch Pro",
+        "sku": "WATCH-1EBF7D",
+        "description": "Updated: Now includes 2 additional magnetic bands and 10-day battery.",
+        "price": 3199.0,
+        "discount_price": 2799.0,
+        "stock_quantity": 42,
+        "unit": "Piece",
+        "image": "/media/products/smart_watch_PEwugrO.png",
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.568900+00:00",
+        "updated_at": "2026-10-17T05:12:37.603566+00:00"
+      }
+    }
+  },
+  "4_product_create_second": {
+    "status_code": 201,
+    "response": {
+      "success": true,
+      "message": "Product created successfully",
+      "product": {
+        "id": 4,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Ergonomic Wireless Mechanical Keyboard",
+        "sku": "KEY-9D5E43",
+        "description": "RGB backlit wireless keyboard with brown switches.",
+        "price": 1599.0,
+        "discount_price": 1399.0,
+        "stock_quantity": 0,
+        "unit": "Piece",
+        "image": null,
+        "status": "OUT_OF_STOCK",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.636601+00:00",
+        "updated_at": "2026-10-17T05:12:37.636620+00:00"
+      }
+    }
+  },
+  "5a_product_list_all": {
+    "status_code": 200,
+    "count": 4,
+    "products": [
+      {
+        "id": 4,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Ergonomic Wireless Mechanical Keyboard",
+        "sku": "KEY-9D5E43",
+        "description": "RGB backlit wireless keyboard with brown switches.",
+        "price": 1599.0,
+        "discount_price": 1399.0,
+        "stock_quantity": 0,
+        "unit": "Piece",
+        "image": null,
+        "status": "OUT_OF_STOCK",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.636601+00:00",
+        "updated_at": "2026-10-17T05:12:37.636620+00:00"
+      },
+      {
+        "id": 3,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 2,
+        "category_name": "Electronics & Appliances",
+        "name": "Wireless Noise Cancelling Smart Watch Pro",
+        "sku": "WATCH-1EBF7D",
+        "description": "Updated: Now includes 2 additional magnetic bands and 10-day battery.",
+        "price": 3199.0,
+        "discount_price": 2799.0,
+        "stock_quantity": 42,
+        "unit": "Piece",
+        "image": "/media/products/smart_watch_PEwugrO.png",
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:12:37.568900+00:00",
+        "updated_at": "2026-10-17T05:12:37.603566+00:00"
+      },
+      {
+        "id": 2,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 10,
+        "category_name": "Electronics & Gadgets",
+        "name": "Ergonomic Wireless Mechanical Keyboard",
+        "sku": "KEY-MECH-002",
+        "description": "RGB backlit wireless keyboard with brown switches.",
+        "price": 1599.0,
+        "discount_price": 1399.0,
+        "stock_quantity": 0,
+        "unit": "Piece",
+        "image": null,
+        "status": "OUT_OF_STOCK",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:11:44.300523+00:00",
+        "updated_at": "2026-10-17T05:11:44.300554+00:00"
+      },
+      {
+        "id": 1,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": 10,
+        "category_name": "Electronics & Gadgets",
+        "name": "Wireless Noise Cancelling Smart Watch Pro",
+        "sku": "WATCH-PRO-001",
+        "description": "Updated: Now includes 2 additional magnetic bands and 10-day battery.",
+        "price": 3199.0,
+        "discount_price": 2799.0,
+        "stock_quantity": 42,
+        "unit": "Piece",
+        "image": "/media/products/smart_watch.png",
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T05:11:44.243665+00:00",
+        "updated_at": "2026-10-17T05:11:44.274814+00:00"
+      }
+    ]
+  },
+  "5b_product_list_search": {
+    "status_code": 200,
+    "count": 2
+  },
+  "5c_product_list_status": {
+    "status_code": 200,
+    "count": 2
+  },
+  "5d_product_list_price_range": {
+    "status_code": 200,
+    "count": 2
+  },
+  "6_product_delete": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "message": "Product 'Ergonomic Wireless Mechanical Keyboard' (KEY-9D5E43) deleted successfully.",
+      "product_id": 4
+    }
+  },
+  "7_product_verify_404": {
+    "status_code": 404,
+    "response": {
+      "success": false,
+      "message": "Product with ID '4' not found."
+    }
+  }
+}

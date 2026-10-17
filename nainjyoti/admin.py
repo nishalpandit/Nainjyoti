@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, VendorProfile, UserProfile, OTPRecord
+from .models import Category, VendorProfile, UserProfile, OTPRecord, Product
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -7,6 +7,13 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('name',)
     ordering = ('name',)
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('name', 'sku', 'vendor', 'category', 'price', 'discount_price', 'stock_quantity', 'status', 'is_approved', 'created_at')
+    list_filter = ('status', 'is_approved', 'category', 'vendor')
+    search_fields = ('name', 'sku', 'vendor__business_name', 'vendor__vendor_code', 'category__name')
+    ordering = ('-created_at',)
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
@@ -24,3 +31,4 @@ class OTPRecordAdmin(admin.ModelAdmin):
     list_display = ('phone', 'otp_code', 'purpose', 'is_verified', 'created_at', 'expires_at')
     list_filter = ('purpose', 'is_verified')
     search_fields = ('phone', 'otp_code')
+

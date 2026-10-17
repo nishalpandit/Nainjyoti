@@ -260,3 +260,75 @@ class Category(models.Model):
         }
 
 
+class Product(models.Model):
+    """
+    Product Model for Vendor / Merchant Catalog.
+    Includes item details, pricing, stock, category master mapping, and product image.
+    """
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('INACTIVE', 'Inactive'),
+        ('OUT_OF_STOCK', 'Out of Stock'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='products')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    name = models.CharField(max_length=200)
+    sku = models.CharField(max_length=50, unique=True, blank=True)
+    description = models.TextField(blank=True, default='')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    stock_quantity = models.IntegerField(default=0)
+    unit = models.CharField(max_length=30, default='Piece', blank=True)
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    is_approved = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Product'
+        verbose_name_plural = 'Products'
+
+    def __str__(self):
+        return f"{self.name} ({self.sku}) - ₹{self.price}"
+
+    def save(self, *args, **kwargs):
+        if not self.sku:
+            unique_sku = f"PROD-{random.randint(100000, 999999)}"
+            while Product.objects.filter(sku=unique_sku).exists():
+                unique_sku = f"PROD-{random.randint(100000, 999999)}"
+            self.sku = unique_sku
+        super().save(*args, **kwargs)
+
+    @property
+    def image_url(self):
+        if self.image and hasattr(self.image, 'url'):
+            return self.image.url
+        return None
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vendor_id': self.vendor_id,
+            'vendor_name': self.vendor.business_name if self.vendor else None,
+            'vendor_code': self.vendor.vendor_code if self.vendor else None,
+            'category_id': self.category_id,
+            'category_name': self.category.name if self.category else None,
+            'name': self.name,
+            'sku': self.sku,
+            'description': self.description,
+            'price': float(self.price) if self.price is not None else 0.0,
+            'discount_price': float(self.discount_price) if self.discount_price is not None else None,
+            'stock_quantity': self.stock_quantity,
+            'unit': self.unit,
+            'image': self.image_url,
+            'status': self.status,
+            'is_approved': self.is_approved,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+

@@ -1,4 +1,5 @@
 import json
+import base64
 from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,7 +8,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
-from .models import UserProfile, OTPRecord, VendorProfile, Category
+from django.core.files.base import ContentFile
+from .models import UserProfile, OTPRecord, VendorProfile, Category, Product
 
 def _parse_request_data(request):
     """Helper to extract data from JSON body or POST form data."""
@@ -993,6 +995,456 @@ def api_category_detail_update_delete(request, category_id=None, slug=None):
     elif request.method == "DELETE":
         return api_category_delete(request, category_id)
     return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+# =============================================================================
+# Product Management REST APIs (Vendor / Merchant / Admin)
+# =============================================================================
+
+def _normalize_product_status(raw_status):
+    if not raw_status:
+        return 'ACTIVE'
+    s = str(raw_status).strip().upper()
+    if s in ['ACTIVE', 'ACT', 'TRUE', '1', 'ENABLE', 'ENABLED', 'AVAILABLE']:
+        return 'ACTIVE'
+    elif s in ['INACTIVE', 'INACT', 'DISABLED', 'DISABLE', 'FALSE', '0', 'HIDDEN']:
+        return 'INACTIVE'
+    elif s in ['OUT_OF_STOCK', 'OUTOFSTOCK', 'OUT OF STOCK', 'SOLDOUT', 'SOLD_OUT', 'SOLD OUT']:
+        return 'OUT_OF_STOCK'
+    return 'ACTIVE'
+
+
+def _resolve_vendor_for_product(request, data=None):
+    """
+    Resolves the vendor for product operations:
+    1. Authorization Bearer token header or active session
+    2. vendor_id or vendor_code from payload / query parameters
+    3. Fallback to first existing active vendor profile for smooth developer/test experience
+    """
+    data = data or {}
+    vendor = _get_authenticated_vendor(request)
+    if vendor:
+        return vendor
+
+    vendor_id = data.get('vendor_id') or request.GET.get('vendor_id')
+    if vendor_id:
+        v = VendorProfile.objects.filter(id=vendor_id).first()
+        if v:
+            return v
+
+    vendor_code = data.get('vendor_code') or request.GET.get('vendor_code')
+    if vendor_code:
+        v = VendorProfile.objects.filter(vendor_code__iexact=str(vendor_code).strip()).first()
+        if v:
+            return v
+
+    fallback = VendorProfile.objects.first()
+    if not fallback:
+        user, _ = User.objects.get_or_create(username='default_vendor', defaults={'email': 'vendor@nainjyoti.com'})
+        fallback = VendorProfile.objects.create(
+            user=user,
+            business_name='Primary Merchant Store',
+            owner_name='Store Manager',
+            phone='9876543210',
+            status='APPROVED'
+        )
+    return fallback
+
+
+def _resolve_product_category(category_id=None, category_name=None):
+    """Helper to locate or auto-link Category master"""
+    if category_id:
+        cat = Category.objects.filter(id=category_id).first()
+        if cat:
+            return cat
+    if category_name:
+        name_clean = str(category_name).strip()
+        if name_clean:
+            cat = Category.objects.filter(name__iexact=name_clean).first()
+            if not cat:
+                cat = Category.objects.create(name=name_clean, status='ACTIVE')
+            return cat
+    return None
+
+
+@csrf_exempt
+def api_product_list(request):
+    """
+    API: List Products with Advanced Filtering
+    Method: GET
+    Query Filters:
+      - vendor_id or vendor_code: filter by seller
+      - category_id or category: filter by Category master
+      - search: search keyword in product name, SKU, or description
+      - status: ACTIVE, INACTIVE, OUT_OF_STOCK
+      - min_price, max_price: price range filter
+      - in_stock: true/false (stock_quantity > 0)
+      - ordering: sort field (default: -created_at)
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    qs = Product.objects.all().select_related('vendor', 'category')
+
+    # If seller provides Bearer token, optionally scope to their products unless scope='all' is passed
+    auth_vendor = _get_authenticated_vendor(request)
+    scope = request.GET.get("scope", "").lower()
+    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+        qs = qs.filter(vendor=auth_vendor)
+    else:
+        vendor_id = request.GET.get("vendor_id")
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        vendor_code = request.GET.get("vendor_code")
+        if vendor_code:
+            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+
+    # Category filter
+    category_id = request.GET.get("category_id")
+    if category_id:
+        qs = qs.filter(category_id=category_id)
+    category_name = request.GET.get("category")
+    if category_name:
+        qs = qs.filter(category__name__icontains=category_name.strip())
+
+    # Status filter
+    status_param = request.GET.get("status", "").strip()
+    if status_param:
+        qs = qs.filter(status=_normalize_product_status(status_param))
+
+    # Search keyword
+    search = request.GET.get("search", "").strip()
+    if search:
+        qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search) | Q(description__icontains=search))
+
+    # Price range
+    min_price = request.GET.get("min_price")
+    if min_price:
+        try:
+            qs = qs.filter(price__gte=float(min_price))
+        except ValueError:
+            pass
+
+    max_price = request.GET.get("max_price")
+    if max_price:
+        try:
+            qs = qs.filter(price__lte=float(max_price))
+        except ValueError:
+            pass
+
+    # In stock filter
+    in_stock = request.GET.get("in_stock", "").lower()
+    if in_stock in ["true", "1", "yes"]:
+        qs = qs.filter(stock_quantity__gt=0)
+    elif in_stock in ["false", "0", "no"]:
+        qs = qs.filter(stock_quantity=0)
+
+    # Ordering
+    ordering = request.GET.get("ordering", "-created_at")
+    allowed_orderings = ["created_at", "-created_at", "price", "-price", "name", "-name", "stock_quantity", "-stock_quantity"]
+    if ordering in allowed_orderings:
+        qs = qs.order_by(ordering)
+
+    products = [p.to_dict() for p in qs]
+
+    return JsonResponse({
+        "success": True,
+        "count": len(products),
+        "products": products
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_create(request):
+    """
+    API: Create a New Product (with Image Upload)
+    Method: POST
+    Content-Type: multipart/form-data or application/json
+    Parameters:
+      - name: string (required)
+      - price: number (required)
+      - category_id or category: int / string (master Category)
+      - sku: string (optional, auto-generated if blank)
+      - discount_price: number (optional)
+      - stock_quantity: int (optional, default 0)
+      - unit: string (optional, default 'Piece')
+      - description: text (optional)
+      - status: ACTIVE, INACTIVE, OUT_OF_STOCK (optional, default ACTIVE)
+      - image: image file (optional, multipart file upload or base64)
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+
+    # Validate name
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return JsonResponse({"success": False, "message": "Product 'name' is required."}, status=400)
+
+    # Validate price
+    raw_price = data.get("price")
+    if raw_price is None or str(raw_price).strip() == "":
+        return JsonResponse({"success": False, "message": "Product 'price' is required."}, status=400)
+    try:
+        price = float(raw_price)
+        if price < 0:
+            return JsonResponse({"success": False, "message": "Product 'price' cannot be negative."}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Invalid price value."}, status=400)
+
+    # Discount price
+    discount_price = None
+    raw_discount = data.get("discount_price")
+    if raw_discount not in [None, ""]:
+        try:
+            discount_price = float(raw_discount)
+            if discount_price < 0:
+                return JsonResponse({"success": False, "message": "Product 'discount_price' cannot be negative."}, status=400)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Invalid discount_price value."}, status=400)
+
+    # Stock quantity
+    stock_quantity = 0
+    raw_stock = data.get("stock_quantity")
+    if raw_stock not in [None, ""]:
+        try:
+            stock_quantity = int(raw_stock)
+            if stock_quantity < 0:
+                return JsonResponse({"success": False, "message": "Stock quantity cannot be negative."}, status=400)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Invalid stock_quantity value."}, status=400)
+
+    # SKU validation if provided
+    sku = str(data.get("sku", "")).strip()
+    if sku and Product.objects.filter(sku__iexact=sku).exists():
+        return JsonResponse({"success": False, "message": f"Product with SKU '{sku}' already exists."}, status=400)
+
+    # Vendor resolution
+    vendor = _resolve_vendor_for_product(request, data)
+
+    # Category resolution
+    cat_id = data.get("category_id")
+    cat_name = data.get("category")
+    category = _resolve_product_category(category_id=cat_id, category_name=cat_name)
+
+    unit = str(data.get("unit", "Piece")).strip() or "Piece"
+    description = str(data.get("description", "")).strip()
+    status_val = _normalize_product_status(data.get("status", "ACTIVE"))
+
+    product = Product(
+        vendor=vendor,
+        category=category,
+        name=name,
+        price=price,
+        discount_price=discount_price,
+        stock_quantity=stock_quantity,
+        unit=unit,
+        description=description,
+        status=status_val,
+        is_approved=True
+    )
+    if sku:
+        product.sku = sku
+
+    # Handle image upload (multipart file or base64)
+    if request.FILES.get("image"):
+        product.image = request.FILES["image"]
+    elif "image" in data and isinstance(data["image"], str) and data["image"].startswith("data:image"):
+        try:
+            fmt, imgstr = data["image"].split(";base64,")
+            ext = fmt.split("/")[-1].split("+")[0]
+            product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(name)}_{random.randint(1000, 9999)}.{ext}")
+        except Exception:
+            pass
+
+    product.save()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Product created successfully",
+        "product": product.to_dict()
+    }, status=201)
+
+
+@csrf_exempt
+def api_product_detail(request, product_id):
+    """
+    API: Get Product Details
+    Method: GET
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    product = Product.objects.filter(id=product_id).select_related('vendor', 'category').first()
+    if not product:
+        return JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' not found."
+        }, status=404)
+
+    return JsonResponse({
+        "success": True,
+        "product": product.to_dict()
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_update(request, product_id):
+    """
+    API: Update Product Details (Supports Image Replacement)
+    Method: POST or PUT
+    Content-Type: multipart/form-data or application/json
+    Parameters:
+      - name, price, discount_price, stock_quantity, unit, description, status, category_id, category, sku, image
+    """
+    if request.method not in ["POST", "PUT"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
+
+    product = Product.objects.filter(id=product_id).select_related('vendor', 'category').first()
+    if not product:
+        return JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' not found."
+        }, status=404)
+
+    data = _parse_request_data(request)
+
+    # Update name
+    if "name" in data and str(data["name"]).strip():
+        product.name = str(data["name"]).strip()
+
+    # Update price
+    if "price" in data and data["price"] not in [None, ""]:
+        try:
+            val = float(data["price"])
+            if val < 0:
+                return JsonResponse({"success": False, "message": "Product 'price' cannot be negative."}, status=400)
+            product.price = val
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Invalid price value."}, status=400)
+
+    # Update discount price
+    if "discount_price" in data:
+        raw_disc = data["discount_price"]
+        if raw_disc in [None, "", "null"]:
+            product.discount_price = None
+        else:
+            try:
+                val = float(raw_disc)
+                if val < 0:
+                    return JsonResponse({"success": False, "message": "Product 'discount_price' cannot be negative."}, status=400)
+                product.discount_price = val
+            except (ValueError, TypeError):
+                return JsonResponse({"success": False, "message": "Invalid discount_price value."}, status=400)
+
+    # Update stock quantity
+    if "stock_quantity" in data and data["stock_quantity"] not in [None, ""]:
+        try:
+            val = int(data["stock_quantity"])
+            if val < 0:
+                return JsonResponse({"success": False, "message": "Stock quantity cannot be negative."}, status=400)
+            product.stock_quantity = val
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Invalid stock_quantity value."}, status=400)
+
+    # Update unit
+    if "unit" in data and str(data["unit"]).strip():
+        product.unit = str(data["unit"]).strip()
+
+    # Update description
+    if "description" in data:
+        product.description = str(data["description"]).strip()
+
+    # Update status
+    if "status" in data and data["status"]:
+        product.status = _normalize_product_status(data["status"])
+
+    # Update SKU
+    if "sku" in data and str(data["sku"]).strip():
+        new_sku = str(data["sku"]).strip()
+        if Product.objects.filter(sku__iexact=new_sku).exclude(pk=product.pk).exists():
+            return JsonResponse({"success": False, "message": f"Another product with SKU '{new_sku}' already exists."}, status=400)
+        product.sku = new_sku
+
+    # Update category
+    if "category_id" in data or "category" in data:
+        cat_id = data.get("category_id")
+        cat_name = data.get("category")
+        category = _resolve_product_category(category_id=cat_id, category_name=cat_name)
+        if category:
+            product.category = category
+
+    # Update image
+    if request.FILES.get("image"):
+        product.image = request.FILES["image"]
+    elif "image" in data and isinstance(data["image"], str) and data["image"].startswith("data:image"):
+        try:
+            fmt, imgstr = data["image"].split(";base64,")
+            ext = fmt.split("/")[-1].split("+")[0]
+            product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(product.name)}_{random.randint(1000, 9999)}.{ext}")
+        except Exception:
+            pass
+
+    product.save()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Product updated successfully",
+        "product": product.to_dict()
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_delete(request, product_id):
+    """
+    API: Delete Product
+    Method: POST or DELETE
+    """
+    if request.method not in ["POST", "DELETE"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or DELETE."}, status=405)
+
+    product = Product.objects.filter(id=product_id).first()
+    if not product:
+        return JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' not found."
+        }, status=404)
+
+    prod_name = product.name
+    prod_sku = product.sku
+    prod_id = product.id
+    product.delete()
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Product '{prod_name}' ({prod_sku}) deleted successfully.",
+        "product_id": prod_id
+    }, status=200)
+
+
+# REST alias wrappers for product list/create and detail/update/delete
+@csrf_exempt
+def api_product_list_create(request):
+    if request.method == "GET":
+        return api_product_list(request)
+    elif request.method == "POST":
+        return api_product_create(request)
+    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+@csrf_exempt
+def api_product_detail_update_delete(request, product_id):
+    if request.method == "GET":
+        return api_product_detail(request, product_id=product_id)
+    elif request.method in ["PUT", "POST"]:
+        if request.path.rstrip('/').endswith('/delete'):
+            return api_product_delete(request, product_id)
+        return api_product_update(request, product_id)
+    elif request.method == "DELETE":
+        return api_product_delete(request, product_id)
+    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
 
 
 
