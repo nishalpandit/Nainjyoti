@@ -22,7 +22,7 @@
       <a href="#"><i class="fa-solid fa-users"></i><span>Customers</span></a>
       <a href="#"><i class="fa-solid fa-store"></i><span>Vendors</span></a>
       <a href="{% url 'admin_vendor_approval' %}"><i class="fa-solid fa-user-check"></i><span>Vendor approval</span></a>
-      <a class="active" href="{% url 'admin_categories' %}"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
+      <a class="active" href="{% url 'admin_categories' %}"><i class="fa-solid fa-layer-group"></i><span>Categories Master</span></a>
       <a href="#"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
       <a href="#"><i class="fa-solid fa-clipboard-check"></i><span>Product approval</span></a>
       <a href="#"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
@@ -47,8 +47,8 @@
   <div class="workspace">
     <header class="topbar">
       <div>
-        <span class="crumb"><a href="{% url 'admin_categories' %}" class="text-decoration-none text-muted">Categories</a> / </span>
-        <strong>{% if category %}Edit {{ category.name }}{% else %}Add category{% endif %}</strong>
+        <span class="crumb"><a href="{% url 'admin_categories' %}" class="text-decoration-none text-muted">Category Master</a> / </span>
+        <strong>{% if category %}Edit {{ category.name }}{% else %}Add Category{% endif %}</strong>
       </div>
       <div class="top-right">
         <span class="date-label">IST Operations</span>
@@ -60,76 +60,34 @@
     <main class="main">
       <div class="page-head">
         <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
+          <div class="eyebrow">MASTER CONFIGURATION</div>
           <h1>{% if category %}Edit Category{% else %}Add Category{% endif %}</h1>
-          <p>Configure category attributes, parent hierarchy, commission rate and icon.</p>
+          <p>Configure category master record (Name & Status).</p>
         </div>
       </div>
 
-      <section class="card form-card">
+      <section class="card form-card" style="max-width: 600px;">
         <div class="card-body p-4">
-          <form method="post" enctype="multipart/form-data" class="row g-4">
+          <form method="post" class="row g-4">
             {% csrf_token %}
 
-            <div class="col-md-6">
+            <div class="col-12">
               <label class="form-label fw-semibold" for="name">Category Name <span class="text-danger">*</span></label>
-              <input class="form-control" id="name" name="name" type="text" value="{{ category.name|default:'' }}" placeholder="e.g. Kashmiri Handicrafts" required>
+              <input class="form-control form-control-lg" id="name" name="name" type="text" value="{{ category.name|default:'' }}" placeholder="e.g. Handicrafts & Handlooms" required autofocus>
+              <div class="form-text">Unique master name for the product category.</div>
             </div>
 
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" for="slug">Category Slug (URL Identifier)</label>
-              <input class="form-control" id="slug" name="slug" type="text" value="{{ category.slug|default:'' }}" placeholder="Leave blank to auto-generate from name">
-              <div class="form-text">Will be auto-generated in kebab-case if left empty.</div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" for="parent_id">Parent Category (For Subcategories)</label>
-              <select class="form-select" id="parent_id" name="parent_id">
-                <option value="">-- None (Top-Level Category) --</option>
-                {% for p in parent_categories %}
-                <option value="{{ p.id }}" {% if category.parent_id == p.id %}selected{% endif %}>
-                  {{ p.name }}
-                </option>
-                {% endfor %}
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="status">Category Status</label>
+              <select class="form-select" id="status" name="status">
+                <option value="ACTIVE" {% if not category or category.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Visible for Product Listings)</option>
+                <option value="INACTIVE" {% if category and category.status == 'INACTIVE' %}selected{% endif %}>INACTIVE (Hidden)</option>
               </select>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" for="commission_rate">Marketplace Commission (%) <span class="text-danger">*</span></label>
-              <input class="form-control" id="commission_rate" name="commission_rate" type="number" step="0.01" min="0" max="100" value="{{ category.commission_rate|default:'5.00' }}" required>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" for="icon">FontAwesome Icon Class</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fa-solid fa-icons"></i></span>
-                <input class="form-control" id="icon" name="icon" type="text" value="{{ category.icon|default:'fa-layer-group' }}" placeholder="e.g. fa-shirt, fa-gem, fa-laptop">
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" for="image">Category Banner / Image</label>
-              <input class="form-control" id="image" name="image" type="file" accept="image/*">
-              {% if category.image %}
-              <div class="small mt-1 text-muted">Current: <a href="{{ category.image.url }}" target="_blank">{{ category.image.name }}</a></div>
-              {% endif %}
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-semibold" for="description">Description</label>
-              <textarea class="form-control" id="description" name="description" rows="3" placeholder="Brief summary of products falling under this category...">{{ category.description|default:'' }}</textarea>
-            </div>
-
-            <div class="col-12">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if category is None or category.is_active %}checked{% endif %}>
-                <label class="form-check-label fw-semibold" for="is_active">Active & Visible in Marketplace</label>
-              </div>
             </div>
 
             <div class="col-12 pt-3 border-top">
               <button class="btn btn-dark px-4" type="submit">
-                <i class="fa-solid fa-floppy-disk me-2"></i>{% if category %}Update Category{% else %}Create Category{% endif %}
+                <i class="fa-solid fa-floppy-disk me-2"></i>{% if category %}Update Category{% else %}Save Category{% endif %}
               </button>
               <a class="btn btn-outline-secondary ms-2" href="{% url 'admin_categories' %}">Cancel</a>
             </div>
@@ -137,7 +95,7 @@
         </div>
       </section>
 
-      <footer>BAZAAR ADMIN <span>·</span> Connected Database</footer>
+      <footer>BAZAAR ADMIN <span>·</span> Category Master Table</footer>
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

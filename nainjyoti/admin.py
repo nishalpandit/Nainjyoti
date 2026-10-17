@@ -3,11 +3,10 @@ from .models import Category, VendorProfile, UserProfile, OTPRecord
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'parent', 'commission_rate', 'display_order', 'is_active', 'created_at')
-    list_filter = ('is_active', 'parent')
-    search_fields = ('name', 'slug', 'description')
-    prepopulated_fields = {'slug': ('name',)}
-    ordering = ('display_order', 'name')
+    list_display = ('name', 'status', 'created_at', 'updated_at')
+    list_filter = ('status',)
+    search_fields = ('name',)
+    ordering = ('name',)
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):

@@ -211,7 +211,7 @@ def admin_dashboard(request):
 
 def admin_categories(request):
     """Admin Categories Management View"""
-    categories = Category.objects.all().order_by('display_order', 'name')
+    categories = Category.objects.all().order_by('name')
     return render(request, "admin/categories.html", {
         "categories": categories,
         "total_categories": categories.count()
@@ -226,48 +226,26 @@ def admin_category_form(request, category_id=None):
 
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        slug = request.POST.get("slug", "").strip()
-        commission_rate = request.POST.get("commission_rate", "5.00").strip()
-        description = request.POST.get("description", "").strip()
-        icon = request.POST.get("icon", "fa-layer-group").strip()
-        is_active = request.POST.get("is_active") in ["on", "1", "true"]
-        parent_id = request.POST.get("parent_id")
+        status_raw = request.POST.get("status", "").strip().upper()
+        if status_raw in ["ACTIVE", "INACTIVE"]:
+            status_val = status_raw
+        else:
+            status_val = "ACTIVE" if request.POST.get("status") in ["on", "1", "true", "ACTIVE"] else "INACTIVE"
 
         if not category:
-            category = Category(name=name)
+            category = Category(name=name, status=status_val)
         else:
             category.name = name
-
-        if slug:
-            category.slug = slugify(slug)
-        try:
-            category.commission_rate = float(commission_rate)
-        except ValueError:
-            pass
-        category.description = description
-        category.icon = icon or "fa-layer-group"
-        category.is_active = is_active
-
-        if parent_id and parent_id.isdigit():
-            category.parent = Category.objects.filter(id=int(parent_id)).first()
-        else:
-            category.parent = None
-
-        if "image" in request.FILES:
-            category.image = request.FILES["image"]
+            category.status = status_val
 
         category.save()
         messages.success(request, f"Category '{category.name}' saved successfully!")
         return redirect("admin_categories")
 
-    parent_categories = Category.objects.filter(parent__isnull=True)
-    if category:
-        parent_categories = parent_categories.exclude(id=category.id)
-
     return render(request, "admin/category-form.html", {
-        "category": category,
-        "parent_categories": parent_categories
+        "category": category
     })
+
 
 
 @csrf_exempt

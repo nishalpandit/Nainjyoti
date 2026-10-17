@@ -788,48 +788,44 @@ def api_vendor_logout(request):
 
 
 # =============================================================================
-# CATEGORY MANAGEMENT REST APIS (Explicit Action Endpoints)
+# CATEGORY MANAGEMENT MASTER APIS (Name and Status Only)
 # =============================================================================
+
+def _normalize_category_status(status_val):
+    """Helper to normalize status string or boolean to 'ACTIVE' or 'INACTIVE'."""
+    if isinstance(status_val, bool):
+        return 'ACTIVE' if status_val else 'INACTIVE'
+    s = str(status_val or 'ACTIVE').strip().upper()
+    if s in ['ACTIVE', 'ENABLED', 'ENABLE', 'TRUE', '1', 'VISIBLE']:
+        return 'ACTIVE'
+    elif s in ['INACTIVE', 'DISABLED', 'DISABLE', 'FALSE', '0', 'HIDDEN']:
+        return 'INACTIVE'
+    return 'ACTIVE'
+
 
 @csrf_exempt
 def api_category_list(request):
     """
-    API: List categories with filtering.
+    API: List Master Categories
     Method: GET
     Query Filters:
-      - parent: 'null', 'root', or 'top' for top-level only
-      - parent_id: integer ID of parent category
-      - search: string to search in name or description
-      - all: 'true' to include inactive categories (default: only active)
-      - tree: 'true' to return hierarchical tree
+      - status: 'ACTIVE' or 'INACTIVE' (optional)
+      - search: string to search in category name (optional)
     """
     if request.method != "GET":
         return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
 
     qs = Category.objects.all()
 
-    show_all = request.GET.get("all", "").strip().lower() in ["true", "1"]
-    if not show_all:
-        qs = qs.filter(is_active=True)
-
-    parent_param = request.GET.get("parent", "").strip().lower()
-    if parent_param in ["null", "none", "root", "top"]:
-        qs = qs.filter(parent__isnull=True)
-
-    parent_id = request.GET.get("parent_id")
-    if parent_id and parent_id.isdigit():
-        qs = qs.filter(parent_id=int(parent_id))
+    status_param = request.GET.get("status", "").strip().upper()
+    if status_param in ["ACTIVE", "INACTIVE"]:
+        qs = qs.filter(status=status_param)
 
     search = request.GET.get("search", "").strip()
     if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+        qs = qs.filter(name__icontains=search)
 
-    tree_mode = request.GET.get("tree", "").strip().lower() in ["true", "1"]
-    if tree_mode:
-        qs = qs.filter(parent__isnull=True)
-        categories = [cat.to_dict(include_subcategories=True) for cat in qs]
-    else:
-        categories = [cat.to_dict(include_subcategories=False) for cat in qs]
+    categories = [cat.to_dict() for cat in qs]
 
     return JsonResponse({
         "success": True,
@@ -841,18 +837,11 @@ def api_category_list(request):
 @csrf_exempt
 def api_category_create(request):
     """
-    API: Create a new category or subcategory.
+    API: Create Master Category
     Method: POST
-    Params / Body:
+    Params:
       - name: string (required, unique)
-      - slug: string (optional, auto-generated from name if omitted)
-      - description: string (optional)
-      - parent_id: integer (optional, for subcategory creation)
-      - commission_rate: decimal (optional, default: 5.00)
-      - icon: string (optional, default: 'fa-layer-group')
-      - display_order: integer (optional, default: 0)
-      - is_active: boolean (optional, default: True)
-      - image: file (optional)
+      - status: string 'ACTIVE' or 'INACTIVE' (optional, default: 'ACTIVE')
     """
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
@@ -872,109 +861,50 @@ def api_category_create(request):
             "message": f"Category with name '{name}' already exists."
         }, status=400)
 
-    slug = data.get("slug", "").strip()
-    if slug:
-        slug = slugify(slug)
-        if Category.objects.filter(slug=slug).exists():
-            return JsonResponse({
-                "success": False,
-                "message": f"Category with slug '{slug}' already exists."
-            }, status=400)
+    status_val = _normalize_category_status(data.get("status", "ACTIVE"))
 
-    description = data.get("description", "").strip()
-
-    parent = None
-    parent_id = data.get("parent_id")
-    if parent_id:
-        try:
-            parent = Category.objects.get(id=int(parent_id))
-        except (Category.DoesNotExist, ValueError):
-            return JsonResponse({
-                "success": False,
-                "message": f"Parent category with ID '{parent_id}' does not exist."
-            }, status=400)
-
-    try:
-        commission_rate = float(data.get("commission_rate", 5.00))
-    except (ValueError, TypeError):
-        commission_rate = 5.00
-
-    try:
-        display_order = int(data.get("display_order", 0))
-    except (ValueError, TypeError):
-        display_order = 0
-
-    icon = data.get("icon", "fa-layer-group").strip() or "fa-layer-group"
-
-    is_active = data.get("is_active", True)
-    if isinstance(is_active, str):
-        is_active = is_active.lower() not in ["false", "0", "no"]
-
-    category = Category(
+    category = Category.objects.create(
         name=name,
-        slug=slug,
-        description=description,
-        parent=parent,
-        commission_rate=commission_rate,
-        icon=icon,
-        display_order=display_order,
-        is_active=is_active
+        status=status_val
     )
-
-    if "image" in request.FILES:
-        category.image = request.FILES["image"]
-
-    category.save()
 
     return JsonResponse({
         "success": True,
         "message": "Category created successfully",
-        "category": category.to_dict(include_subcategories=True)
+        "category": category.to_dict()
     }, status=201)
 
 
 @csrf_exempt
 def api_category_detail(request, category_id=None, slug=None):
     """
-    API: Retrieve a single category's details.
+    API: Retrieve Master Category Details
     Method: GET
     """
     if request.method != "GET":
         return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
 
-    category = None
-    if category_id:
-        category = Category.objects.filter(id=category_id).first()
-    elif slug:
-        category = Category.objects.filter(slug=slug).first()
-
+    category = Category.objects.filter(id=category_id).first()
     if not category:
         return JsonResponse({
             "success": False,
-            "message": "Category not found."
+            "message": f"Category with ID '{category_id}' not found."
         }, status=404)
 
     return JsonResponse({
         "success": True,
-        "category": category.to_dict(include_subcategories=True)
+        "category": category.to_dict()
     }, status=200)
 
 
 @csrf_exempt
 def api_category_update(request, category_id):
     """
-    API: Update category details.
+    API: Update Master Category (name and/or status)
     Method: POST or PUT
-    Params / Body:
+    Params:
       - name: string (optional)
-      - slug: string (optional)
-      - description: string (optional)
-      - parent_id: integer or null (optional)
-      - commission_rate: decimal (optional)
-      - icon: string (optional)
-      - display_order: integer (optional)
-      - is_active: boolean (optional)
-      - image: file (optional)
+      - status: string 'ACTIVE' or 'INACTIVE' (optional)
     """
     if request.method not in ["POST", "PUT"]:
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
@@ -997,79 +927,23 @@ def api_category_update(request, category_id):
             }, status=400)
         category.name = new_name
 
-    if "slug" in data and data["slug"].strip():
-        new_slug = slugify(data["slug"].strip())
-        if Category.objects.filter(slug=new_slug).exclude(pk=category.pk).exists():
-            return JsonResponse({
-                "success": False,
-                "message": f"Another category with slug '{new_slug}' already exists."
-            }, status=400)
-        category.slug = new_slug
-
-    if "description" in data:
-        category.description = data["description"].strip()
-
-    if "parent_id" in data:
-        pid = data["parent_id"]
-        if pid is None or pid == "" or pid == "null" or pid == 0 or pid == "0":
-            category.parent = None
-        else:
-            try:
-                pid = int(pid)
-                if pid == category.id:
-                    return JsonResponse({
-                        "success": False,
-                        "message": "A category cannot be set as its own parent."
-                    }, status=400)
-                parent = Category.objects.get(id=pid)
-                category.parent = parent
-            except (Category.DoesNotExist, ValueError):
-                return JsonResponse({
-                    "success": False,
-                    "message": f"Parent category with ID '{pid}' does not exist."
-                }, status=400)
-
-    if "commission_rate" in data:
-        try:
-            category.commission_rate = float(data["commission_rate"])
-        except (ValueError, TypeError):
-            pass
-
-    if "display_order" in data:
-        try:
-            category.display_order = int(data["display_order"])
-        except (ValueError, TypeError):
-            pass
-
-    if "icon" in data and data["icon"].strip():
-        category.icon = data["icon"].strip()
-
-    if "is_active" in data:
-        is_active = data["is_active"]
-        if isinstance(is_active, str):
-            category.is_active = is_active.lower() not in ["false", "0", "no"]
-        else:
-            category.is_active = bool(is_active)
-
-    if "image" in request.FILES:
-        category.image = request.FILES["image"]
+    if "status" in data:
+        category.status = _normalize_category_status(data["status"])
 
     category.save()
 
     return JsonResponse({
         "success": True,
         "message": "Category updated successfully",
-        "category": category.to_dict(include_subcategories=True)
+        "category": category.to_dict()
     }, status=200)
 
 
 @csrf_exempt
 def api_category_delete(request, category_id):
     """
-    API: Delete category (Soft or Hard delete).
+    API: Delete Master Category
     Method: POST or DELETE
-    Query / Body param:
-      - soft: 'true' to mark as inactive instead of permanent deletion
     """
     if request.method not in ["POST", "DELETE"]:
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST or DELETE."}, status=405)
@@ -1081,59 +955,24 @@ def api_category_delete(request, category_id):
             "message": f"Category with ID '{category_id}' not found."
         }, status=404)
 
-    data = _parse_request_data(request) if request.method == "POST" else {}
-    soft = (
-        request.GET.get("soft", "").strip().lower() in ["true", "1"]
-        or str(data.get("soft", "")).strip().lower() in ["true", "1"]
-    )
-
     cat_name = category.name
     cat_id = category.id
-
-    if soft:
-        category.is_active = False
-        category.save()
-        return JsonResponse({
-            "success": True,
-            "message": f"Category '{cat_name}' marked as inactive (soft deleted).",
-            "category_id": cat_id,
-            "is_active": False
-        }, status=200)
-
-    subcategories_count = category.subcategories.count()
     category.delete()
-
-    msg = f"Category '{cat_name}' (ID: {cat_id}) deleted successfully."
-    if subcategories_count > 0:
-        msg += f" {subcategories_count} associated subcategories were also removed."
 
     return JsonResponse({
         "success": True,
-        "message": msg,
+        "message": f"Category '{cat_name}' (ID: {cat_id}) deleted successfully.",
         "category_id": cat_id
     }, status=200)
 
 
 @csrf_exempt
 def api_category_tree(request):
-    """
-    API: Returns complete Category Hierarchy Tree (Top-level -> Subcategories)
-    Method: GET
-    """
-    if request.method != "GET":
-        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
-
-    root_categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by('display_order', 'name')
-    tree = [cat.to_dict(include_subcategories=True) for cat in root_categories]
-
-    return JsonResponse({
-        "success": True,
-        "count": len(tree),
-        "tree": tree
-    }, status=200)
+    """API alias for category hierarchy / list"""
+    return api_category_list(request)
 
 
-# Backward compatibility wrappers for legacy endpoints
+# Backward compatibility wrappers
 @csrf_exempt
 def api_category_list_create(request):
     if request.method == "GET":
@@ -1146,7 +985,7 @@ def api_category_list_create(request):
 @csrf_exempt
 def api_category_detail_update_delete(request, category_id=None, slug=None):
     if request.method == "GET":
-        return api_category_detail(request, category_id=category_id, slug=slug)
+        return api_category_detail(request, category_id=category_id)
     elif request.method in ["PUT", "POST"]:
         if request.path.rstrip('/').endswith('/delete'):
             return api_category_delete(request, category_id)
@@ -1154,5 +993,6 @@ def api_category_detail_update_delete(request, category_id=None, slug=None):
     elif request.method == "DELETE":
         return api_category_delete(request, category_id)
     return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
 
 

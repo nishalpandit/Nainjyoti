@@ -229,76 +229,34 @@ class OTPRecord(models.Model):
 
 class Category(models.Model):
     """
-    Marketplace Category & Subcategory Taxonomy
-    Supports hierarchical parent-child relationships, commission percentages,
-    icons, banners/images, and active visibility toggles.
+    Master Category Taxonomy.
+    Master table containing only name and status for product listings.
     """
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('INACTIVE', 'Inactive'),
+    ]
+
     name = models.CharField(max_length=150, unique=True)
-    slug = models.SlugField(max_length=160, unique=True, blank=True)
-    description = models.TextField(blank=True, default='')
-    parent = models.ForeignKey(
-        'self',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='subcategories'
-    )
-    image = models.ImageField(upload_to='categories/', blank=True, null=True)
-    icon = models.CharField(max_length=60, blank=True, default='fa-layer-group')
-    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
-    display_order = models.IntegerField(default=0)
-    is_active = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['display_order', 'name']
+        ordering = ['name']
         verbose_name = 'Category'
         verbose_name_plural = 'Categories'
 
     def __str__(self):
-        if self.parent:
-            return f"{self.parent.name} -> {self.name}"
-        return self.name
+        return f"{self.name} ({self.status})"
 
-    def save(self, *args, **kwargs):
-        if not self.slug:
-            base_slug = slugify(self.name)
-            slug = base_slug
-            counter = 1
-            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
-        super().save(*args, **kwargs)
-
-    @property
-    def image_url(self):
-        if self.image and hasattr(self.image, 'url'):
-            return self.image.url
-        return None
-
-    def to_dict(self, include_subcategories=True):
-        data = {
+    def to_dict(self):
+        return {
             'id': self.id,
             'name': self.name,
-            'slug': self.slug,
-            'description': self.description,
-            'parent_id': self.parent_id,
-            'parent_name': self.parent.name if self.parent else None,
-            'image': self.image_url,
-            'icon': self.icon,
-            'commission_rate': float(self.commission_rate),
-            'display_order': self.display_order,
-            'is_active': self.is_active,
-            'subcategories_count': self.subcategories.filter(is_active=True).count(),
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
-        if include_subcategories:
-            data['subcategories'] = [
-                sub.to_dict(include_subcategories=False)
-                for sub in self.subcategories.filter(is_active=True)
-            ]
-        return data
+
 
