@@ -1,5 +1,7 @@
 import json
 import base64
+import random
+import secrets
 from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -357,6 +359,40 @@ def _get_authenticated_vendor(request):
     if request.user.is_authenticated and hasattr(request.user, 'vendor_profile'):
         return request.user.vendor_profile
 
+    return None
+
+
+def _require_vendor_auth(request):
+    """
+    Strictly enforce Vendor Bearer token authentication.
+    Returns (vendor, None) on success, or (None, JsonResponse) on failure (401 / 403).
+    """
+    vendor = _get_authenticated_vendor(request)
+    if not vendor:
+        return None, JsonResponse({
+            "success": False,
+            "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+        }, status=401)
+
+    if vendor.status != "APPROVED":
+        return None, JsonResponse({
+            "success": False,
+            "message": f"Store status '{vendor.status}' is not authorized. Only APPROVED vendors can access this endpoint."
+        }, status=403)
+
+    return vendor, None
+
+
+def _check_vendor_ownership(vendor, product, action_name="manage"):
+    """
+    Strictly verify multi-tenant item ownership.
+    Returns None if permitted, or JsonResponse 403 if vendor does not own this product.
+    """
+    if product.vendor_id != vendor.id:
+        return JsonResponse({
+            "success": False,
+            "message": f"Access denied. You do not have permission to {action_name} this product."
+        }, status=403)
     return None
 
 
@@ -1086,18 +1122,25 @@ def api_product_list(request):
 
     qs = Product.objects.all().select_related('vendor', 'category')
 
-    # If seller provides Bearer token, optionally scope to their products unless scope='all' is passed
-    auth_vendor = _get_authenticated_vendor(request)
-    scope = request.GET.get("scope", "").lower()
-    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
-        qs = qs.filter(vendor=auth_vendor)
+    # Strict multi-tenant vendor scoping on /api/vendor/ routes
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        qs = qs.filter(vendor=vendor)
     else:
-        vendor_id = request.GET.get("vendor_id")
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
-        vendor_code = request.GET.get("vendor_code")
-        if vendor_code:
-            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+        # If seller provides Bearer token on public/admin route, optionally scope to their products unless scope='all' is passed
+        auth_vendor = _get_authenticated_vendor(request)
+        scope = request.GET.get("scope", "").lower()
+        if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+            qs = qs.filter(vendor=auth_vendor)
+        else:
+            vendor_id = request.GET.get("vendor_id")
+            if vendor_id:
+                qs = qs.filter(vendor_id=vendor_id)
+            vendor_code = request.GET.get("vendor_code")
+            if vendor_code:
+                qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
 
     # Category filter
     category_id = request.GET.get("category_id")
@@ -1175,6 +1218,13 @@ def api_product_create(request):
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
 
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+    else:
+        vendor = None
+
     data = _parse_request_data(request)
 
     # Validate name
@@ -1221,7 +1271,8 @@ def api_product_create(request):
         return JsonResponse({"success": False, "message": f"Product with SKU '{sku}' already exists."}, status=400)
 
     # Vendor resolution
-    vendor = _resolve_vendor_for_product(request, data)
+    if not vendor:
+        vendor = _resolve_vendor_for_product(request, data)
 
     # Category resolution
     cat_id = data.get("category_id")
@@ -1304,6 +1355,14 @@ def api_product_detail(request, product_id):
             "message": f"Product with ID '{product_id}' not found."
         }, status=404)
 
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        perm_err = _check_vendor_ownership(vendor, product, action_name="view")
+        if perm_err:
+            return perm_err
+
     return JsonResponse({
         "success": True,
         "product": product.to_dict()
@@ -1328,6 +1387,14 @@ def api_product_update(request, product_id):
             "success": False,
             "message": f"Product with ID '{product_id}' not found."
         }, status=404)
+
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        perm_err = _check_vendor_ownership(vendor, product, action_name="modify")
+        if perm_err:
+            return perm_err
 
     data = _parse_request_data(request)
 
@@ -1452,6 +1519,14 @@ def api_product_delete(request, product_id):
             "message": f"Product with ID '{product_id}' not found."
         }, status=404)
 
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        perm_err = _check_vendor_ownership(vendor, product, action_name="delete")
+        if perm_err:
+            return perm_err
+
     prod_name = product.name
     prod_sku = product.sku
     prod_id = product.id
@@ -1503,17 +1578,24 @@ def api_stock_summary(request):
 
     qs = Product.objects.all().select_related('vendor', 'category')
     
-    auth_vendor = _get_authenticated_vendor(request)
-    scope = request.GET.get("scope", "").lower()
-    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
-        qs = qs.filter(vendor=auth_vendor)
+    # Strict multi-tenant vendor scoping on /api/vendor/ routes
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        qs = qs.filter(vendor=vendor)
     else:
-        vendor_id = request.GET.get("vendor_id")
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
-        vendor_code = request.GET.get("vendor_code")
-        if vendor_code:
-            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+        auth_vendor = _get_authenticated_vendor(request)
+        scope = request.GET.get("scope", "").lower()
+        if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+            qs = qs.filter(vendor=auth_vendor)
+        else:
+            vendor_id = request.GET.get("vendor_id")
+            if vendor_id:
+                qs = qs.filter(vendor_id=vendor_id)
+            vendor_code = request.GET.get("vendor_code")
+            if vendor_code:
+                qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
 
     total_skus = qs.count()
     total_units = 0
@@ -1564,17 +1646,24 @@ def api_stock_list(request):
 
     qs = Product.objects.all().select_related('vendor', 'category')
 
-    auth_vendor = _get_authenticated_vendor(request)
-    scope = request.GET.get("scope", "").lower()
-    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
-        qs = qs.filter(vendor=auth_vendor)
+    # Strict multi-tenant vendor scoping on /api/vendor/ routes
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        qs = qs.filter(vendor=vendor)
     else:
-        vendor_id = request.GET.get("vendor_id")
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
-        vendor_code = request.GET.get("vendor_code")
-        if vendor_code:
-            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+        auth_vendor = _get_authenticated_vendor(request)
+        scope = request.GET.get("scope", "").lower()
+        if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+            qs = qs.filter(vendor=auth_vendor)
+        else:
+            vendor_id = request.GET.get("vendor_id")
+            if vendor_id:
+                qs = qs.filter(vendor_id=vendor_id)
+            vendor_code = request.GET.get("vendor_code")
+            if vendor_code:
+                qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
 
     category_id = request.GET.get("category_id")
     if category_id:
@@ -1644,6 +1733,14 @@ def api_stock_update(request, product_id):
     product = Product.objects.filter(id=product_id).select_related('vendor', 'category').first()
     if not product:
         return JsonResponse({"success": False, "message": f"Product with ID '{product_id}' not found."}, status=404)
+
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        perm_err = _check_vendor_ownership(vendor, product, action_name="adjust stock for")
+        if perm_err:
+            return perm_err
 
     data = _parse_request_data(request)
 
@@ -1741,20 +1838,36 @@ def api_stock_logs(request, product_id=None):
     qs = StockLog.objects.all().select_related('product', 'vendor')
 
     prod_id = product_id or request.GET.get("product_id")
-    if prod_id:
-        qs = qs.filter(product_id=prod_id)
 
-    auth_vendor = _get_authenticated_vendor(request)
-    scope = request.GET.get("scope", "").lower()
-    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
-        qs = qs.filter(vendor=auth_vendor)
+    # Strict multi-tenant vendor scoping on /api/vendor/ routes
+    if request.path.startswith('/api/vendor/'):
+        vendor, err_resp = _require_vendor_auth(request)
+        if err_resp:
+            return err_resp
+        qs = qs.filter(vendor=vendor)
+        if prod_id:
+            target_prod = Product.objects.filter(id=prod_id).first()
+            if target_prod and target_prod.vendor_id != vendor.id:
+                return JsonResponse({
+                    "success": False,
+                    "message": "Access denied. You do not have permission to view stock logs for this product."
+                }, status=403)
+            qs = qs.filter(product_id=prod_id)
     else:
-        vendor_id = request.GET.get("vendor_id")
-        if vendor_id:
-            qs = qs.filter(vendor_id=vendor_id)
-        vendor_code = request.GET.get("vendor_code")
-        if vendor_code:
-            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+        if prod_id:
+            qs = qs.filter(product_id=prod_id)
+
+        auth_vendor = _get_authenticated_vendor(request)
+        scope = request.GET.get("scope", "").lower()
+        if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+            qs = qs.filter(vendor=auth_vendor)
+        else:
+            vendor_id = request.GET.get("vendor_id")
+            if vendor_id:
+                qs = qs.filter(vendor_id=vendor_id)
+            vendor_code = request.GET.get("vendor_code")
+            if vendor_code:
+                qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
 
     movement_type = request.GET.get("movement_type", "").strip().upper()
     if movement_type:

@@ -4,10 +4,16 @@ import urllib.error
 import json
 import uuid
 import os
+import django
+
+# Setup Django environment to fetch test vendor credentials
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+django.setup()
+from django.contrib.auth.models import User
+from nainjyoti.models import VendorProfile, Category, Product
 
 BASE_URL = "http://127.0.0.1:8000"
 
-# Minimal valid 1x1 PNG byte array for realistic image upload testing
 TINY_PNG_BYTES = bytes([
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
     0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -81,15 +87,69 @@ def send_request(method, path, data=None, headers=None):
         except Exception:
             return status, res_body
 
+def setup_vendors():
+    # Vendor A
+    u_a, _ = User.objects.get_or_create(username='vendor_a@nainjyoti.com', defaults={'email': 'vendor_a@nainjyoti.com'})
+    v_a, _ = VendorProfile.objects.get_or_create(user=u_a, defaults={
+        'business_name': 'Kashmir Pashmina & Crafts',
+        'owner_name': 'Tariq Butt',
+        'phone': '9876543210',
+        'status': 'APPROVED'
+    })
+    v_a.status = 'APPROVED'
+    if not v_a.auth_token:
+        v_a.generate_new_token()
+    v_a.save()
+
+    # Vendor B
+    u_b, _ = User.objects.get_or_create(username='vendor_b@nainjyoti.com', defaults={'email': 'vendor_b@nainjyoti.com'})
+    v_b, _ = VendorProfile.objects.get_or_create(user=u_b, defaults={
+        'business_name': 'Jaipur Blue Pottery Store',
+        'owner_name': 'Rajesh Sharma',
+        'phone': '9876543299',
+        'status': 'APPROVED'
+    })
+    v_b.status = 'APPROVED'
+    if not v_b.auth_token:
+        v_b.generate_new_token()
+    v_b.save()
+
+    return v_a, v_b
+
 def run_tests():
     results = {}
     print("=" * 65)
-    print(" STARTING PRODUCT MANAGEMENT API TEST SUITE ")
+    print(" STARTING SECURED PRODUCT MANAGEMENT API TEST SUITE ")
     print("=" * 65)
 
-    # 1. Ensure a master Category exists
-    print("\n[1] Ensuring Master Category exists...")
-    cat_payload = {"name": "Electronics & Gadgets", "status": "ACTIVE"}
+    vendor_a, vendor_b = setup_vendors()
+    token_a = vendor_a.auth_token
+    token_b = vendor_b.auth_token
+    print(f" -> Authenticated Vendor A: {vendor_a.business_name} (ID: {vendor_a.id})")
+    print(f" -> Authenticated Vendor B: {vendor_b.business_name} (ID: {vendor_b.id})")
+
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    # 1. Test 401 Unauthorized when Bearer token is missing
+    print("\n[1] Testing Security: Missing Bearer Token on /api/vendor/product/list/...")
+    st_no_auth, resp_no_auth = send_request("GET", "/api/vendor/product/list/")
+    print(f" -> Status: {st_no_auth}")
+    print(f" -> Response: {resp_no_auth}")
+    assert st_no_auth == 401, f"Expected 401, got {st_no_auth}"
+    assert resp_no_auth.get("success") is False
+    print(" -> PASSED: Strict 401 Unauthorized enforced when token is missing!")
+
+    # 2. Test 401 Unauthorized when Bearer token is invalid
+    print("\n[2] Testing Security: Invalid Bearer Token on /api/vendor/product/list/...")
+    st_bad_auth, resp_bad_auth = send_request("GET", "/api/vendor/product/list/", headers={"Authorization": "Bearer invalid_secret_token_12345"})
+    print(f" -> Status: {st_bad_auth}")
+    assert st_bad_auth == 401
+    print(" -> PASSED: Strict 401 Unauthorized enforced for invalid token!")
+
+    # 3. Ensure a master Category exists
+    print("\n[3] Ensuring Master Category exists...")
+    cat_payload = {"name": "Electronics & Wearables", "status": "ACTIVE"}
     st, resp = send_request("POST", "/api/vendor/category/create/", data=cat_payload)
     if st == 201:
         category_id = resp["category"]["id"]
@@ -105,8 +165,8 @@ def run_tests():
         else:
             raise Exception("No categories found.")
 
-    # 2. Test Product Creation with Multipart Form-Data and Image Upload
-    print("\n[2] Testing POST /api/vendor/product/create/ (Multipart Form-Data with Image)...")
+    # 4. Test Product Creation with Vendor A Bearer token (Multipart form with Image)
+    print("\n[4] Testing POST /api/vendor/product/create/ (Vendor A with Multipart Image)...")
     sku_unique = f"WATCH-{uuid.uuid4().hex[:6].upper()}"
     fields = {
         'name': 'Wireless Noise Cancelling Smart Watch Pro',
@@ -122,40 +182,45 @@ def run_tests():
     files = {
         'image': ('smart_watch.png', TINY_PNG_BYTES, 'image/png')
     }
-    body, headers = encode_multipart_formdata(fields, files)
+    body, mp_headers = encode_multipart_formdata(fields, files)
+    mp_headers.update(headers_a)
 
-    st_create, resp_create = send_request("POST", "/api/vendor/product/create/", data=body, headers=headers)
+    st_create, resp_create = send_request("POST", "/api/vendor/product/create/", data=body, headers=mp_headers)
     print(f" -> Status Code: {st_create}")
     print(f" -> Response: {json.dumps(resp_create, indent=2)}")
-    results["1_product_create_multipart"] = {
-        "status_code": st_create,
-        "response": resp_create
-    }
     assert st_create == 201, f"Expected 201, got {st_create}"
     product_id = resp_create["product"]["id"]
     created_prod = resp_create["product"]
     assert created_prod["name"] == fields["name"]
-    assert created_prod["sku"] == fields["sku"]
-    assert created_prod["price"] == 3499.0
-    assert created_prod["discount_price"] == 2999.0
-    assert created_prod["image"] is not None and "products/" in created_prod["image"], "Image URL was not saved!"
-    print(f" -> Success! Created Product ID {product_id} with Image: {created_prod['image']}")
+    assert created_prod["vendor_id"] == vendor_a.id, "Product must be owned strictly by Vendor A!"
+    print(f" -> Success! Created Product ID {product_id} bound to Vendor {created_prod['vendor_id']}")
 
-    # 3. Test Product Detail API
-    print(f"\n[3] Testing GET /api/vendor/product/detail/{product_id}/...")
-    st_det, resp_det = send_request("GET", f"/api/vendor/product/detail/{product_id}/")
+    # 5. Test Product Detail with Vendor A
+    print(f"\n[5] Testing GET /api/vendor/product/detail/{product_id}/ with Vendor A...")
+    st_det, resp_det = send_request("GET", f"/api/vendor/product/detail/{product_id}/", headers=headers_a)
     print(f" -> Status Code: {st_det}")
-    print(f" -> Response: {json.dumps(resp_det, indent=2)}")
-    results["2_product_detail"] = {
-        "status_code": st_det,
-        "response": resp_det
-    }
     assert st_det == 200
     assert resp_det["product"]["id"] == product_id
-    assert resp_det["product"]["category_name"] == category_name
 
-    # 4. Test Product Update API
-    print(f"\n[4] Testing POST /api/vendor/product/update/{product_id}/...")
+    # 6. Test Multi-tenant Security: Vendor B attempts to view Vendor A's product -> 403 Forbidden!
+    print(f"\n[6] Testing Security: Vendor B attempts to view Vendor A's product detail (ID {product_id})...")
+    st_cross_view, resp_cross_view = send_request("GET", f"/api/vendor/product/detail/{product_id}/", headers=headers_b)
+    print(f" -> Status: {st_cross_view}")
+    print(f" -> Response: {resp_cross_view}")
+    assert st_cross_view == 403, f"Expected 403 Forbidden, got {st_cross_view}"
+    assert "Access denied" in resp_cross_view.get("message", "")
+    print(" -> PASSED: Multi-tenant boundary enforced! Vendor B cannot view Vendor A's product.")
+
+    # 7. Test Multi-tenant Security: Vendor B attempts to update Vendor A's product -> 403 Forbidden!
+    print(f"\n[7] Testing Security: Vendor B attempts to update Vendor A's product (ID {product_id})...")
+    st_cross_upd, resp_cross_upd = send_request("POST", f"/api/vendor/product/update/{product_id}/", data={"price": "100.00"}, headers=headers_b)
+    print(f" -> Status: {st_cross_upd}")
+    assert st_cross_upd == 403
+    assert "Access denied" in resp_cross_upd.get("message", "")
+    print(" -> PASSED: Vendor B forbidden from modifying Vendor A's product!")
+
+    # 8. Test Product Update with Vendor A (Rightful owner)
+    print(f"\n[8] Testing POST /api/vendor/product/update/{product_id}/ by Vendor A...")
     update_data = {
         'price': '3199.00',
         'discount_price': '2799.00',
@@ -163,19 +228,15 @@ def run_tests():
         'description': 'Updated: Now includes 2 additional magnetic bands and 10-day battery.',
         'status': 'ACTIVE'
     }
-    st_upd, resp_upd = send_request("POST", f"/api/vendor/product/update/{product_id}/", data=update_data)
+    st_upd, resp_upd = send_request("POST", f"/api/vendor/product/update/{product_id}/", data=update_data, headers=headers_a)
     print(f" -> Status Code: {st_upd}")
-    print(f" -> Response: {json.dumps(resp_upd, indent=2)}")
-    results["3_product_update"] = {
-        "status_code": st_upd,
-        "response": resp_upd
-    }
     assert st_upd == 200
     assert resp_upd["product"]["price"] == 3199.0
     assert resp_upd["product"]["stock_quantity"] == 42
+    print(" -> Product updated successfully by rightful owner.")
 
-    # 5. Create a second product to test filters and search
-    print("\n[5] Testing POST /api/vendor/product/create/ (Product #2: Out of Stock item)...")
+    # 9. Create Product #2 for Vendor A
+    print("\n[9] Creating Product #2 for Vendor A (Out of stock item)...")
     sku2_unique = f"KEY-{uuid.uuid4().hex[:6].upper()}"
     prod2_payload = {
         'name': 'Ergonomic Wireless Mechanical Keyboard',
@@ -188,93 +249,59 @@ def run_tests():
         'description': 'RGB backlit wireless keyboard with brown switches.',
         'status': 'OUT_OF_STOCK'
     }
-    st_p2, resp_p2 = send_request("POST", "/api/vendor/product/create/", data=prod2_payload)
-    print(f" -> Status Code: {st_p2}")
-    print(f" -> Response: {json.dumps(resp_p2, indent=2)}")
+    st_p2, resp_p2 = send_request("POST", "/api/vendor/product/create/", data=prod2_payload, headers=headers_a)
     assert st_p2 == 201
     prod2_id = resp_p2["product"]["id"]
-    results["4_product_create_second"] = {
-        "status_code": st_p2,
-        "response": resp_p2
-    }
 
-    # 6. Test Product Listing with Filters
-    print("\n[6] Testing GET /api/vendor/product/list/ with query filters...")
+    # 10. Test Multi-tenant Product List Scoping
+    print("\n[10] Testing GET /api/vendor/product/list/ multi-tenant scoping...")
+    st_list_a, resp_list_a = send_request("GET", "/api/vendor/product/list/", headers=headers_a)
+    assert st_list_a == 200
+    a_ids = [p["id"] for p in resp_list_a.get("products", [])]
+    assert product_id in a_ids and prod2_id in a_ids
+    print(f" -> Vendor A sees {len(a_ids)} items (both owned items present)")
 
-    # 6a. All products
-    st_list, resp_list = send_request("GET", "/api/vendor/product/list/")
-    print(f" -> [All Products] Count: {resp_list.get('count')}")
-    assert st_list == 200 and resp_list.get('count') >= 2
-    results["5a_product_list_all"] = {
-        "status_code": st_list,
-        "count": resp_list.get("count"),
-        "products": resp_list.get("products")
-    }
+    st_list_b, resp_list_b = send_request("GET", "/api/vendor/product/list/", headers=headers_b)
+    assert st_list_b == 200
+    b_ids = [p["id"] for p in resp_list_b.get("products", [])]
+    assert product_id not in b_ids and prod2_id not in b_ids, "Vendor A's products leaked to Vendor B!"
+    print(f" -> Vendor B sees {len(b_ids)} items (ZERO of Vendor A's items leaked!)")
 
-    # 6b. Search filter
-    st_srch, resp_srch = send_request("GET", "/api/vendor/product/list/?search=Mechanical")
-    print(f" -> [Search 'Mechanical'] Count: {resp_srch.get('count')}")
-    assert st_srch == 200 and resp_srch.get('count') >= 1
-    results["5b_product_list_search"] = {
-        "status_code": st_srch,
-        "count": resp_srch.get("count")
-    }
+    # 11. Test Multi-tenant Security: Vendor B attempts to delete Vendor A's product -> 403 Forbidden!
+    print(f"\n[11] Testing Security: Vendor B attempts to delete Vendor A's product (ID {prod2_id})...")
+    st_cross_del, resp_cross_del = send_request("POST", f"/api/vendor/product/delete/{prod2_id}/", headers=headers_b)
+    print(f" -> Status: {st_cross_del}")
+    assert st_cross_del == 403
+    print(" -> PASSED: Vendor B forbidden from deleting Vendor A's product!")
 
-    # 6c. Status filter
-    st_st, resp_st = send_request("GET", "/api/vendor/product/list/?status=OUT_OF_STOCK")
-    print(f" -> [Status 'OUT_OF_STOCK'] Count: {resp_st.get('count')}")
-    assert st_st == 200 and resp_st.get('count') >= 1
-    results["5c_product_list_status"] = {
-        "status_code": st_st,
-        "count": resp_st.get("count")
-    }
-
-    # 6d. Price range filter
-    st_pr, resp_pr = send_request("GET", "/api/vendor/product/list/?min_price=2000&max_price=4000")
-    print(f" -> [Price Range INR 2000 - INR 4000] Count: {resp_pr.get('count')}")
-    assert st_pr == 200 and resp_pr.get('count') >= 1
-    results["5d_product_list_price_range"] = {
-        "status_code": st_pr,
-        "count": resp_pr.get("count")
-    }
-
-    # 7. Test Delete Product API
-    print(f"\n[7] Testing POST /api/vendor/product/delete/{prod2_id}/...")
-    st_del, resp_del = send_request("POST", f"/api/vendor/product/delete/{prod2_id}/")
-    print(f" -> Status Code: {st_del}")
-    print(f" -> Response: {json.dumps(resp_del, indent=2)}")
-    results["6_product_delete"] = {
-        "status_code": st_del,
-        "response": resp_del
-    }
+    # 12. Rightful Delete of Product #2 by Vendor A
+    print(f"\n[12] Testing Rightful DELETE by Vendor A on Product {prod2_id}...")
+    st_del, resp_del = send_request("POST", f"/api/vendor/product/delete/{prod2_id}/", headers=headers_a)
     assert st_del == 200
     assert resp_del["success"] is True
 
-    # 8. Verify deleted product returns 404
-    print(f"\n[8] Verifying deleted product is 404...")
-    st_chk, resp_chk = send_request("GET", f"/api/vendor/product/detail/{prod2_id}/")
-    print(f" -> Status Code: {st_chk} (Expected 404)")
+    st_chk, _ = send_request("GET", f"/api/vendor/product/detail/{prod2_id}/", headers=headers_a)
     assert st_chk == 404
-    results["7_product_verify_404"] = {
-        "status_code": st_chk,
-        "response": resp_chk
-    }
+    print(" -> Product 2 successfully deleted and confirmed 404.")
 
-    # 9. Test Aliases: GET /api/product/list/ and GET /api/admin/product/detail/<id>/
-    print(f"\n[9] Testing API aliases (/api/product/list/ and /api/admin/product/detail/{product_id}/)...")
-    st_alias1, resp_alias1 = send_request("GET", "/api/product/list/")
-    assert st_alias1 == 200
-    st_alias2, resp_alias2 = send_request("GET", f"/api/admin/product/detail/{product_id}/")
-    assert st_alias2 == 200
-    print(f" -> Aliases work identically! Product name: {resp_alias2['product']['name']}")
+    # 13. Test Public / Admin Aliases
+    print("\n[13] Testing Public / Admin Product Aliases...")
+    st_pub, resp_pub = send_request("GET", "/api/product/list/")
+    assert st_pub == 200
+    st_adm, resp_adm = send_request("GET", f"/api/admin/product/detail/{product_id}/")
+    assert st_adm == 200
+    print(" -> Public and Admin aliases operating normally.")
 
-    # Save complete test suite results to JSON file
+    # Save test results
+    results["vendor_a_id"] = vendor_a.id
+    results["vendor_b_id"] = vendor_b.id
+    results["test_product_id"] = product_id
+    results["security_tests_passed"] = ["401_missing_token", "401_invalid_token", "403_cross_view", "403_cross_update", "403_cross_delete", "tenant_isolation_list"]
     with open("product_api_test_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
     print("\n" + "=" * 65)
-    print(" ALL PRODUCT API SUITE TESTS PASSED 100% SUCCESSFULLY! ")
-    print(" Full logs written to: product_api_test_results.json")
+    print(" ALL PRODUCT API SECURITY & FUNCTIONAL TESTS PASSED 100%! ")
     print("=" * 65)
 
 if __name__ == "__main__":

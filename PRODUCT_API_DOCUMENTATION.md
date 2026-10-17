@@ -3,7 +3,7 @@ url: http://192.168.1.52:8000/api/vendor/product/create/
 method: POST  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional, automatically scopes to authenticated merchant store)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to bind product to seller store)  
 
 params:  
 name: Wireless Noise Cancelling Smart Watch Pro  
@@ -49,6 +49,14 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
 ---
 
 API for List Products  
@@ -56,7 +64,7 @@ url: http://192.168.1.52:8000/api/vendor/product/list/
 method: GET  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional, scopes product list to logged-in vendor)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to scope product catalog to authenticated vendor)  
 
 params:  
 category_id: 2 (optional, filter by Category master ID)  
@@ -101,11 +109,22 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
 ---
 
 API for Get Product Details  
 url: http://192.168.1.52:8000/api/vendor/product/detail/1/  
 method: GET  
+
+headers:  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to verify store ownership)  
 
 params:  
 none  
@@ -140,11 +159,30 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
+forbidden_error_response (403):  
+```json
+{
+  "success": false,
+  "message": "Access denied. You do not have permission to view this product."
+}
+```
+
 ---
 
 API for Update Product  
 url: http://192.168.1.52:8000/api/vendor/product/update/1/  
 method: POST  
+
+headers:  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to verify store ownership)  
 
 params:  
 price: 3199.00  
@@ -186,11 +224,30 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
+forbidden_error_response (403):  
+```json
+{
+  "success": false,
+  "message": "Access denied. You do not have permission to modify this product."
+}
+```
+
 ---
 
 API for Delete Product  
 url: http://192.168.1.52:8000/api/vendor/product/delete/1/  
 method: POST  
+
+headers:  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to verify store ownership)  
 
 params:  
 none  
@@ -201,5 +258,21 @@ response:
   "success": true,
   "message": "Product 'Wireless Noise Cancelling Smart Watch Pro' (WATCH-PRO-001) deleted successfully.",
   "product_id": 1
+}
+```
+
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
+forbidden_error_response (403):  
+```json
+{
+  "success": false,
+  "message": "Access denied. You do not have permission to delete this product."
 }
 ```

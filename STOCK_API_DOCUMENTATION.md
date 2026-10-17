@@ -3,7 +3,7 @@ url: http://192.168.1.52:8000/api/vendor/stock/summary/
 method: GET  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional, scopes inventory KPIs to authenticated vendor)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory for multi-tenant vendor scoping)  
 
 params:  
 none  
@@ -24,6 +24,14 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
 ---
 
 API for Inventory Stock List  
@@ -31,7 +39,7 @@ url: http://192.168.1.52:8000/api/vendor/stock/list/
 method: GET  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional, scopes inventory to logged-in vendor)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to scope inventory to authenticated vendor)  
 
 params:  
 level: low_stock (optional, choices: all, low_stock, out_of_stock, healthy)  
@@ -66,6 +74,14 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
 ---
 
 API for Adjust Inventory Stock  
@@ -73,7 +89,7 @@ url: http://192.168.1.52:8000/api/vendor/stock/update/6/
 method: POST  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory to verify store ownership)  
 
 params:  
 action: ADD (required, choices: ADD, SUBTRACT, SET)  
@@ -119,6 +135,22 @@ response:
 }
 ```
 
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
+forbidden_error_response (403):  
+```json
+{
+  "success": false,
+  "message": "Access denied. You do not have permission to adjust stock for this product."
+}
+```
+
 ---
 
 API for Stock Movement Audit Logs  
@@ -126,7 +158,7 @@ url: http://192.168.1.52:8000/api/vendor/stock/logs/6/
 method: GET  
 
 headers:  
-Authorization: Bearer <vendor_token> (optional)  
+Authorization: Bearer <vendor_token> (required - strictly mandatory for audit ledger access)  
 
 params:  
 movement_type: RESTOCK (optional, filter by RESTOCK, SALE, RETURN, DAMAGE, CORRECTION)  
@@ -169,5 +201,21 @@ response:
       "created_at": "2026-10-17T07:11:16.920456+00:00"
     }
   ]
+}
+```
+
+unauthorized_error_response (401):  
+```json
+{
+  "success": false,
+  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
+}
+```
+
+forbidden_error_response (403):  
+```json
+{
+  "success": false,
+  "message": "Access denied. You do not have permission to view stock logs for this product."
 }
 ```
