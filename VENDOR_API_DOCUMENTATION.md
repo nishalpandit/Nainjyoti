@@ -340,6 +340,7 @@ category_id: 2 (master category ID)
 price: 3499.00  
 discount_price: 2999.00 (optional offer price)  
 stock_quantity: 50  
+low_stock_threshold: 10 (optional, default: 10 alert threshold)  
 unit: Piece (optional, default: Piece)  
 description: High-performance smartwatch featuring OLED display, health tracking, and 7-day battery life.  
 status: ACTIVE (choices: ACTIVE, INACTIVE, OUT_OF_STOCK)  
@@ -363,6 +364,9 @@ response:
     "price": 3499.0,
     "discount_price": 2999.0,
     "stock_quantity": 50,
+    "low_stock_threshold": 10,
+    "stock_status": "HEALTHY",
+    "stock_valuation": 174950.0,
     "unit": "Piece",
     "image": "/media/products/smart_watch.png",
     "status": "ACTIVE",
@@ -411,6 +415,9 @@ response:
       "price": 3499.0,
       "discount_price": 2999.0,
       "stock_quantity": 50,
+      "low_stock_threshold": 10,
+      "stock_status": "HEALTHY",
+      "stock_valuation": 174950.0,
       "unit": "Piece",
       "image": "/media/products/smart_watch.png",
       "status": "ACTIVE",
@@ -448,6 +455,9 @@ response:
     "price": 3499.0,
     "discount_price": 2999.0,
     "stock_quantity": 50,
+    "low_stock_threshold": 10,
+    "stock_status": "HEALTHY",
+    "stock_valuation": 174950.0,
     "unit": "Piece",
     "image": "/media/products/smart_watch.png",
     "status": "ACTIVE",
@@ -468,6 +478,7 @@ params:
 price: 3199.00  
 discount_price: 2799.00  
 stock_quantity: 42  
+low_stock_threshold: 10 (optional, update low stock alert threshold)  
 description: Updated: Now includes 2 additional magnetic bands and 10-day battery.  
 status: ACTIVE  
 image: [optional, new binary image file to update product photo]  
@@ -490,6 +501,9 @@ response:
     "price": 3199.0,
     "discount_price": 2799.0,
     "stock_quantity": 42,
+    "low_stock_threshold": 10,
+    "stock_status": "HEALTHY",
+    "stock_valuation": 134358.0,
     "unit": "Piece",
     "image": "/media/products/smart_watch.png",
     "status": "ACTIVE",
