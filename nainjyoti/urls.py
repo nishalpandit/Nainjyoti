@@ -17,11 +17,18 @@ urlpatterns = [
 
     # Admin Protected Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin-dashboard/customers/', views.admin_customers, name='admin_customers'),
+    path('admin-dashboard/vendors/', views.admin_vendors, name='admin_vendors'),
     path('admin-dashboard/vendor-approval/', views.admin_vendor_approval, name='admin_vendor_approval'),
     path('admin-dashboard/vendor/<int:vendor_id>/kyc/', views.admin_vendor_kyc_detail, name='admin_vendor_kyc_detail'),
     path('admin-dashboard/categories/', views.admin_categories, name='admin_categories'),
     path('admin-dashboard/categories/add/', views.admin_category_form, name='admin_category_add'),
     path('admin-dashboard/categories/<int:category_id>/edit/', views.admin_category_form, name='admin_category_edit'),
+    path('admin-dashboard/products/', views.admin_products, name='admin_products'),
+    path('admin-dashboard/orders/', views.admin_orders, name='admin_orders'),
+    path('admin-dashboard/payments/', views.admin_payments, name='admin_payments'),
+    path('admin-dashboard/reports/', views.admin_reports, name='admin_reports'),
+    path('admin-dashboard/settings/', views.admin_settings, name='admin_settings'),
 
     # =========================================================================
     # Vendor Web Dashboard (Full Dynamic Portal)
