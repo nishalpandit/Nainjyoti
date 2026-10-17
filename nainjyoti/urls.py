@@ -45,14 +45,42 @@ urlpatterns = [
     path('api/vendor/logout/', api_views.api_vendor_logout, name='api_vendor_logout'),
 
     # =========================================================================
-    # Category Management REST APIs
+    # Vendor Category Endpoints (api/vendor/category/...)
     # =========================================================================
+    path('api/vendor/category/list/', api_views.api_category_list, name='api_vendor_category_list'),
+    path('api/vendor/category/create/', api_views.api_category_create, name='api_vendor_category_create'),
+    path('api/vendor/category/detail/<int:category_id>/', api_views.api_category_detail, name='api_vendor_category_detail'),
+    path('api/vendor/category/update/<int:category_id>/', api_views.api_category_update, name='api_vendor_category_update'),
+    path('api/vendor/category/delete/<int:category_id>/', api_views.api_category_delete, name='api_vendor_category_delete'),
+    path('api/vendor/category/tree/', api_views.api_category_tree, name='api_vendor_category_tree'),
+
+    # =========================================================================
+    # Admin Category Endpoints (api/admin/category/...)
+    # =========================================================================
+    path('api/admin/category/list/', api_views.api_category_list, name='api_admin_category_list'),
+    path('api/admin/category/create/', api_views.api_category_create, name='api_admin_category_create'),
+    path('api/admin/category/detail/<int:category_id>/', api_views.api_category_detail, name='api_admin_category_detail'),
+    path('api/admin/category/update/<int:category_id>/', api_views.api_category_update, name='api_admin_category_update'),
+    path('api/admin/category/delete/<int:category_id>/', api_views.api_category_delete, name='api_admin_category_delete'),
+    path('api/admin/category/tree/', api_views.api_category_tree, name='api_admin_category_tree'),
+
+    # =========================================================================
+    # General / Direct Category Endpoints (api/category/...)
+    # =========================================================================
+    path('api/category/list/', api_views.api_category_list, name='api_category_list'),
+    path('api/category/create/', api_views.api_category_create, name='api_category_create'),
+    path('api/category/detail/<int:category_id>/', api_views.api_category_detail, name='api_category_detail'),
+    path('api/category/update/<int:category_id>/', api_views.api_category_update, name='api_category_update'),
+    path('api/category/delete/<int:category_id>/', api_views.api_category_delete, name='api_category_delete'),
+    path('api/category/tree/', api_views.api_category_tree, name='api_category_tree'),
+
+    # Legacy Category REST Aliases
     path('api/categories/', api_views.api_category_list_create, name='api_categories'),
-    path('api/categories/tree/', api_views.api_category_tree, name='api_category_tree'),
-    path('api/categories/<int:category_id>/', api_views.api_category_detail_update_delete, name='api_category_detail'),
-    path('api/categories/<int:category_id>/update/', api_views.api_category_detail_update_delete, name='api_category_update'),
-    path('api/categories/<int:category_id>/delete/', api_views.api_category_detail_update_delete, name='api_category_delete'),
-    path('api/categories/slug/<str:slug>/', api_views.api_category_detail_update_delete, name='api_category_detail_by_slug'),
+    path('api/categories/tree/', api_views.api_category_tree, name='api_categories_tree_legacy'),
+    path('api/categories/<int:category_id>/', api_views.api_category_detail_update_delete, name='api_categories_detail_legacy'),
+    path('api/categories/<int:category_id>/update/', api_views.api_category_update, name='api_categories_update_legacy'),
+    path('api/categories/<int:category_id>/delete/', api_views.api_category_delete, name='api_categories_delete_legacy'),
+    path('api/categories/slug/<str:slug>/', api_views.api_category_detail, name='api_category_detail_by_slug'),
 
     # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)
