@@ -61,14 +61,6 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold" for="image">Product Image URL</label>
-                        <input class="form-control" id="image" name="image" type="text"
-                               placeholder="https://images.example.com/item.jpg"
-                               value="{{ product.image|default:'' }}">
-                        <div class="form-text">Direct image URL to display on the storefront and consumer app.</div>
-                    </div>
-
-                    <div class="col-md-6">
                         <label class="form-label fw-semibold" for="status">Listing Status</label>
                         <select class="form-select" id="status" name="status">
                             <option value="ACTIVE" {% if not product or product.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Visible to buyers)</option>
@@ -76,9 +68,64 @@
                         </select>
                     </div>
 
+                    <!-- Product Image Upload Component -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold d-block">
+                            Product Image <span class="text-secondary fw-normal">(Upload photo from your device)</span>
+                        </label>
+
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-8">
+                                <!-- Drag & Drop / File Input Box -->
+                                <div id="dropZone" class="border border-2 border-dashed rounded-3 p-4 text-center position-relative" 
+                                     style="background: #fafafa; border-color: #cbd5e1; cursor: pointer; transition: all 0.2s ease;">
+                                    <input type="file" id="product_image_file" name="image" accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0" style="cursor: pointer;">
+                                    
+                                    <div id="uploadPrompt" class="{% if product.image_url %}d-none{% endif %}">
+                                        <div class="mb-2">
+                                            <i class="fa-solid fa-cloud-arrow-up text-primary fs-1"></i>
+                                        </div>
+                                        <div class="fw-bold text-dark mb-1">Click to browse or drag &amp; drop product photo</div>
+                                        <div class="text-secondary small">Supports PNG, JPG, JPEG, WEBP up to 5 MB</div>
+                                    </div>
+
+                                    <!-- Live Preview Container -->
+                                    <div id="previewContainer" class="{% if not product.image_url %}d-none{% endif %} d-flex align-items-center justify-content-center gap-3">
+                                        <div class="position-relative">
+                                            <img id="imagePreview" src="{{ product.image_url|default:'' }}" alt="Preview" 
+                                                 class="rounded-3 border shadow-sm" style="max-height: 120px; max-width: 140px; object-fit: cover;">
+                                        </div>
+                                        <div class="text-start">
+                                            <div id="previewFileName" class="fw-bold text-dark small text-truncate" style="max-width: 200px;">
+                                                {% if product.image_url %}Current Photo{% else %}Selected Photo{% endif %}
+                                            </div>
+                                            <div id="previewFileSize" class="text-secondary small mb-2">Ready for upload</div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('product_image_file').click();">
+                                                <i class="fa-solid fa-arrows-rotate me-1"></i>Choose New File
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Optional Image URL fallback -->
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <label class="form-label small fw-semibold text-secondary mb-1" for="image_url">
+                                        <i class="fa-solid fa-link me-1"></i>Or Remote Image URL
+                                    </label>
+                                    <input class="form-control form-control-sm" id="image_url" name="image_url" type="url"
+                                           placeholder="https://example.com/photo.jpg"
+                                           value="{% if product.image_url and 'http' in product.image_url %}{{ product.image_url }}{% endif %}">
+                                    <div class="form-text" style="font-size: 11px;">Optional: link directly if image is already hosted.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="col-12">
                         <label class="form-label fw-semibold" for="description">Detailed Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="5"
+                        <textarea class="form-control" id="description" name="description" rows="4"
                                   placeholder="Provide authentic details about materials, care instructions, origin, dimensions...">{{ product.description|default:'' }}</textarea>
                     </div>
 
@@ -92,4 +139,53 @@
             </form>
         </div>
     </div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('product_image_file');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    const previewContainer = document.getElementById('previewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewFileName = document.getElementById('previewFileName');
+    const previewFileSize = document.getElementById('previewFileSize');
+    const dropZone = document.getElementById('dropZone');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    imagePreview.src = evt.target.result;
+                    previewFileName.textContent = file.name;
+                    const sizeInKb = (file.size / 1024).toFixed(1);
+                    previewFileSize.textContent = `${sizeInKb} KB · Ready to save`;
+                    uploadPrompt.classList.add('d-none');
+                    previewContainer.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#4f46e5';
+            dropZone.style.background = '#eef2ff';
+        });
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = '#fafafa';
+        });
+        dropZone.addEventListener('drop', (e) => {
+            dropZone.style.borderColor = '#cbd5e1';
+            dropZone.style.background = '#fafafa';
+        });
+    }
+});
+</script>
 {% endblock %}

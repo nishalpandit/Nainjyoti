@@ -318,8 +318,16 @@ class Product(models.Model):
 
     @property
     def image_url(self):
-        if self.image and hasattr(self.image, 'url'):
-            return self.image.url
+        if self.image:
+            if hasattr(self.image, 'url'):
+                try:
+                    return self.image.url
+                except Exception:
+                    pass
+            img_str = str(self.image).strip()
+            if img_str.startswith('http://') or img_str.startswith('https://') or img_str.startswith('/media/'):
+                return img_str
+            return f"/media/{img_str}"
         return None
 
     @property

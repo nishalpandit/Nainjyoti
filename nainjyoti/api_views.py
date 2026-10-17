@@ -1301,16 +1301,24 @@ def api_product_create(request):
     if sku:
         product.sku = sku
 
-    # Handle image upload (multipart file or base64)
+    # Handle image upload (multipart binary file, base64 data, or image_url string)
     if request.FILES.get("image"):
         product.image = request.FILES["image"]
-    elif "image" in data and isinstance(data["image"], str) and data["image"].startswith("data:image"):
-        try:
-            fmt, imgstr = data["image"].split(";base64,")
-            ext = fmt.split("/")[-1].split("+")[0]
-            product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(name)}_{random.randint(1000, 9999)}.{ext}")
-        except Exception:
-            pass
+    elif request.FILES.get("product_image"):
+        product.image = request.FILES["product_image"]
+    elif "image" in data and isinstance(data["image"], str):
+        img_val = data["image"].strip()
+        if img_val.startswith("data:image"):
+            try:
+                fmt, imgstr = img_val.split(";base64,")
+                ext = fmt.split("/")[-1].split("+")[0]
+                product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(name)}_{random.randint(1000, 9999)}.{ext}")
+            except Exception:
+                pass
+        elif img_val:
+            product.image = img_val
+    elif data.get("image_url"):
+        product.image = str(data["image_url"]).strip()
 
     raw_thresh = data.get("low_stock_threshold")
     if raw_thresh not in [None, ""]:
@@ -1486,16 +1494,24 @@ def api_product_update(request, product_id):
         if category:
             product.category = category
 
-    # Update image
+    # Update image (multipart binary file, base64 data, or image_url string)
     if request.FILES.get("image"):
         product.image = request.FILES["image"]
-    elif "image" in data and isinstance(data["image"], str) and data["image"].startswith("data:image"):
-        try:
-            fmt, imgstr = data["image"].split(";base64,")
-            ext = fmt.split("/")[-1].split("+")[0]
-            product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(product.name)}_{random.randint(1000, 9999)}.{ext}")
-        except Exception:
-            pass
+    elif request.FILES.get("product_image"):
+        product.image = request.FILES["product_image"]
+    elif "image" in data and isinstance(data["image"], str):
+        img_val = data["image"].strip()
+        if img_val.startswith("data:image"):
+            try:
+                fmt, imgstr = img_val.split(";base64,")
+                ext = fmt.split("/")[-1].split("+")[0]
+                product.image = ContentFile(base64.b64decode(imgstr), name=f"{slugify(product.name)}_{random.randint(1000, 9999)}.{ext}")
+            except Exception:
+                pass
+        elif img_val:
+            product.image = img_val
+    elif data.get("image_url"):
+        product.image = str(data["image_url"]).strip()
 
     product.save()
 

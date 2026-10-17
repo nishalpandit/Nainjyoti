@@ -202,7 +202,8 @@ def vendor_product_add(request):
         price_raw = request.POST.get('price', '').strip()
         stock_raw = request.POST.get('stock_quantity', '0').strip()
         description = request.POST.get('description', '').strip()
-        image_url = request.POST.get('image', '').strip()
+        uploaded_image = request.FILES.get('image')
+        image_url = request.POST.get('image_url', '').strip()
 
         if not name:
             messages.error(request, "Product name is required.")
@@ -230,7 +231,7 @@ def vendor_product_add(request):
             price=price,
             stock_quantity=stock_qty,
             description=description,
-            image=image_url if image_url else None,
+            image=uploaded_image if uploaded_image else (image_url if image_url else None),
             status='ACTIVE',
             is_approved=True
         )
@@ -298,9 +299,12 @@ def vendor_product_edit(request, product_id):
             pass
 
         product.description = request.POST.get('description', '').strip()
-        img = request.POST.get('image', '').strip()
-        if img:
-            product.image = img
+        
+        # Handle file upload or image url
+        if request.FILES.get('image'):
+            product.image = request.FILES['image']
+        elif request.POST.get('image_url'):
+            product.image = request.POST.get('image_url').strip()
 
         status_val = request.POST.get('status', '').strip().upper()
         if status_val in ['ACTIVE', 'INACTIVE']:

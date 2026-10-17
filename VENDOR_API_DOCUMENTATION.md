@@ -332,6 +332,7 @@ method: POST
 
 headers:  
 Authorization: Bearer <vendor_token> (optional, automatically scopes to authenticated merchant store)  
+Content-Type: multipart/form-data (when uploading image file) or application/json  
 
 params:  
 name: Wireless Noise Cancelling Smart Watch Pro  
@@ -467,12 +468,15 @@ response:
   }
 }
 ```
-
 ---
 
 API for Update Product  
 url: http://192.168.1.52:8000/api/vendor/product/update/1/  
 method: POST  
+
+headers:  
+Authorization: Bearer <vendor_token>  
+Content-Type: multipart/form-data (when uploading image file) or application/json  
 
 params:  
 price: 3199.00  
