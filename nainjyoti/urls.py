@@ -18,6 +18,9 @@ urlpatterns = [
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-dashboard/vendor-approval/', views.admin_vendor_approval, name='admin_vendor_approval'),
     path('admin-dashboard/vendor/<int:vendor_id>/kyc/', views.admin_vendor_kyc_detail, name='admin_vendor_kyc_detail'),
+    path('admin-dashboard/categories/', views.admin_categories, name='admin_categories'),
+    path('admin-dashboard/categories/add/', views.admin_category_form, name='admin_category_add'),
+    path('admin-dashboard/categories/<int:category_id>/edit/', views.admin_category_form, name='admin_category_edit'),
 
     # Vendor Protected Dashboard
     path('vendor-dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
@@ -40,6 +43,16 @@ urlpatterns = [
     path('api/vendor/profile/change-password/', api_views.api_vendor_change_password, name='api_vendor_change_password'),
     path('api/vendor/status/', api_views.api_vendor_status_lookup, name='api_vendor_status_lookup'),
     path('api/vendor/logout/', api_views.api_vendor_logout, name='api_vendor_logout'),
+
+    # =========================================================================
+    # Category Management REST APIs
+    # =========================================================================
+    path('api/categories/', api_views.api_category_list_create, name='api_categories'),
+    path('api/categories/tree/', api_views.api_category_tree, name='api_category_tree'),
+    path('api/categories/<int:category_id>/', api_views.api_category_detail_update_delete, name='api_category_detail'),
+    path('api/categories/<int:category_id>/update/', api_views.api_category_detail_update_delete, name='api_category_update'),
+    path('api/categories/<int:category_id>/delete/', api_views.api_category_detail_update_delete, name='api_category_delete'),
+    path('api/categories/slug/<str:slug>/', api_views.api_category_detail_update_delete, name='api_category_detail_by_slug'),
 
     # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)
