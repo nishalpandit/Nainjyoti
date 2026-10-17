@@ -50,8 +50,10 @@ def send_request(method, path, data=None, headers=None):
             return status, res_body
 
 def setup_test_data():
-    # Vendor A
-    u_a, _ = User.objects.get_or_create(username='vendor_a@nainjyoti.com', defaults={'email': 'vendor_a@nainjyoti.com'})
+    # Vendor A (merchant@crafts.in)
+    u_a, _ = User.objects.get_or_create(username='merchant@crafts.in', defaults={'email': 'merchant@crafts.in'})
+    u_a.set_password('SellerSecure@2026')
+    u_a.save()
     v_a, _ = VendorProfile.objects.get_or_create(user=u_a, defaults={
         'business_name': 'Kashmir Pashmina & Crafts',
         'owner_name': 'Tariq Butt',
@@ -66,7 +68,7 @@ def setup_test_data():
     v_a.account_number = v_a.account_number or '50100492817291'
     v_a.ifsc_code = v_a.ifsc_code or 'HDFC0000123'
     if not v_a.auth_token:
-        v_a.generate_new_token()
+        v_a.auth_token = '589031eb3c3b5a16bd354e88aa884e9611a827b9145f08c3d1beb090c8674584'
     v_a.save()
 
     # Vendor B
