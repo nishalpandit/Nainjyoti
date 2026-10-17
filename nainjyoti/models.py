@@ -279,6 +279,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     stock_quantity = models.IntegerField(default=0)
+    low_stock_threshold = models.IntegerField(default=10)
     unit = models.CharField(max_length=30, default='Piece', blank=True)
     image = models.ImageField(upload_to='products/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
@@ -300,6 +301,11 @@ class Product(models.Model):
             while Product.objects.filter(sku=unique_sku).exists():
                 unique_sku = f"PROD-{random.randint(100000, 999999)}"
             self.sku = unique_sku
+        # Sync product active/out-of-stock status with inventory
+        if self.stock_quantity <= 0:
+            self.status = 'OUT_OF_STOCK'
+        elif self.status == 'OUT_OF_STOCK' and self.stock_quantity > 0:
+            self.status = 'ACTIVE'
         super().save(*args, **kwargs)
 
     @property
@@ -307,6 +313,18 @@ class Product(models.Model):
         if self.image and hasattr(self.image, 'url'):
             return self.image.url
         return None
+
+    @property
+    def stock_status(self):
+        if self.stock_quantity <= 0:
+            return 'OUT_OF_STOCK'
+        elif self.stock_quantity <= self.low_stock_threshold:
+            return 'LOW_STOCK'
+        return 'HEALTHY'
+
+    @property
+    def stock_valuation(self):
+        return round(float(self.price) * max(self.stock_quantity, 0), 2)
 
     def to_dict(self):
         return {
@@ -322,6 +340,9 @@ class Product(models.Model):
             'price': float(self.price) if self.price is not None else 0.0,
             'discount_price': float(self.discount_price) if self.discount_price is not None else None,
             'stock_quantity': self.stock_quantity,
+            'low_stock_threshold': self.low_stock_threshold,
+            'stock_status': self.stock_status,
+            'stock_valuation': self.stock_valuation,
             'unit': self.unit,
             'image': self.image_url,
             'status': self.status,
@@ -329,6 +350,57 @@ class Product(models.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class StockLog(models.Model):
+    """
+    Inventory / Stock Audit Ledger.
+    Records every single addition, deduction, or recount with timestamps and reasons.
+    """
+    MOVEMENT_CHOICES = [
+        ('RESTOCK', 'Restock / Purchase'),
+        ('SALE', 'Customer Order Sale'),
+        ('RETURN', 'Customer Return'),
+        ('DAMAGE', 'Damaged / Expired / Lost'),
+        ('CORRECTION', 'Physical Inventory Correction'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_logs')
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='stock_logs')
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_CHOICES, default='RESTOCK')
+    quantity_changed = models.IntegerField()  # Positive for addition, negative for deduction
+    previous_stock = models.IntegerField()
+    new_stock = models.IntegerField()
+    reason = models.CharField(max_length=255, blank=True, default='')
+    reference_id = models.CharField(max_length=100, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Stock Movement Log'
+        verbose_name_plural = 'Stock Movement Logs'
+
+    def __str__(self):
+        sign = "+" if self.quantity_changed > 0 else ""
+        return f"{self.product.name} ({sign}{self.quantity_changed}) - {self.get_movement_type_display()} on {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'product_name': self.product.name if self.product else '',
+            'sku': self.product.sku if self.product else '',
+            'vendor_id': self.vendor_id,
+            'movement_type': self.movement_type,
+            'movement_type_display': self.get_movement_type_display(),
+            'quantity_changed': self.quantity_changed,
+            'previous_stock': self.previous_stock,
+            'new_stock': self.new_stock,
+            'reason': self.reason,
+            'reference_id': self.reference_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
 
 
 

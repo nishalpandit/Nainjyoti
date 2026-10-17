@@ -1,0 +1,220 @@
+{
+  "1_stock_summary": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "summary": {
+        "total_skus": 4,
+        "total_units": 122,
+        "healthy_count": 3,
+        "low_stock_count": 0,
+        "out_of_stock_count": 1,
+        "total_valuation": 324278.0,
+        "currency": "INR"
+      }
+    }
+  },
+  "2_stock_list_all": {
+    "status_code": 200,
+    "count": 4
+  },
+  "3_stock_add_restock": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "message": "Stock for 'Jaipur Handcrafted Ceramic Dinner Plate' adjusted from 30 to 50 units.",
+      "product": {
+        "id": 6,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": null,
+        "category_name": null,
+        "name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "description": "Artisanal glazed dinner plate.",
+        "price": 499.0,
+        "discount_price": null,
+        "stock_quantity": 50,
+        "low_stock_threshold": 10,
+        "stock_status": "HEALTHY",
+        "stock_valuation": 24950.0,
+        "unit": "Piece",
+        "image": null,
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T07:11:17.181672+00:00",
+        "updated_at": "2026-10-17T07:11:17.251157+00:00"
+      },
+      "log": {
+        "id": 2,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "RESTOCK",
+        "movement_type_display": "Restock / Purchase",
+        "quantity_changed": 20,
+        "previous_stock": 30,
+        "new_stock": 50,
+        "reason": "Received batch invoice #REC-8841 from ceramic workshop",
+        "reference_id": "PO-8841",
+        "created_at": "2026-10-17T07:11:17.269932+00:00"
+      }
+    }
+  },
+  "4_stock_subtract_damage": {
+    "status_code": 200,
+    "response": {
+      "success": true,
+      "message": "Stock for 'Jaipur Handcrafted Ceramic Dinner Plate' adjusted from 50 to 45 units.",
+      "product": {
+        "id": 6,
+        "vendor_id": 7,
+        "vendor_name": "Kashmir Pashmina & Crafts",
+        "vendor_code": "VEND-94847",
+        "category_id": null,
+        "category_name": null,
+        "name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "description": "Artisanal glazed dinner plate.",
+        "price": 499.0,
+        "discount_price": null,
+        "stock_quantity": 45,
+        "low_stock_threshold": 10,
+        "stock_status": "HEALTHY",
+        "stock_valuation": 22455.0,
+        "unit": "Piece",
+        "image": null,
+        "status": "ACTIVE",
+        "is_approved": true,
+        "created_at": "2026-10-17T07:11:17.181672+00:00",
+        "updated_at": "2026-10-17T07:11:17.294288+00:00"
+      },
+      "log": {
+        "id": 3,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "DAMAGE",
+        "movement_type_display": "Damaged / Expired / Lost",
+        "quantity_changed": -5,
+        "previous_stock": 50,
+        "new_stock": 45,
+        "reason": "Broken during warehouse transit",
+        "reference_id": "DMG-102",
+        "created_at": "2026-10-17T07:11:17.313839+00:00"
+      }
+    }
+  },
+  "5_stock_low_stock_status": {
+    "status_code": 200,
+    "stock_status": "LOW_STOCK",
+    "stock_quantity": 8
+  },
+  "6_stock_list_low_stock_filter": {
+    "status_code": 200,
+    "count": 1
+  },
+  "7_stock_out_of_stock": {
+    "status_code": 200,
+    "stock_status": "OUT_OF_STOCK"
+  },
+  "8_stock_movement_logs": {
+    "status_code": 200,
+    "count": 6,
+    "logs": [
+      {
+        "id": 6,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "RESTOCK",
+        "movement_type_display": "Restock / Purchase",
+        "quantity_changed": 25,
+        "previous_stock": 0,
+        "new_stock": 25,
+        "reason": "Supplier fresh shipment received",
+        "reference_id": "",
+        "created_at": "2026-10-17T07:11:17.447192+00:00"
+      },
+      {
+        "id": 5,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "CORRECTION",
+        "movement_type_display": "Physical Inventory Correction",
+        "quantity_changed": -8,
+        "previous_stock": 8,
+        "new_stock": 0,
+        "reason": "Inventory completely sold out",
+        "reference_id": "",
+        "created_at": "2026-10-17T07:11:17.405053+00:00"
+      },
+      {
+        "id": 4,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "CORRECTION",
+        "movement_type_display": "Physical Inventory Correction",
+        "quantity_changed": -37,
+        "previous_stock": 45,
+        "new_stock": 8,
+        "reason": "Physical count audit adjustment",
+        "reference_id": "AUDIT-2026-Q4",
+        "created_at": "2026-10-17T07:11:17.353832+00:00"
+      },
+      {
+        "id": 3,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "DAMAGE",
+        "movement_type_display": "Damaged / Expired / Lost",
+        "quantity_changed": -5,
+        "previous_stock": 50,
+        "new_stock": 45,
+        "reason": "Broken during warehouse transit",
+        "reference_id": "DMG-102",
+        "created_at": "2026-10-17T07:11:17.313839+00:00"
+      },
+      {
+        "id": 2,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "RESTOCK",
+        "movement_type_display": "Restock / Purchase",
+        "quantity_changed": 20,
+        "previous_stock": 30,
+        "new_stock": 50,
+        "reason": "Received batch invoice #REC-8841 from ceramic workshop",
+        "reference_id": "PO-8841",
+        "created_at": "2026-10-17T07:11:17.269932+00:00"
+      },
+      {
+        "id": 1,
+        "product_id": 6,
+        "product_name": "Jaipur Handcrafted Ceramic Dinner Plate",
+        "sku": "STOCK-TEST-4D351E",
+        "vendor_id": 7,
+        "movement_type": "RESTOCK",
+        "movement_type_display": "Restock / Purchase",
+        "quantity_changed": 30,
+        "previous_stock": 0,
+        "new_stock": 30,
+        "reason": "Initial stock upon product creation",
+        "reference_id": "",
+        "created_at": "2026-10-17T07:11:17.211655+00:00"
+      }
+    ]
+  }
+}

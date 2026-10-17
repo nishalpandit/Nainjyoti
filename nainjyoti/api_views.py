@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
-from .models import UserProfile, OTPRecord, VendorProfile, Category, Product
+from .models import UserProfile, OTPRecord, VendorProfile, Category, Product, StockLog
 
 def _parse_request_data(request):
     """Helper to extract data from JSON body or POST form data."""
@@ -1258,7 +1258,28 @@ def api_product_create(request):
         except Exception:
             pass
 
+    raw_thresh = data.get("low_stock_threshold")
+    if raw_thresh not in [None, ""]:
+        try:
+            val_th = int(raw_thresh)
+            if val_th >= 0:
+                product.low_stock_threshold = val_th
+        except (ValueError, TypeError):
+            pass
+
     product.save()
+
+    # Create initial audit log if initial stock > 0
+    if product.stock_quantity > 0:
+        StockLog.objects.create(
+            product=product,
+            vendor=product.vendor,
+            movement_type='RESTOCK',
+            quantity_changed=product.stock_quantity,
+            previous_stock=0,
+            new_stock=product.stock_quantity,
+            reason="Initial stock upon product creation"
+        )
 
     return JsonResponse({
         "success": True,
@@ -1338,15 +1359,35 @@ def api_product_update(request, product_id):
             except (ValueError, TypeError):
                 return JsonResponse({"success": False, "message": "Invalid discount_price value."}, status=400)
 
-    # Update stock quantity
+    # Update stock quantity (with audit log)
     if "stock_quantity" in data and data["stock_quantity"] not in [None, ""]:
         try:
             val = int(data["stock_quantity"])
             if val < 0:
                 return JsonResponse({"success": False, "message": "Stock quantity cannot be negative."}, status=400)
-            product.stock_quantity = val
+            if val != product.stock_quantity:
+                prev_st = product.stock_quantity
+                product.stock_quantity = val
+                StockLog.objects.create(
+                    product=product,
+                    vendor=product.vendor,
+                    movement_type='CORRECTION',
+                    quantity_changed=val - prev_st,
+                    previous_stock=prev_st,
+                    new_stock=val,
+                    reason="Stock updated via product edit form"
+                )
         except (ValueError, TypeError):
             return JsonResponse({"success": False, "message": "Invalid stock_quantity value."}, status=400)
+
+    # Update low stock threshold
+    if "low_stock_threshold" in data and data["low_stock_threshold"] not in [None, ""]:
+        try:
+            val_th = int(data["low_stock_threshold"])
+            if val_th >= 0:
+                product.low_stock_threshold = val_th
+        except (ValueError, TypeError):
+            pass
 
     # Update unit
     if "unit" in data and str(data["unit"]).strip():
@@ -1444,6 +1485,296 @@ def api_product_detail_update_delete(request, product_id):
     elif request.method == "DELETE":
         return api_product_delete(request, product_id)
     return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+# =============================================================================
+# Stock / Inventory Management REST APIs (Vendor / Merchant / Admin)
+# =============================================================================
+
+@csrf_exempt
+def api_stock_summary(request):
+    """
+    API: Retrieve Inventory Stock Summary & KPI Cards
+    Method: GET
+    Returns: Total SKUs, total units, healthy stock, low stock count, out of stock count, total valuation
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    qs = Product.objects.all().select_related('vendor', 'category')
+    
+    auth_vendor = _get_authenticated_vendor(request)
+    scope = request.GET.get("scope", "").lower()
+    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+        qs = qs.filter(vendor=auth_vendor)
+    else:
+        vendor_id = request.GET.get("vendor_id")
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        vendor_code = request.GET.get("vendor_code")
+        if vendor_code:
+            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+
+    total_skus = qs.count()
+    total_units = 0
+    healthy_count = 0
+    low_stock_count = 0
+    out_of_stock_count = 0
+    total_valuation = 0.0
+
+    for prod in qs:
+        qty = max(prod.stock_quantity, 0)
+        total_units += qty
+        total_valuation += float(prod.price) * qty
+        status = prod.stock_status
+        if status == 'HEALTHY':
+            healthy_count += 1
+        elif status == 'LOW_STOCK':
+            low_stock_count += 1
+        elif status == 'OUT_OF_STOCK':
+            out_of_stock_count += 1
+
+    return JsonResponse({
+        "success": True,
+        "summary": {
+            "total_skus": total_skus,
+            "total_units": total_units,
+            "healthy_count": healthy_count,
+            "low_stock_count": low_stock_count,
+            "out_of_stock_count": out_of_stock_count,
+            "total_valuation": round(total_valuation, 2),
+            "currency": "INR"
+        }
+    }, status=200)
+
+
+@csrf_exempt
+def api_stock_list(request):
+    """
+    API: List Inventory & Stock Levels
+    Method: GET
+    Query Filters:
+      - level: 'all', 'low_stock', 'out_of_stock', 'healthy'
+      - category_id: filter by Category master
+      - search: filter by product name or SKU
+      - ordering: '-stock_quantity', 'stock_quantity', '-price', 'price'
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    qs = Product.objects.all().select_related('vendor', 'category')
+
+    auth_vendor = _get_authenticated_vendor(request)
+    scope = request.GET.get("scope", "").lower()
+    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+        qs = qs.filter(vendor=auth_vendor)
+    else:
+        vendor_id = request.GET.get("vendor_id")
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        vendor_code = request.GET.get("vendor_code")
+        if vendor_code:
+            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+
+    category_id = request.GET.get("category_id")
+    if category_id:
+        qs = qs.filter(category_id=category_id)
+
+    search = request.GET.get("search", "").strip()
+    if search:
+        qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+
+    level = request.GET.get("level", "").strip().lower()
+    ordering = request.GET.get("ordering", "-created_at")
+
+    if ordering in ["created_at", "-created_at", "price", "-price", "name", "-name", "stock_quantity", "-stock_quantity"]:
+        qs = qs.order_by(ordering)
+
+    items = []
+    for prod in qs:
+        st_status = prod.stock_status
+        if level in ["low_stock", "low"] and st_status != "LOW_STOCK":
+            continue
+        if level in ["out_of_stock", "out"] and st_status != "OUT_OF_STOCK":
+            continue
+        if level in ["healthy", "normal"] and st_status != "HEALTHY":
+            continue
+
+        items.append({
+            "product_id": prod.id,
+            "name": prod.name,
+            "sku": prod.sku,
+            "category_id": prod.category_id,
+            "category_name": prod.category.name if prod.category else None,
+            "vendor_id": prod.vendor_id,
+            "vendor_name": prod.vendor.business_name if prod.vendor else None,
+            "price": float(prod.price),
+            "stock_quantity": prod.stock_quantity,
+            "low_stock_threshold": prod.low_stock_threshold,
+            "stock_status": st_status,
+            "stock_valuation": prod.stock_valuation,
+            "unit": prod.unit,
+            "image": prod.image_url,
+            "last_updated": prod.updated_at.isoformat() if prod.updated_at else None,
+        })
+
+    return JsonResponse({
+        "success": True,
+        "count": len(items),
+        "inventory": items
+    }, status=200)
+
+
+@csrf_exempt
+def api_stock_update(request, product_id):
+    """
+    API: Adjust Inventory Stock (with Audit Logging)
+    Method: POST or PUT
+    Params:
+      - action: 'ADD' (Restock), 'SUBTRACT' (Damage/Deduction), or 'SET' (Physical recount)
+      - quantity: integer (units to add/subtract or target quantity)
+      - movement_type: 'RESTOCK', 'SALE', 'RETURN', 'DAMAGE', 'CORRECTION' (optional)
+      - reason: string (optional, notes/explanation)
+      - reference_id: string (optional, PO # or Order #)
+      - low_stock_threshold: int (optional, update reorder threshold)
+    """
+    if request.method not in ["POST", "PUT"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
+
+    product = Product.objects.filter(id=product_id).select_related('vendor', 'category').first()
+    if not product:
+        return JsonResponse({"success": False, "message": f"Product with ID '{product_id}' not found."}, status=404)
+
+    data = _parse_request_data(request)
+
+    action = str(data.get("action", "ADD")).strip().upper()
+    if action not in ["ADD", "SUBTRACT", "SET"]:
+        return JsonResponse({"success": False, "message": "Invalid action. Use 'ADD', 'SUBTRACT', or 'SET'."}, status=400)
+
+    raw_qty = data.get("quantity")
+    if raw_qty is None or str(raw_qty).strip() == "":
+        return JsonResponse({"success": False, "message": "Field 'quantity' is required."}, status=400)
+
+    try:
+        qty = int(raw_qty)
+        if action in ["ADD", "SUBTRACT"] and qty <= 0:
+            return JsonResponse({"success": False, "message": f"Quantity for {action} must be greater than 0."}, status=400)
+        elif action == "SET" and qty < 0:
+            return JsonResponse({"success": False, "message": "Quantity for SET cannot be negative."}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Quantity must be a valid integer."}, status=400)
+
+    prev_stock = product.stock_quantity
+
+    if action == "ADD":
+        new_stock = prev_stock + qty
+        qty_changed = qty
+        default_movement = "RESTOCK"
+    elif action == "SUBTRACT":
+        if qty > prev_stock:
+            return JsonResponse({
+                "success": False,
+                "message": f"Cannot subtract {qty} units. Current stock is only {prev_stock} units."
+            }, status=400)
+        new_stock = prev_stock - qty
+        qty_changed = -qty
+        default_movement = "DAMAGE"
+    elif action == "SET":
+        new_stock = qty
+        qty_changed = new_stock - prev_stock
+        default_movement = "CORRECTION"
+
+    raw_mv = str(data.get("movement_type", "")).strip().upper()
+    valid_movements = ["RESTOCK", "SALE", "RETURN", "DAMAGE", "CORRECTION"]
+    movement_type = raw_mv if raw_mv in valid_movements else default_movement
+
+    reason = str(data.get("reason", "")).strip()
+    if not reason:
+        reason = f"Inventory {action.lower()} of {abs(qty_changed)} units via console"
+
+    reference_id = str(data.get("reference_id", "")).strip()
+
+    raw_thresh = data.get("low_stock_threshold")
+    if raw_thresh not in [None, ""]:
+        try:
+            val_th = int(raw_thresh)
+            if val_th >= 0:
+                product.low_stock_threshold = val_th
+        except (ValueError, TypeError):
+            pass
+
+    product.stock_quantity = new_stock
+    product.save()
+
+    stock_log = StockLog.objects.create(
+        product=product,
+        vendor=product.vendor,
+        movement_type=movement_type,
+        quantity_changed=qty_changed,
+        previous_stock=prev_stock,
+        new_stock=new_stock,
+        reason=reason,
+        reference_id=reference_id
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Stock for '{product.name}' adjusted from {prev_stock} to {new_stock} units.",
+        "product": product.to_dict(),
+        "log": stock_log.to_dict()
+    }, status=200)
+
+
+@csrf_exempt
+def api_stock_logs(request, product_id=None):
+    """
+    API: Retrieve Inventory Movement Audit Logs
+    Method: GET
+    Query Filters:
+      - product_id: (in path or query)
+      - movement_type: RESTOCK, SALE, RETURN, DAMAGE, CORRECTION
+      - limit: default 50
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    qs = StockLog.objects.all().select_related('product', 'vendor')
+
+    prod_id = product_id or request.GET.get("product_id")
+    if prod_id:
+        qs = qs.filter(product_id=prod_id)
+
+    auth_vendor = _get_authenticated_vendor(request)
+    scope = request.GET.get("scope", "").lower()
+    if auth_vendor and scope != "all" and not request.GET.get("vendor_id") and not request.GET.get("vendor_code"):
+        qs = qs.filter(vendor=auth_vendor)
+    else:
+        vendor_id = request.GET.get("vendor_id")
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        vendor_code = request.GET.get("vendor_code")
+        if vendor_code:
+            qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
+
+    movement_type = request.GET.get("movement_type", "").strip().upper()
+    if movement_type:
+        qs = qs.filter(movement_type=movement_type)
+
+    limit = 50
+    if request.GET.get("limit"):
+        try:
+            limit = max(1, min(int(request.GET.get("limit")), 200))
+        except (ValueError, TypeError):
+            pass
+
+    logs = [log.to_dict() for log in qs[:limit]]
+
+    return JsonResponse({
+        "success": True,
+        "count": len(logs),
+        "logs": logs
+    }, status=200)
+
 
 
 

@@ -116,6 +116,33 @@ urlpatterns = [
     path('api/products/<int:product_id>/delete/', api_views.api_product_delete, name='api_products_delete_legacy'),
 
     # =========================================================================
+    # Vendor Stock / Inventory Management Endpoints (api/vendor/stock/...)
+    # =========================================================================
+    path('api/vendor/stock/summary/', api_views.api_stock_summary, name='api_vendor_stock_summary'),
+    path('api/vendor/stock/list/', api_views.api_stock_list, name='api_vendor_stock_list'),
+    path('api/vendor/stock/update/<int:product_id>/', api_views.api_stock_update, name='api_vendor_stock_update'),
+    path('api/vendor/stock/logs/', api_views.api_stock_logs, name='api_vendor_stock_logs_all'),
+    path('api/vendor/stock/logs/<int:product_id>/', api_views.api_stock_logs, name='api_vendor_stock_logs_product'),
+
+    # =========================================================================
+    # Admin Stock Aliases (api/admin/stock/...)
+    # =========================================================================
+    path('api/admin/stock/summary/', api_views.api_stock_summary, name='api_admin_stock_summary'),
+    path('api/admin/stock/list/', api_views.api_stock_list, name='api_admin_stock_list'),
+    path('api/admin/stock/update/<int:product_id>/', api_views.api_stock_update, name='api_admin_stock_update'),
+    path('api/admin/stock/logs/', api_views.api_stock_logs, name='api_admin_stock_logs_all'),
+    path('api/admin/stock/logs/<int:product_id>/', api_views.api_stock_logs, name='api_admin_stock_logs_product'),
+
+    # =========================================================================
+    # General Stock Endpoints (api/stock/...)
+    # =========================================================================
+    path('api/stock/summary/', api_views.api_stock_summary, name='api_stock_summary'),
+    path('api/stock/list/', api_views.api_stock_list, name='api_stock_list'),
+    path('api/stock/update/<int:product_id>/', api_views.api_stock_update, name='api_stock_update'),
+    path('api/stock/logs/', api_views.api_stock_logs, name='api_stock_logs_all'),
+    path('api/stock/logs/<int:product_id>/', api_views.api_stock_logs, name='api_stock_logs_product'),
+
+    # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)
     # =========================================================================
     path('user/login/', user_views.user_login_view, name='user_login'),
