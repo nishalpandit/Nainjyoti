@@ -2,16 +2,19 @@ import json
 import base64
 import random
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
-from django.db.models import Q
+from django.db.models import Q, Sum, Count, Avg
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
-from .models import UserProfile, OTPRecord, VendorProfile, Category, Product, StockLog
+from .models import (
+    UserProfile, OTPRecord, VendorProfile, Category, Product, StockLog,
+    Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
+)
 
 def _parse_request_data(request):
     """Helper to extract data from JSON body or POST form data."""
@@ -1887,6 +1890,567 @@ def api_stock_logs(request, product_id=None):
         "count": len(logs),
         "logs": logs
     }, status=200)
+
+
+# =============================================================================
+# Vendor Orders & Customer Details REST APIs
+# =============================================================================
+
+def _get_vendor_balance_summary(vendor):
+    """
+    Calculates vendor earnings, pending balance, and current available withdrawal balance.
+    """
+    earnings_qs = VendorEarning.objects.filter(vendor=vendor)
+    lifetime_gross = float(earnings_qs.aggregate(total=Sum('gross_amount'))['total'] or 0.0)
+    total_commission = float(earnings_qs.aggregate(total=Sum('commission_amount'))['total'] or 0.0)
+    lifetime_net = float(earnings_qs.aggregate(total=Sum('net_amount'))['total'] or 0.0)
+
+    cleared_earnings = float(earnings_qs.filter(status='AVAILABLE').aggregate(total=Sum('net_amount'))['total'] or 0.0)
+    pending_clearance = float(earnings_qs.filter(status='PENDING').aggregate(total=Sum('net_amount'))['total'] or 0.0)
+
+    payouts_qs = VendorPayout.objects.filter(vendor=vendor)
+    settled_payouts = float(payouts_qs.filter(status='COMPLETED').aggregate(total=Sum('amount'))['total'] or 0.0)
+    pending_payouts = float(payouts_qs.filter(status__in=['PENDING', 'PROCESSING']).aggregate(total=Sum('amount'))['total'] or 0.0)
+
+    available_balance = max(round(cleared_earnings - settled_payouts - pending_payouts, 2), 0.0)
+
+    return {
+        'lifetime_gross_sales': round(lifetime_gross, 2),
+        'platform_commission_rate_percent': 5.0,
+        'total_commission_deducted': round(total_commission, 2),
+        'lifetime_net_earnings': round(lifetime_net, 2),
+        'available_balance': available_balance,
+        'pending_clearance': round(pending_clearance, 2),
+        'total_withdrawn': round(settled_payouts, 2),
+        'pending_payout_requests': round(pending_payouts, 2),
+        'currency': 'INR'
+    }
+
+
+@csrf_exempt
+def api_vendor_orders(request):
+    """
+    API: List Orders for Authenticated Vendor
+    Method: GET
+    Endpoint: /api/vendor/orders/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True).distinct()
+    qs = Order.objects.filter(id__in=order_ids).prefetch_related('items')
+
+    status_param = request.GET.get('status', '').strip().upper()
+    if status_param and status_param != 'ALL':
+        qs = qs.filter(status=status_param)
+
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        qs = qs.filter(
+            Q(order_number__icontains=search_query) |
+            Q(customer_name__icontains=search_query) |
+            Q(customer_phone__icontains=search_query)
+        )
+
+    date_from = request.GET.get('date_from', '').strip()
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, '%Y-%m-%d')
+            qs = qs.filter(created_at__gte=df)
+        except ValueError:
+            pass
+
+    date_to = request.GET.get('date_to', '').strip()
+    if date_to:
+        try:
+            dt = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+            qs = qs.filter(created_at__lt=dt)
+        except ValueError:
+            pass
+
+    ordering = request.GET.get('ordering', '-created_at').strip()
+    allowed_orderings = ['created_at', '-created_at', 'total_amount', '-total_amount']
+    if ordering in allowed_orderings:
+        qs = qs.order_by(ordering)
+
+    limit = 50
+    if request.GET.get('limit'):
+        try:
+            limit = max(1, min(int(request.GET.get('limit')), 200))
+        except (ValueError, TypeError):
+            pass
+
+    orders_list = [o.to_dict(vendor=vendor) for o in qs[:limit]]
+
+    return JsonResponse({
+        "success": True,
+        "count": len(orders_list),
+        "orders": orders_list
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_order_detail(request, order_id):
+    """
+    API: Get Detailed Customer and Order Info (Strictly Scoped to Vendor)
+    Method: GET
+    Endpoint: /api/vendor/orders/<order_id>/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    order = None
+    if str(order_id).isdigit():
+        order = Order.objects.filter(id=int(order_id)).first()
+    if not order:
+        order = Order.objects.filter(order_number__iexact=str(order_id).strip()).first()
+
+    if not order:
+        return JsonResponse({
+            "success": False,
+            "message": f"Order '{order_id}' not found."
+        }, status=404)
+
+    vendor_items = order.items.filter(vendor=vendor)
+    if not vendor_items.exists():
+        return JsonResponse({
+            "success": False,
+            "message": "Access denied. You do not have permission to view this order."
+        }, status=403)
+
+    order_data = order.to_dict(vendor=vendor)
+    order_data['customer'] = {
+        'name': order.customer_name,
+        'phone': order.customer_phone,
+        'email': order.customer_email or ''
+    }
+    order_data['shipping_address'] = {
+        'address': order.shipping_address,
+        'city': order.shipping_city,
+        'state': order.shipping_state,
+        'pincode': order.shipping_pincode
+    }
+    order_data['payment'] = {
+        'method': order.payment_method,
+        'status': order.payment_status
+    }
+
+    history_logs = OrderStatusHistory.objects.filter(
+        order=order
+    ).filter(
+        Q(vendor=vendor) | Q(vendor__isnull=True)
+    ).order_by('-created_at')
+
+    order_data['status_history'] = [h.to_dict() for h in history_logs]
+
+    return JsonResponse({
+        "success": True,
+        "order": order_data
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_order_status_update(request, order_id):
+    """
+    API: Update Order Status (Processing, Shipped, Delivered, Cancelled)
+    Method: POST
+    Endpoint: /api/vendor/orders/<order_id>/status/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method not in ["POST", "PUT"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    order = None
+    if str(order_id).isdigit():
+        order = Order.objects.filter(id=int(order_id)).first()
+    if not order:
+        order = Order.objects.filter(order_number__iexact=str(order_id).strip()).first()
+
+    if not order:
+        return JsonResponse({"success": False, "message": f"Order '{order_id}' not found."}, status=404)
+
+    vendor_items = order.items.filter(vendor=vendor)
+    if not vendor_items.exists():
+        return JsonResponse({
+            "success": False,
+            "message": "Access denied. You do not have permission to modify this order."
+        }, status=403)
+
+    data = _parse_request_data(request)
+    raw_status = str(data.get("status", "")).strip().upper()
+    valid_statuses = ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED']
+    if raw_status not in valid_statuses:
+        return JsonResponse({
+            "success": False,
+            "message": f"Invalid status '{raw_status}'. Allowed values: {', '.join(valid_statuses)}."
+        }, status=400)
+
+    courier_name = str(data.get("courier_name", "")).strip()
+    tracking_number = str(data.get("tracking_number", "")).strip()
+    notes = str(data.get("notes", "")).strip()
+
+    old_status = order.status
+    now = timezone.now()
+
+    for item in vendor_items:
+        item.status = raw_status
+        if courier_name:
+            item.courier_name = courier_name
+        if tracking_number:
+            item.tracking_number = tracking_number
+        if raw_status == 'SHIPPED' and not item.dispatch_date:
+            item.dispatch_date = now
+        elif raw_status == 'DELIVERED' and not item.delivery_date:
+            item.delivery_date = now
+        item.save()
+
+    order.status = raw_status
+    if raw_status == 'DELIVERED' and order.payment_method == 'COD':
+        order.payment_status = 'PAID'
+    order.save()
+
+    OrderStatusHistory.objects.create(
+        order=order,
+        vendor=vendor,
+        old_status=old_status,
+        new_status=raw_status,
+        notes=notes or f"Order status updated to {raw_status} by {vendor.business_name}"
+    )
+
+    if raw_status == 'DELIVERED':
+        for item in vendor_items:
+            earning, created = VendorEarning.objects.get_or_create(
+                vendor=vendor,
+                order=order,
+                order_item=item,
+                defaults={
+                    'gross_amount': item.total_price,
+                    'commission_rate': 5.00,
+                    'commission_amount': round(float(item.total_price) * 0.05, 2),
+                    'net_amount': round(float(item.total_price) * 0.95, 2),
+                    'status': 'AVAILABLE',
+                    'cleared_at': now
+                }
+            )
+            if not created:
+                earning.status = 'AVAILABLE'
+                earning.cleared_at = now
+                earning.save()
+
+    elif raw_status == 'CANCELLED':
+        for item in vendor_items:
+            if item.product:
+                prev_st = item.product.stock_quantity
+                item.product.stock_quantity = prev_st + item.quantity
+                item.product.save()
+                StockLog.objects.create(
+                    product=item.product,
+                    vendor=vendor,
+                    movement_type='RETURN',
+                    quantity_changed=item.quantity,
+                    previous_stock=prev_st,
+                    new_stock=item.product.stock_quantity,
+                    reason=f"Order {order.order_number} cancelled; {item.quantity} units returned to inventory",
+                    reference_id=order.order_number
+                )
+            VendorEarning.objects.filter(order=order, order_item=item).update(status='REFUNDED')
+
+    first_item = vendor_items.first()
+    return JsonResponse({
+        "success": True,
+        "message": f"Order status successfully updated to '{raw_status}'.",
+        "order_id": order.id,
+        "order_number": order.order_number,
+        "previous_status": old_status,
+        "new_status": raw_status,
+        "tracking_info": {
+            "courier_name": courier_name or (first_item.courier_name if first_item else ''),
+            "tracking_number": tracking_number or (first_item.tracking_number if first_item else ''),
+            "dispatch_date": first_item.dispatch_date.isoformat() if (first_item and first_item.dispatch_date) else None
+        }
+    }, status=200)
+
+
+# =============================================================================
+# Sales & Earnings Analytics REST APIs
+# =============================================================================
+
+@csrf_exempt
+def api_vendor_sales_overview(request):
+    """
+    API: Get Vendor Sales Overview & KPIs
+    Method: GET
+    Endpoint: /api/vendor/sales/overview/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    period = request.GET.get('period', 'month').strip().lower()
+    now = timezone.now()
+
+    if period == 'today':
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'week':
+        start_date = now - timedelta(days=7)
+    elif period == 'month':
+        start_date = now - timedelta(days=30)
+    elif period == 'year':
+        start_date = now - timedelta(days=365)
+    else:
+        start_date = None
+
+    items_qs = OrderItem.objects.filter(vendor=vendor)
+    if start_date:
+        items_qs = items_qs.filter(created_at__gte=start_date)
+
+    non_cancelled_items = items_qs.exclude(status='CANCELLED')
+    total_revenue = float(non_cancelled_items.aggregate(total=Sum('total_price'))['total'] or 0.0)
+    units_sold = int(non_cancelled_items.aggregate(total=Sum('quantity'))['total'] or 0)
+    distinct_orders = items_qs.values_list('order_id', flat=True).distinct()
+    total_orders = distinct_orders.count()
+    aov = round(total_revenue / total_orders, 2) if total_orders > 0 else 0.0
+
+    status_counts = {}
+    for st_choice, _ in Order.STATUS_CHOICES:
+        cnt = Order.objects.filter(id__in=distinct_orders, status=st_choice).count()
+        status_counts[st_choice] = cnt
+
+    daily_trend = []
+    for i in range(6, -1, -1):
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        day_items = items_qs.filter(created_at__gte=day_start, created_at__lt=day_end).exclude(status='CANCELLED')
+        day_rev = float(day_items.aggregate(total=Sum('total_price'))['total'] or 0.0)
+        day_orders = day_items.values_list('order_id', flat=True).distinct().count()
+        daily_trend.append({
+            "date": day_start.strftime('%Y-%m-%d'),
+            "orders": day_orders,
+            "revenue": round(day_rev, 2)
+        })
+
+    top_prods_data = []
+    top_qs = items_qs.exclude(status='CANCELLED').values(
+        'product_id', 'product_name', 'product_sku'
+    ).annotate(
+        units_sold=Sum('quantity'),
+        revenue=Sum('total_price')
+    ).order_by('-revenue')[:5]
+
+    for tp in top_qs:
+        top_prods_data.append({
+            'product_id': tp['product_id'],
+            'name': tp['product_name'],
+            'sku': tp['product_sku'],
+            'units_sold': tp['units_sold'],
+            'revenue': float(tp['revenue'])
+        })
+
+    return JsonResponse({
+        "success": True,
+        "period": period,
+        "kpis": {
+            "total_revenue": round(total_revenue, 2),
+            "total_orders": total_orders,
+            "units_sold": units_sold,
+            "average_order_value": aov,
+            "delivered_orders": status_counts.get('DELIVERED', 0),
+            "processing_orders": status_counts.get('PROCESSING', 0),
+            "shipped_orders": status_counts.get('SHIPPED', 0),
+            "cancelled_orders": status_counts.get('CANCELLED', 0),
+            "currency": "INR"
+        },
+        "status_breakdown": status_counts,
+        "daily_trend": daily_trend,
+        "top_selling_products": top_prods_data
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_earnings_overview(request):
+    """
+    API: Get Vendor Earnings, Balance Summary & Recent Ledger
+    Method: GET
+    Endpoint: /api/vendor/earnings/overview/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    balance_summary = _get_vendor_balance_summary(vendor)
+    recent_earnings = VendorEarning.objects.filter(vendor=vendor).order_by('-created_at')[:20]
+
+    return JsonResponse({
+        "success": True,
+        "balance_summary": balance_summary,
+        "recent_earnings": [e.to_dict() for e in recent_earnings]
+    }, status=200)
+
+
+# =============================================================================
+# Withdrawal / Settlement REST APIs
+# =============================================================================
+
+@csrf_exempt
+def api_vendor_payout_request(request):
+    """
+    API: Request Withdrawal Settlement to Registered Bank Account
+    Method: POST
+    Endpoint: /api/vendor/payout/request/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    data = _parse_request_data(request)
+    raw_amount = data.get("amount")
+    if raw_amount is None or str(raw_amount).strip() == "":
+        return JsonResponse({"success": False, "message": "Field 'amount' is required."}, status=400)
+
+    try:
+        amount = float(raw_amount)
+        if amount <= 0:
+            return JsonResponse({"success": False, "message": "Withdrawal amount must be greater than zero."}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Invalid amount value."}, status=400)
+
+    bal_summary = _get_vendor_balance_summary(vendor)
+    available_balance = bal_summary['available_balance']
+
+    if amount > available_balance:
+        return JsonResponse({
+            "success": False,
+            "message": f"Requested amount ₹{amount:.2f} exceeds your current available balance of ₹{available_balance:.2f}."
+        }, status=400)
+
+    bank_name = str(data.get("bank_name") or vendor.bank_name or "").strip()
+    account_number = str(data.get("account_number") or vendor.account_number or "").strip()
+    ifsc_code = str(data.get("ifsc_code") or vendor.ifsc_code or "").strip()
+    notes = str(data.get("notes", "")).strip()
+
+    if not bank_name or not account_number or not ifsc_code:
+        return JsonResponse({
+            "success": False,
+            "message": "Bank details incomplete. Please provide 'bank_name', 'account_number', and 'ifsc_code' or update your store bank profile."
+        }, status=400)
+
+    payout = VendorPayout.objects.create(
+        vendor=vendor,
+        amount=amount,
+        bank_name=bank_name,
+        account_number=account_number,
+        ifsc_code=ifsc_code,
+        status='PENDING',
+        admin_notes=notes
+    )
+
+    new_bal_summary = _get_vendor_balance_summary(vendor)
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Withdrawal request of ₹{amount:.2f} submitted successfully! Funds will be credited after compliance processing.",
+        "payout": payout.to_dict(),
+        "remaining_available_balance": new_bal_summary['available_balance']
+    }, status=201)
+
+
+@csrf_exempt
+def api_vendor_payout_history(request):
+    """
+    API: List Withdrawal / Settlement History
+    Method: GET
+    Endpoint: /api/vendor/payout/history/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    qs = VendorPayout.objects.filter(vendor=vendor)
+    status_param = request.GET.get('status', '').strip().upper()
+    if status_param and status_param != 'ALL':
+        qs = qs.filter(status=status_param)
+
+    limit = 50
+    if request.GET.get('limit'):
+        try:
+            limit = max(1, min(int(request.GET.get('limit')), 200))
+        except (ValueError, TypeError):
+            pass
+
+    payouts = [p.to_dict() for p in qs[:limit]]
+
+    return JsonResponse({
+        "success": True,
+        "count": len(payouts),
+        "payouts": payouts
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_payout_detail(request, payout_id):
+    """
+    API: Get Specific Settlement Details
+    Method: GET
+    Endpoint: /api/vendor/payout/detail/<payout_id>/
+    Header: Authorization: Bearer <vendor_token>
+    """
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    vendor, err_resp = _require_vendor_auth(request)
+    if err_resp:
+        return err_resp
+
+    payout = None
+    if str(payout_id).isdigit():
+        payout = VendorPayout.objects.filter(id=int(payout_id)).first()
+    if not payout:
+        payout = VendorPayout.objects.filter(payout_number__iexact=str(payout_id).strip()).first()
+
+    if not payout:
+        return JsonResponse({"success": False, "message": f"Settlement '{payout_id}' not found."}, status=404)
+
+    if payout.vendor_id != vendor.id:
+        return JsonResponse({
+            "success": False,
+            "message": "Access denied. You do not have permission to view this settlement."
+        }, status=403)
+
+    return JsonResponse({
+        "success": True,
+        "payout": payout.to_dict()
+    }, status=200)
+
 
 
 

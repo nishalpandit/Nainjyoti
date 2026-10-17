@@ -143,6 +143,27 @@ urlpatterns = [
     path('api/stock/logs/<int:product_id>/', api_views.api_stock_logs, name='api_stock_logs_product'),
 
     # =========================================================================
+    # Vendor Orders & Customer Management Endpoints (api/vendor/orders/...)
+    # =========================================================================
+    path('api/vendor/orders/', api_views.api_vendor_orders, name='api_vendor_orders_list'),
+    path('api/vendor/orders/<str:order_id>/', api_views.api_vendor_order_detail, name='api_vendor_order_detail'),
+    path('api/vendor/orders/<str:order_id>/status/', api_views.api_vendor_order_status_update, name='api_vendor_order_status_update'),
+
+    # =========================================================================
+    # Vendor Sales & Earnings Endpoints
+    # =========================================================================
+    path('api/vendor/sales/overview/', api_views.api_vendor_sales_overview, name='api_vendor_sales_overview'),
+    path('api/vendor/earnings/overview/', api_views.api_vendor_earnings_overview, name='api_vendor_earnings_overview'),
+
+    # =========================================================================
+    # Vendor Withdrawal / Settlement Endpoints (api/vendor/payout/...)
+    # =========================================================================
+    path('api/vendor/payout/request/', api_views.api_vendor_payout_request, name='api_vendor_payout_request'),
+    path('api/vendor/payout/history/', api_views.api_vendor_payout_history, name='api_vendor_payout_history'),
+    path('api/vendor/payout/detail/<str:payout_id>/', api_views.api_vendor_payout_detail, name='api_vendor_payout_detail'),
+
+
+    # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)
     # =========================================================================
     path('user/login/', user_views.user_login_view, name='user_login'),
