@@ -402,5 +402,323 @@ class StockLog(models.Model):
         }
 
 
+class Order(models.Model):
+    """
+    Master Order model for customer purchases.
+    Can contain items from one or multiple vendors.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('CONFIRMED', 'Confirmed'),
+        ('PROCESSING', 'Processing'),
+        ('SHIPPED', 'Shipped'),
+        ('DELIVERED', 'Delivered'),
+        ('CANCELLED', 'Cancelled'),
+        ('RETURNED', 'Returned'),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('COD', 'Cash on Delivery'),
+        ('PREPAID', 'Prepaid Online'),
+        ('UPI', 'UPI Payment'),
+        ('CARD', 'Credit / Debit Card'),
+        ('NETBANKING', 'Net Banking'),
+    ]
+
+    PAYMENT_STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('FAILED', 'Failed'),
+        ('REFUNDED', 'Refunded'),
+    ]
+
+    order_number = models.CharField(max_length=50, unique=True, blank=True, db_index=True)
+    customer = models.ForeignKey(UserProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    customer_name = models.CharField(max_length=150)
+    customer_phone = models.CharField(max_length=20)
+    customer_email = models.EmailField(blank=True, null=True)
+
+    # Shipping details
+    shipping_address = models.TextField()
+    shipping_city = models.CharField(max_length=100)
+    shipping_state = models.CharField(max_length=100)
+    shipping_pincode = models.CharField(max_length=20)
+
+    # Financial & Status
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    payment_method = models.CharField(max_length=30, choices=PAYMENT_METHOD_CHOICES, default='COD')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Order'
+        verbose_name_plural = 'Orders'
+
+    def __str__(self):
+        return f"{self.order_number} - {self.customer_name} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            import random
+            today_str = timezone.now().strftime('%Y%m%d')
+            unique_ord = f"ORD-{today_str}-{random.randint(1000, 9999)}"
+            while Order.objects.filter(order_number=unique_ord).exists():
+                unique_ord = f"ORD-{today_str}-{random.randint(1000, 9999)}"
+            self.order_number = unique_ord
+        super().save(*args, **kwargs)
+
+    def to_dict(self, vendor=None):
+        """
+        Serializes order data. If vendor is provided, filters items strictly to that vendor.
+        """
+        items_qs = self.items.all().select_related('product', 'vendor')
+        if vendor:
+            items_qs = items_qs.filter(vendor=vendor)
+
+        items_list = [item.to_dict() for item in items_qs]
+        vendor_subtotal = sum(item['total_price'] for item in items_list) if vendor else float(self.total_amount)
+
+        return {
+            'id': self.id,
+            'order_number': self.order_number,
+            'customer_name': self.customer_name,
+            'customer_phone': self.customer_phone,
+            'customer_email': self.customer_email or '',
+            'shipping_address': self.shipping_address,
+            'shipping_city': self.shipping_city,
+            'shipping_state': self.shipping_state,
+            'shipping_pincode': self.shipping_pincode,
+            'total_amount': float(self.total_amount),
+            'vendor_subtotal': round(vendor_subtotal, 2) if vendor else float(self.total_amount),
+            'payment_method': self.payment_method,
+            'payment_status': self.payment_status,
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'item_count': len(items_list),
+            'items': items_list,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class OrderItem(models.Model):
+    """
+    Individual items inside an order, bound to the specific vendor who sells the product.
+    """
+    STATUS_CHOICES = Order.STATUS_CHOICES
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='order_items', db_index=True)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items')
+    product_name = models.CharField(max_length=200)
+    product_sku = models.CharField(max_length=50, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+
+    # Fulfillment & Tracking
+    courier_name = models.CharField(max_length=100, blank=True, default='')
+    tracking_number = models.CharField(max_length=100, blank=True, default='')
+    dispatch_date = models.DateTimeField(null=True, blank=True)
+    delivery_date = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Order Item'
+        verbose_name_plural = 'Order Items'
+
+    def __str__(self):
+        return f"{self.product_name} x {self.quantity} ({self.order.order_number}) - Vendor: {self.vendor.business_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.total_price:
+            self.total_price = self.price * self.quantity
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'order_number': self.order.order_number if self.order else '',
+            'vendor_id': self.vendor_id,
+            'vendor_name': self.vendor.business_name if self.vendor else '',
+            'product_id': self.product_id,
+            'product_name': self.product_name,
+            'product_sku': self.product_sku,
+            'price': float(self.price),
+            'quantity': self.quantity,
+            'total_price': float(self.total_price),
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'courier_name': self.courier_name,
+            'tracking_number': self.tracking_number,
+            'dispatch_date': self.dispatch_date.isoformat() if self.dispatch_date else None,
+            'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class OrderStatusHistory(models.Model):
+    """
+    Audit log of status updates for an order or specific order item.
+    """
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_history')
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, null=True, blank=True, related_name='status_history')
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    old_status = models.CharField(max_length=30, blank=True, default='')
+    new_status = models.CharField(max_length=30)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Order Status History'
+        verbose_name_plural = 'Order Status Histories'
+
+    def __str__(self):
+        return f"{self.order.order_number}: {self.old_status} -> {self.new_status} at {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'order_item_id': self.order_item_id,
+            'vendor_id': self.vendor_id,
+            'old_status': self.old_status,
+            'new_status': self.new_status,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class VendorEarning(models.Model):
+    """
+    Vendor Earnings Ledger.
+    Tracks gross order revenue, platform commission, net earnings, and clearance state.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Clearance'),
+        ('AVAILABLE', 'Available for Withdrawal'),
+        ('WITHDRAWN', 'Withdrawn / Settled'),
+        ('REFUNDED', 'Refunded / Reversal'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='earnings', db_index=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='earnings')
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, null=True, blank=True, related_name='earnings')
+
+    gross_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)  # e.g. 5% platform fee
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    net_amount = models.DecimalField(max_digits=10, decimal_places=2)  # gross - commission
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    cleared_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Vendor Earning'
+        verbose_name_plural = 'Vendor Earnings'
+
+    def __str__(self):
+        return f"₹{self.net_amount} for {self.vendor.business_name} (Order {self.order.order_number}) - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.commission_amount:
+            self.commission_amount = round(self.gross_amount * (self.commission_rate / 100), 2)
+        if not self.net_amount:
+            self.net_amount = self.gross_amount - self.commission_amount
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vendor_id': self.vendor_id,
+            'order_id': self.order_id,
+            'order_number': self.order.order_number if self.order else '',
+            'order_item_id': self.order_item_id,
+            'gross_amount': float(self.gross_amount),
+            'commission_rate': float(self.commission_rate),
+            'commission_amount': float(self.commission_amount),
+            'net_amount': float(self.net_amount),
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'cleared_at': self.cleared_at.isoformat() if self.cleared_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class VendorPayout(models.Model):
+    """
+    Settlement / Withdrawal Request for Vendor bank transfers.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Approval'),
+        ('PROCESSING', 'Processing Bank Transfer'),
+        ('COMPLETED', 'Completed / Settled'),
+        ('REJECTED', 'Rejected'),
+    ]
+
+    payout_number = models.CharField(max_length=50, unique=True, blank=True, db_index=True)
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='payouts', db_index=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Destination Bank Account Details
+    bank_name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=50)
+    ifsc_code = models.CharField(max_length=20)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    utr_number = models.CharField(max_length=100, blank=True, default='')  # Unique Transaction Reference from bank
+    admin_notes = models.TextField(blank=True, default='')
+
+    requested_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        verbose_name = 'Vendor Payout / Settlement'
+        verbose_name_plural = 'Vendor Payouts / Settlements'
+
+    def __str__(self):
+        return f"{self.payout_number} - ₹{self.amount} ({self.vendor.business_name}) - {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.payout_number:
+            import random
+            today_str = timezone.now().strftime('%Y%m%d')
+            self.payout_number = f"PAY-{today_str}-{random.randint(1000, 9999)}"
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'payout_number': self.payout_number,
+            'vendor_id': self.vendor_id,
+            'vendor_name': self.vendor.business_name if self.vendor else '',
+            'amount': float(self.amount),
+            'bank_name': self.bank_name,
+            'account_number': self.account_number,
+            'ifsc_code': self.ifsc_code,
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'utr_number': self.utr_number,
+            'admin_notes': self.admin_notes,
+            'requested_at': self.requested_at.isoformat() if self.requested_at else None,
+            'processed_at': self.processed_at.isoformat() if self.processed_at else None,
+        }
+
+
+
 
 
