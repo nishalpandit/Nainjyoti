@@ -1,20 +1,19 @@
-API for Vendor Orders List  
-url: http://192.168.1.52:8000/api/vendor/orders/  
-method: GET  
+API for Vendor Orders List
+url: http://192.168.1.52:8000/api/vendor/orders/
+method: GET
 
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory to scope orders to authenticated vendor)  
+headers:
+Authorization: Bearer <vendor_token>
 
-params:  
-status: PROCESSING (optional, choices: ALL, PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, RETURNED)  
-search: ORD-20261017 (optional, search by order number, customer name, or phone number)  
-date_from: 2026-10-01 (optional, YYYY-MM-DD start date filter)  
-date_to: 2026-10-17 (optional, YYYY-MM-DD end date filter)  
-ordering: -created_at (optional, choices: -created_at, created_at, -total_amount, total_amount)  
-limit: 50 (optional, default: 50, max: 200)  
+params:
+status: PROCESSING (optional, choices: ALL, PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, RETURNED)
+search: ORD-20261017 (optional, search by order number, customer name, or phone number)
+date_from: 2026-10-01 (optional, YYYY-MM-DD start date filter)
+date_to: 2026-10-17 (optional, YYYY-MM-DD end date filter)
+ordering: -created_at (optional, choices: -created_at, created_at, -total_amount, total_amount)
+limit: 50 (optional, default: 50, max: 200)
 
-response:  
-```json
+response:
 {
   "success": true,
   "count": 1,
@@ -61,30 +60,18 @@ response:
     }
   ]
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Customer & Order Details
+url: http://192.168.1.52:8000/api/vendor/orders/1/
+method: GET
 
----
+headers:
+Authorization: Bearer <vendor_token>
 
-API for Customer & Order Details  
-url: http://192.168.1.52:8000/api/vendor/orders/1/  
-method: GET  
+params:
+none
 
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory to verify vendor store ownership)  
-
-params:  
-none  
-
-response:  
-```json
+response:
 {
   "success": true,
   "order": {
@@ -144,41 +131,21 @@ response:
     "updated_at": "2026-10-17T08:15:00.000000+00:00"
   }
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Order Status Update
+url: http://192.168.1.52:8000/api/vendor/orders/1/status/
+method: POST
 
-forbidden_error_response (403):  
-```json
-{
-  "success": false,
-  "message": "Access denied. You do not have permission to view this order."
-}
-```
+headers:
+Authorization: Bearer <vendor_token>
 
----
+params:
+status: SHIPPED
+courier_name: BlueDart Express
+tracking_number: BD-98213490
+notes: Handed over to BlueDart courier hub for priority delivery
 
-API for Order Status Update  
-url: http://192.168.1.52:8000/api/vendor/orders/1/status/  
-method: POST  
-
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory)  
-
-params:  
-status: SHIPPED (required, choices: CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED)  
-courier_name: BlueDart Express (optional, recommended when status is SHIPPED)  
-tracking_number: BD-98213490 (optional, recommended when status is SHIPPED)  
-notes: Handed over to BlueDart courier hub for priority delivery (optional)  
-
-response:  
-```json
+response:
 {
   "success": true,
   "message": "Order status successfully updated to 'SHIPPED'.",
@@ -192,38 +159,18 @@ response:
     "dispatch_date": "2026-10-17T08:30:00.000000+00:00"
   }
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Sales Overview
+url: http://192.168.1.52:8000/api/vendor/sales/overview/
+method: GET
 
-forbidden_error_response (403):  
-```json
-{
-  "success": false,
-  "message": "Access denied. You do not have permission to modify this order."
-}
-```
+headers:
+Authorization: Bearer <vendor_token>
 
----
+params:
+period: month (optional, choices: today, week, month, year, all, default: month)
 
-API for Sales Overview  
-url: http://192.168.1.52:8000/api/vendor/sales/overview/  
-method: GET  
-
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory)  
-
-params:  
-period: month (optional, choices: today, week, month, year, all, default: month)  
-
-response:  
-```json
+response:
 {
   "success": true,
   "period": "month",
@@ -271,30 +218,18 @@ response:
     }
   ]
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Earnings Overview
+url: http://192.168.1.52:8000/api/vendor/earnings/overview/
+method: GET
 
----
+headers:
+Authorization: Bearer <vendor_token>
 
-API for Earnings Overview  
-url: http://192.168.1.52:8000/api/vendor/earnings/overview/  
-method: GET  
+params:
+none
 
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory)  
-
-params:  
-none  
-
-response:  
-```json
+response:
 {
   "success": true,
   "balance_summary": {
@@ -323,34 +258,22 @@ response:
     }
   ]
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Request Withdrawal / Settlement
+url: http://192.168.1.52:8000/api/vendor/payout/request/
+method: POST
 
----
+headers:
+Authorization: Bearer <vendor_token>
 
-API for Request Withdrawal / Settlement  
-url: http://192.168.1.52:8000/api/vendor/payout/request/  
-method: POST  
+params:
+amount: 25000.00
+bank_name: HDFC Bank
+account_number: 50100492817291
+ifsc_code: HDFC0000123
+notes: Weekly store payout request
 
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory)  
-
-params:  
-amount: 25000.00 (required, must not exceed available_balance)  
-bank_name: HDFC Bank (optional, defaults to registered vendor store bank account)  
-account_number: 50100492817291 (optional, defaults to registered vendor store bank account)  
-ifsc_code: HDFC0000123 (optional, defaults to registered vendor store bank account)  
-notes: Weekly store payout request (optional)  
-
-response:  
-```json
+response:
 {
   "success": true,
   "message": "Withdrawal request of ₹25000.00 submitted successfully! Funds will be credited after compliance processing.",
@@ -370,39 +293,19 @@ response:
   },
   "remaining_available_balance": 100275.0
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Withdrawal / Settlement History
+url: http://192.168.1.52:8000/api/vendor/payout/history/
+method: GET
 
-validation_error_response (400):  
-```json
-{
-  "success": false,
-  "message": "Requested amount ₹150000.00 exceeds your current available balance of ₹125275.00."
-}
-```
+headers:
+Authorization: Bearer <vendor_token>
 
----
+params:
+status: COMPLETED (optional, choices: ALL, PENDING, PROCESSING, COMPLETED, REJECTED)
+limit: 50 (optional, default: 50)
 
-API for Withdrawal / Settlement History  
-url: http://192.168.1.52:8000/api/vendor/payout/history/  
-method: GET  
-
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory)  
-
-params:  
-status: COMPLETED (optional, choices: ALL, PENDING, PROCESSING, COMPLETED, REJECTED)  
-limit: 50 (optional, default: 50)  
-
-response:  
-```json
+response:
 {
   "success": true,
   "count": 1,
@@ -425,30 +328,18 @@ response:
     }
   ]
 }
-```
 
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
+API for Settlement Details
+url: http://192.168.1.52:8000/api/vendor/payout/detail/1/
+method: GET
 
----
+headers:
+Authorization: Bearer <vendor_token>
 
-API for Settlement Details  
-url: http://192.168.1.52:8000/api/vendor/payout/detail/1/  
-method: GET  
+params:
+none
 
-headers:  
-Authorization: Bearer <vendor_token> (required - strictly mandatory to verify store ownership)  
-
-params:  
-none  
-
-response:  
-```json
+response:
 {
   "success": true,
   "payout": {
@@ -468,20 +359,3 @@ response:
     "processed_at": "2026-10-17T11:00:00.000000+00:00"
   }
 }
-```
-
-unauthorized_error_response (401):  
-```json
-{
-  "success": false,
-  "message": "Authentication required. Please provide a valid Vendor Bearer token in the 'Authorization' header."
-}
-```
-
-forbidden_error_response (403):  
-```json
-{
-  "success": false,
-  "message": "Access denied. You do not have permission to view this settlement."
-}
-```
