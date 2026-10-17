@@ -1,3 +1,4 @@
+API for Vendor Registration
 url: http://192.168.1.52:8000/api/vendor/register/
 method: POST
 
@@ -54,6 +55,7 @@ response:
   }
 }
 
+API for Vendor Login
 url: http://192.168.1.52:8000/api/vendor/login/
 method: POST
 
@@ -82,6 +84,7 @@ response:
   }
 }
 
+API for Vendor Application Status
 url: http://192.168.1.52:8000/api/vendor/status/?code=VEND-15384
 method: GET
 
@@ -98,6 +101,7 @@ response:
   "updated_at": "2026-10-16T11:39:27.821733+00:00"
 }
 
+API for Get Vendor Profile
 url: http://192.168.1.52:8000/api/vendor/profile/
 method: GET
 
@@ -140,6 +144,7 @@ response:
   }
 }
 
+API for Update Vendor Profile
 url: http://192.168.1.52:8000/api/vendor/profile/
 method: POST
 
@@ -180,6 +185,7 @@ response:
   }
 }
 
+API for Vendor Change Password
 url: http://192.168.1.52:8000/api/vendor/profile/change-password/
 method: POST
 
@@ -197,6 +203,7 @@ response:
   "token": "2681b2de4fc8d35174f795e7b9cf7646f39a7eeb62178e1eb2568bf9040377f7"
 }
 
+API for Vendor Logout
 url: http://192.168.1.52:8000/api/vendor/logout/
 method: POST
 

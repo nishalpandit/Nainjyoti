@@ -1,3 +1,4 @@
+API for Send OTP (Customer)
 url: http://192.168.1.52:8000/api/user/send-otp/
 method: POST
 
@@ -15,6 +16,7 @@ response:
   "expires_in_minutes": 10
 }
 
+API for Verify OTP Login (Customer)
 url: http://192.168.1.52:8000/api/user/verify-otp-login/
 method: POST
 
@@ -42,6 +44,7 @@ response:
   }
 }
 
+API for Customer Registration
 url: http://192.168.1.52:8000/api/user/register/
 method: POST
 
@@ -73,6 +76,7 @@ response:
   }
 }
 
+API for Get Customer Profile
 url: http://192.168.1.52:8000/api/user/profile/
 method: GET
 
@@ -96,6 +100,7 @@ response:
   }
 }
 
+API for Update Customer Profile
 url: http://192.168.1.52:8000/api/user/profile/
 method: POST
 
@@ -127,6 +132,7 @@ response:
   }
 }
 
+API for Customer Logout
 url: http://192.168.1.52:8000/api/user/logout/
 method: POST
 
