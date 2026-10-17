@@ -1,165 +1,144 @@
+{% extends "vendor/base.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Earnings · BharatBazaar Seller</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+{% block breadcrumb %}Earnings{% endblock %}
+{% block nav_earnings %}active{% endblock %}
+
+{% block page_css %}
     <link href="{% static 'vendor/css/earnings.css' %}" rel="stylesheet">
-</head>
+{% endblock %}
 
-<body>
-    <aside class="sidebar"><a class="brand text-white text-decoration-none" href="index.html"><span
-                class="brand-mark"><i class="fa-solid fa-store"></i></span><span
-                class="brand-name">BharatBazaar</span></a>
-        <div class="nav-label">Workspace</div><a class="" href="index.html"><i
-                class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a><a class="" href="products.html"><i
-                class="fa-solid fa-box"></i><span>Products</span></a><a class="" href="orders.html"><i
-                class="fa-solid fa-bag-shopping"></i><span>Orders</span></a><a class="" href="inventory.html"><i
-                class="fa-solid fa-warehouse"></i><span>Inventory</span></a><a class="active" href="earnings.html"><i
-                class="fa-solid fa-wallet"></i><span>Earnings</span></a><a class="" href="withdrawals.html"><i
-                class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
-        <div class="nav-label mt-3">Account</div><a class="" href="settings.html"><i
-                class="fa-solid fa-gear"></i><span>Settings</span></a>
-        <div class="side-bottom"><a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &
-                    support</span></a></div>
-    </aside>
-    <div class="workspace">
-        <header class="topbar">
-            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong
-                    class="text-dark">Earnings</strong></div>
-            <div class="profile-mini"><button class="btn btn-light border d-none d-sm-inline-block" type="button"
-                    aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
-                <div class="avatar">JD</div>
-                <div class="d-none d-md-block"><strong style="font-size:12px">Aanya Sharma</strong>
-                    <div class="text-secondary" style="font-size:10px">Store owner</div>
-                </div>
-            </div>
-        </header>
-        <main class="main">
-            <div class="page-head">
-                <div>
-                    <h1>Earnings</h1>
-                    <p class="sub">Review your sales, fees, and payout balance.</p>
-                </div>
-            </div>
-            <div class="row g-3 mb-4">
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Gross sales</div>
-                                <div class="stat-value">₹84,250</div>
-                                <div class="stat-foot">This month</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Platform fees</div>
-                                <div class="stat-value">₹6,740</div>
-                                <div class="stat-foot">8% blended rate</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-percent"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Net earnings</div>
-                                <div class="stat-value">₹77,510</div>
-                                <div class="stat-foot">Before adjustments</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-coins"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Available to withdraw</div>
-                                <div class="stat-value">₹18,640</div>
-                                <div class="stat-foot">Updated 09 Oct</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-wallet"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="alert-note mb-4"><i class="fa-solid fa-circle-info me-2"></i>Figures are illustrative sample
-                data. Final commission, earnings, and settlements are calculated by the backend.</div>
-            <section class="card">
-                <div class="card-head">
-                    <h2>Recent transactions</h2><select class="form-select" style="width:150px">
-                        <option>Last 30 days</option>
-                        <option>Last 90 days</option>
-                    </select>
-                </div>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Reference</th>
-                                <th>Description</th>
-                                <th>Gross</th>
-                                <th>Fees</th>
-                                <th>Net</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>09 Oct 2026</td>
-                                <td>TXN-91028</td>
-                                <td>Order #NS-2841</td>
-                                <td>₹2,698</td>
-                                <td>−₹216</td>
-                                <td>₹2,482</td>
-                            </tr>
-                            <tr>
-                                <td>09 Oct 2026</td>
-                                <td>TXN-91027</td>
-                                <td>Order #NS-2840</td>
-                                <td>₹1,899</td>
-                                <td>−₹152</td>
-                                <td>₹1,747</td>
-                            </tr>
-                            <tr>
-                                <td>08 Oct 2026</td>
-                                <td>TXN-91011</td>
-                                <td>Order #NS-2839</td>
-                                <td>₹3,147</td>
-                                <td>−₹252</td>
-                                <td>₹2,895</td>
-                            </tr>
-                            <tr>
-                                <td>07 Oct 2026</td>
-                                <td>PAYOUT-201</td>
-                                <td>Withdrawal settlement</td>
-                                <td>—</td>
-                                <td>—</td>
-                                <td>−₹12,000</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample
-                dashboard data for demonstration</footer>
-        </main>
+{% block vendor_content %}
+    <div class="page-head d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>Earnings &amp; Financial Analytics</h1>
+            <p class="sub">Transparent fee breakdown, settlement balances, and net seller disbursements.</p>
+        </div>
+        <a class="btn btn-primary" href="{% url 'vendor_withdrawals' %}">
+            <i class="fa-solid fa-wallet me-2"></i>Request Payout
+        </a>
     </div>
-    <script src="{% static 'vendor/js/app.js' %}"></script>
-</body>
 
-</html>
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Gross Order Sales</div>
+                <div class="stat-value fs-4 text-dark">₹{{ bal_summary.lifetime_gross_sales|floatformat:2 }}</div>
+                <div class="stat-foot text-secondary">Total customer paid amount</div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Platform Fee (5%)</div>
+                <div class="stat-value fs-4 text-secondary">₹{{ bal_summary.total_commission_deducted|floatformat:2 }}</div>
+                <div class="stat-foot text-secondary">Flat 5% platform commission</div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Lifetime Net Earnings</div>
+                <div class="stat-value fs-4 text-success">₹{{ bal_summary.lifetime_net_earnings|floatformat:2 }}</div>
+                <div class="stat-foot text-secondary">Gross minus 5% fee</div>
+            </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm p-3 border-primary border-opacity-25" style="background:#f5f3ff;">
+                <div class="stat-label text-primary">Available for Payout</div>
+                <div class="stat-value fs-4 text-primary fw-bold">₹{{ bal_summary.available_balance|floatformat:2 }}</div>
+                <div class="stat-foot text-secondary">Ready for bank transfer</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 border-0 bg-warning bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small fw-medium">Pending Delivery Clearance</div>
+                        <div class="h5 fw-bold text-dark mb-0">₹{{ bal_summary.pending_clearance|floatformat:2 }}</div>
+                        <div class="text-secondary small mt-1">Unlocked automatically upon customer order delivery confirmation.</div>
+                    </div>
+                    <i class="fa-solid fa-clock-rotate-left fs-2 text-warning"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 border-0 bg-success bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-secondary small fw-medium">Total Successfully Withdrawn</div>
+                        <div class="h5 fw-bold text-dark mb-0">₹{{ bal_summary.total_withdrawn|floatformat:2 }}</div>
+                        <div class="text-secondary small mt-1">Credited to {{ vendor.bank_name|default:"HDFC Bank" }} account.</div>
+                    </div>
+                    <i class="fa-solid fa-building-columns fs-2 text-success"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Earnings Breakdown Table -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Order-by-Order Earnings Ledger</h5>
+            <span class="text-secondary small">{{ earnings_records|length }} transactions</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Order #</th>
+                        <th>Order Date</th>
+                        <th>Gross Amount</th>
+                        <th>Platform Fee (5%)</th>
+                        <th>Your Net Payout</th>
+                        <th>Clearance Status</th>
+                        <th>Cleared Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rec in earnings_records %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'vendor_order_detail' rec.order.id %}" class="fw-bold font-monospace text-decoration-none">
+                                    {{ rec.order.order_number }}
+                                </a>
+                            </td>
+                            <td class="text-secondary small">{{ rec.created_at|date:"d M Y, h:i A" }}</td>
+                            <td>₹{{ rec.gross_amount|floatformat:2 }}</td>
+                            <td class="text-secondary">-₹{{ rec.commission_amount|floatformat:2 }}</td>
+                            <td class="fw-bold text-success">₹{{ rec.net_amount|floatformat:2 }}</td>
+                            <td>
+                                {% if rec.status == 'AVAILABLE' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">Available</span>
+                                {% elif rec.status == 'PENDING' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">Pending Delivery</span>
+                                {% elif rec.status == 'WITHDRAWN' %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill">Withdrawn</span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2 py-1 rounded-pill">{{ rec.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-secondary small">
+                                {% if rec.cleared_at %}
+                                    {{ rec.cleared_at|date:"d M Y" }}
+                                {% else %}
+                                    &mdash;
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-secondary">
+                                <i class="fa-solid fa-receipt d-block fs-2 mb-2"></i>
+                                No order earnings recorded yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

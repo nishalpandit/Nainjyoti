@@ -84,6 +84,14 @@ class VendorProfile(models.Model):
         self.save(update_fields=['auth_token'])
         return self.auth_token
 
+    @property
+    def initials(self):
+        name = self.owner_name or self.business_name or "Seller"
+        parts = name.strip().split()
+        if len(parts) >= 2:
+            return f"{parts[0][0]}{parts[1][0]}".upper()
+        return name[:2].upper()
+
     def to_dict(self):
         return {
             'id': self.id,

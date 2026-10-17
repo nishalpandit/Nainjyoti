@@ -1,248 +1,191 @@
+{% extends "vendor/base.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Products · BharatBazaar Seller</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+{% block breadcrumb %}Products{% endblock %}
+{% block nav_products %}active{% endblock %}
+
+{% block page_css %}
     <link href="{% static 'vendor/css/products.css' %}" rel="stylesheet">
-</head>
+{% endblock %}
 
-<body>
-    <aside class="sidebar"><a class="brand text-white text-decoration-none" href="index.html"><span
-                class="brand-mark"><i class="fa-solid fa-store"></i></span><span
-                class="brand-name">BharatBazaar</span></a>
-        <div class="nav-label">Workspace</div><a class="" href="index.html"><i
-                class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a><a class="active" href="products.html"><i
-                class="fa-solid fa-box"></i><span>Products</span></a><a class="" href="orders.html"><i
-                class="fa-solid fa-bag-shopping"></i><span>Orders</span></a><a class="" href="inventory.html"><i
-                class="fa-solid fa-warehouse"></i><span>Inventory</span></a><a class="" href="earnings.html"><i
-                class="fa-solid fa-wallet"></i><span>Earnings</span></a><a class="" href="withdrawals.html"><i
-                class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
-        <div class="nav-label mt-3">Account</div><a class="" href="settings.html"><i
-                class="fa-solid fa-gear"></i><span>Settings</span></a>
-        <div class="side-bottom"><a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &
-                    support</span></a></div>
-    </aside>
-    <div class="workspace">
-        <header class="topbar">
-            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong
-                    class="text-dark">Products</strong></div>
-            <div class="profile-mini"><button class="btn btn-light border d-none d-sm-inline-block" type="button"
-                    aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
-                <div class="avatar">JD</div>
-                <div class="d-none d-md-block"><strong style="font-size:12px">Aanya Sharma</strong>
-                    <div class="text-secondary" style="font-size:10px">Store owner</div>
-                </div>
-            </div>
-        </header>
-        <main class="main">
-            <div class="page-head">
-                <div>
-                    <h1>Products</h1>
-                    <p class="sub">Manage your catalog and product listings.</p>
-                </div><a class="btn btn-primary" href="product-form.html"><i class="fa-solid fa-plus me-2"></i>Add
-                    product</a>
-            </div>
-            <div class="card">
-                <div class="card-head">
-                    <div class="toolbar"><input class="form-control" type="search" placeholder="Search products"
-                            aria-label="Search products"><select class="form-select" style="width:145px">
-                            <option>All categories</option>
-                            <option>Home & Kitchen</option>
-                            <option>Home</option>
-                        </select></div><span class="text-secondary small">36 products</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th>Price</th>
-                                <th>Stock</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
-                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Home & Kitchen</td>
-                                <td>₹1,899</td>
-                                <td>42</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
-                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Handcrafted Accessories</td>
-                                <td>₹799</td>
-                                <td>18</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
-                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
-                                    </div>
-                                </td>
-                                <td>Home</td>
-                                <td>₹1,250</td>
-                                <td>0</td>
-                                <td><span class="badge-soft warning">Out of stock</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
-                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Home & Kitchen</td>
-                                <td>₹1,899</td>
-                                <td>42</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
-                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Handcrafted Accessories</td>
-                                <td>₹799</td>
-                                <td>18</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
-                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
-                                    </div>
-                                </td>
-                                <td>Home</td>
-                                <td>₹1,250</td>
-                                <td>0</td>
-                                <td><span class="badge-soft warning">Out of stock</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
-                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Home & Kitchen</td>
-                                <td>₹1,899</td>
-                                <td>42</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
-                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Handcrafted Accessories</td>
-                                <td>₹799</td>
-                                <td>18</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
-                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
-                                    </div>
-                                </td>
-                                <td>Home</td>
-                                <td>₹1,250</td>
-                                <td>0</td>
-                                <td><span class="badge-soft warning">Out of stock</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-mug-hot"></i></div>
-                                        <div><strong>Jaipur Blue Pottery Tea Set</strong><small>SKU: BB-1042</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Home & Kitchen</td>
-                                <td>₹1,899</td>
-                                <td>42</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-bag-shopping"></i></div>
-                                        <div><strong>Kutch Embroidered Tote Bag</strong><small>SKU: BB-1038</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Handcrafted Accessories</td>
-                                <td>₹799</td>
-                                <td>18</td>
-                                <td><span class="badge-soft success">Active</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="product-cell">
-                                        <div class="product-thumb"><i class="fa-solid fa-candle-holder"></i></div>
-                                        <div><strong>Brass Diya Set</strong><small>SKU: BB-1031</small></div>
-                                    </div>
-                                </td>
-                                <td>Home</td>
-                                <td>₹1,250</td>
-                                <td>0</td>
-                                <td><span class="badge-soft warning">Out of stock</span></td>
-                                <td><a href="product-form.html">Edit</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample
-                dashboard data for demonstration</footer>
-        </main>
+{% block vendor_content %}
+    <div class="page-head d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>Product Catalog</h1>
+            <p class="sub">Manage your active listings, inventory levels, and store pricing.</p>
+        </div>
+        <a class="btn btn-primary" href="{% url 'vendor_product_add' %}">
+            <i class="fa-solid fa-plus me-2"></i>Add product
+        </a>
     </div>
-    <script src="{% static 'vendor/js/app.js' %}"></script>
-</body>
 
-</html>
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Total Listings</div>
+                <div class="stat-value fs-4">{{ total_count }}</div>
+                <div class="stat-foot text-secondary">Active in catalog</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">In Stock</div>
+                <div class="stat-value fs-4 text-success">{{ in_stock_count }}</div>
+                <div class="stat-foot text-secondary">Healthy stock (&gt;10)</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Low Stock</div>
+                <div class="stat-value fs-4 text-warning">{{ low_stock_count }}</div>
+                <div class="stat-foot text-secondary">Needs re-order (&le;10)</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card shadow-sm p-3">
+                <div class="stat-label">Out of Stock</div>
+                <div class="stat-value fs-4 text-danger">{{ out_of_stock_count }}</div>
+                <div class="stat-foot text-secondary">Sold out</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Card -->
+    <div class="card shadow-sm">
+        <div class="card-head p-3 border-bottom">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-secondary"></i></span>
+                        <input class="form-control border-start-0" type="search" name="q" value="{{ search_query }}" placeholder="Search by name, SKU...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" name="category" onchange="this.form.submit()">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if selected_category == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" name="status" onchange="this.form.submit()">
+                        <option value="ALL" {% if selected_status == 'ALL' or not selected_status %}selected{% endif %}>All Statuses</option>
+                        <option value="ACTIVE" {% if selected_status == 'ACTIVE' %}selected{% endif %}>Active</option>
+                        <option value="INACTIVE" {% if selected_status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                    {% if search_query or selected_category or selected_status %}
+                        <a href="{% url 'vendor_products' %}" class="btn btn-light border" title="Clear filters"><i class="fa-solid fa-xmark"></i></a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Product Details</th>
+                        <th>SKU</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock Level</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                        <tr>
+                            <td class="text-secondary small">{{ forloop.counter }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3 rounded d-flex align-items-center justify-content-center border" style="width:42px;height:42px;background:#f8fafc;color:#6366f1;font-size:16px;">
+                                        {% if p.image_url %}
+                                            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="rounded" style="width:100%;height:100%;object-fit:cover;">
+                                        {% else %}
+                                            <i class="fa-solid fa-bag-shopping"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">{{ p.name }}</div>
+                                        <div class="text-secondary small text-truncate" style="max-width:260px;">{{ p.description|default:"No description provided" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border font-monospace">{{ p.sku }}</span></td>
+                            <td class="text-secondary">{{ p.category.name|default:"Uncategorized" }}</td>
+                            <td class="fw-bold text-dark">₹{{ p.price|floatformat:2 }}</td>
+                            <td>
+                                {% if p.stock_quantity == 0 %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">Out of Stock (0)</span>
+                                {% elif p.stock_quantity <= 10 %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">Low: {{ p.stock_quantity }} units</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">{{ p.stock_quantity }} units</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if p.status == 'ACTIVE' %}
+                                    <span class="badge bg-success text-white px-2 py-1 rounded-pill" style="font-size:10px;">ACTIVE</span>
+                                {% else %}
+                                    <span class="badge bg-secondary text-white px-2 py-1 rounded-pill" style="font-size:10px;">INACTIVE</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{% url 'vendor_product_edit' p.id %}" class="btn btn-sm btn-outline-secondary" title="Edit Product">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ p.id }}">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content text-start">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>Confirm Delete</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Are you sure you want to delete product <strong>{{ p.name }}</strong> (SKU: {{ p.sku }})?
+                                                <div class="form-text mt-2">If this product is present in past customer orders, it will be marked as INACTIVE instead of being permanently removed.</div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancel</button>
+                                                <form action="{% url 'vendor_product_delete' p.id %}" method="post">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-secondary">
+                                <i class="fa-solid fa-box-open d-block fs-2 mb-2 text-secondary"></i>
+                                No products found matching your search.
+                                <div class="mt-2">
+                                    <a href="{% url 'vendor_product_add' %}" class="btn btn-sm btn-primary">
+                                        <i class="fa-solid fa-plus me-1"></i>Add your first product
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends "base.htm" %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block extra_css %}
@@ -8,21 +8,22 @@
 
 {% block layout %}
     <aside class="sidebar">
-        <a class="brand text-white text-decoration-none" href="index.html">
+        <a class="brand text-white text-decoration-none" href="{% url 'vendor_dashboard' %}">
             <span class="brand-mark"><i class="fa-solid fa-store"></i></span>
-            <span class="brand-name">BharatBazaar</span>
+            <span class="brand-name">Nainjyoti</span>
         </a>
         <div class="nav-label">Workspace</div>
-        <a class="{% block nav_dashboard %}{% endblock %}" href="index.html"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
-        <a class="{% block nav_products %}{% endblock %}" href="products.html"><i class="fa-solid fa-box"></i><span>Products</span></a>
-        <a class="{% block nav_orders %}{% endblock %}" href="orders.html"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
-        <a class="{% block nav_inventory %}{% endblock %}" href="inventory.html"><i class="fa-solid fa-warehouse"></i><span>Inventory</span></a>
-        <a class="{% block nav_earnings %}{% endblock %}" href="earnings.html"><i class="fa-solid fa-wallet"></i><span>Earnings</span></a>
-        <a class="{% block nav_withdrawals %}{% endblock %}" href="withdrawals.html"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
+        <a class="{% block nav_dashboard %}{% endblock %}" href="{% url 'vendor_dashboard' %}"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a>
+        <a class="{% block nav_products %}{% endblock %}" href="{% url 'vendor_products' %}"><i class="fa-solid fa-box"></i><span>Products</span></a>
+        <a class="{% block nav_orders %}{% endblock %}" href="{% url 'vendor_orders' %}"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
+        <a class="{% block nav_inventory %}{% endblock %}" href="{% url 'vendor_inventory' %}"><i class="fa-solid fa-warehouse"></i><span>Inventory</span></a>
+        <a class="{% block nav_earnings %}{% endblock %}" href="{% url 'vendor_earnings' %}"><i class="fa-solid fa-wallet"></i><span>Earnings</span></a>
+        <a class="{% block nav_withdrawals %}{% endblock %}" href="{% url 'vendor_withdrawals' %}"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
         <div class="nav-label mt-3">Account</div>
-        <a class="{% block nav_settings %}{% endblock %}" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+        <a class="{% block nav_settings %}{% endblock %}" href="{% url 'vendor_settings' %}"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
         <div class="side-bottom">
-            <a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &amp; support</span></a>
+            <a href="{% url 'vendor_settings' %}"><i class="fa-regular fa-circle-question"></i><span>Store profile</span></a>
+            <a href="{% url 'logout' %}" style="color:#ef4444;margin-top:4px;"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign out</span></a>
         </div>
     </aside>
 

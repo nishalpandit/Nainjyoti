@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import api_views
 from . import user_views
+from . import vendor_views
 
 urlpatterns = [
     # Public Vendor Portal & Unified Admin/Vendor Authentication
@@ -22,8 +23,23 @@ urlpatterns = [
     path('admin-dashboard/categories/add/', views.admin_category_form, name='admin_category_add'),
     path('admin-dashboard/categories/<int:category_id>/edit/', views.admin_category_form, name='admin_category_edit'),
 
-    # Vendor Protected Dashboard
-    path('vendor-dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
+    # =========================================================================
+    # Vendor Web Dashboard (Full Dynamic Portal)
+    # =========================================================================
+    path('vendor-dashboard/', vendor_views.vendor_dashboard, name='vendor_dashboard'),
+    path('vendor-dashboard/products/', vendor_views.vendor_products, name='vendor_products'),
+    path('vendor-dashboard/products/add/', vendor_views.vendor_product_add, name='vendor_product_add'),
+    path('vendor-dashboard/products/<int:product_id>/edit/', vendor_views.vendor_product_edit, name='vendor_product_edit'),
+    path('vendor-dashboard/products/<int:product_id>/delete/', vendor_views.vendor_product_delete, name='vendor_product_delete'),
+    path('vendor-dashboard/orders/', vendor_views.vendor_orders, name='vendor_orders'),
+    path('vendor-dashboard/orders/<int:order_id>/', vendor_views.vendor_order_detail, name='vendor_order_detail'),
+    path('vendor-dashboard/orders/<int:order_id>/status/', vendor_views.vendor_order_update_status, name='vendor_order_update_status'),
+    path('vendor-dashboard/inventory/', vendor_views.vendor_inventory, name='vendor_inventory'),
+    path('vendor-dashboard/inventory/adjust/<int:product_id>/', vendor_views.vendor_stock_adjust, name='vendor_stock_adjust'),
+    path('vendor-dashboard/earnings/', vendor_views.vendor_earnings, name='vendor_earnings'),
+    path('vendor-dashboard/withdrawals/', vendor_views.vendor_withdrawals, name='vendor_withdrawals'),
+    path('vendor-dashboard/withdrawals/request/', vendor_views.vendor_payout_request, name='vendor_payout_request'),
+    path('vendor-dashboard/settings/', vendor_views.vendor_settings, name='vendor_settings'),
 
     # =========================================================================
     # Customer / Mobile App REST APIs

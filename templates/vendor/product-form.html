@@ -1,94 +1,95 @@
+{% extends "vendor/base.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Add product · BharatBazaar Seller</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+{% block breadcrumb %}{% if is_edit %}Edit Product{% else %}Add Product{% endif %}{% endblock %}
+{% block nav_products %}active{% endblock %}
+
+{% block page_css %}
     <link href="{% static 'vendor/css/product-form.css' %}" rel="stylesheet">
-</head>
+{% endblock %}
 
-<body>
-    <aside class="sidebar"><a class="brand text-white text-decoration-none" href="index.html"><span
-                class="brand-mark"><i class="fa-solid fa-store"></i></span><span
-                class="brand-name">BharatBazaar</span></a>
-        <div class="nav-label">Workspace</div><a class="" href="index.html"><i
-                class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a><a class="active" href="products.html"><i
-                class="fa-solid fa-box"></i><span>Products</span></a><a class="" href="orders.html"><i
-                class="fa-solid fa-bag-shopping"></i><span>Orders</span></a><a class="" href="inventory.html"><i
-                class="fa-solid fa-warehouse"></i><span>Inventory</span></a><a class="" href="earnings.html"><i
-                class="fa-solid fa-wallet"></i><span>Earnings</span></a><a class="" href="withdrawals.html"><i
-                class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
-        <div class="nav-label mt-3">Account</div><a class="" href="settings.html"><i
-                class="fa-solid fa-gear"></i><span>Settings</span></a>
-        <div class="side-bottom"><a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &
-                    support</span></a></div>
-    </aside>
-    <div class="workspace">
-        <header class="topbar">
-            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong class="text-dark">Add
-                    product</strong></div>
-            <div class="profile-mini"><button class="btn btn-light border d-none d-sm-inline-block" type="button"
-                    aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
-                <div class="avatar">JD</div>
-                <div class="d-none d-md-block"><strong style="font-size:12px">Aanya Sharma</strong>
-                    <div class="text-secondary" style="font-size:10px">Store owner</div>
-                </div>
-            </div>
-        </header>
-        <main class="main">
-            <div class="page-head">
-                <div>
-                    <h1>Add a product</h1>
-                    <p class="sub">Add a new item to your store catalog.</p>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-body p-4">
-                    <div class="alert-note mb-4">This form is ready for backend integration. Submissions are not saved
-                        until the endpoint is implemented.</div>
-                    <form action="/api/products" method="post">
-                        <div class="row g-3">
-                            <div class="col-md-8"><label class="form-label" for="name">Product name</label><input
-                                    class="form-control" id="name" name="name" required maxlength="120"
-                                    placeholder="e.g. Jaipur Blue Pottery Tea Set"></div>
-                            <div class="col-md-4"><label class="form-label" for="sku">SKU</label><input
-                                    class="form-control" id="sku" name="sku" required maxlength="40"
-                                    placeholder="NS-1043"></div>
-                            <div class="col-md-6"><label class="form-label" for="category">Category</label><select
-                                    class="form-select" id="category" name="category_id" required>
-                                    <option value="">Choose a category</option>
-                                    <option>Home & Kitchen</option>
-                                    <option>Home</option>
-                                    <option>Handcrafted Accessories</option>
-                                </select></div>
-                            <div class="col-md-3"><label class="form-label" for="price">Price (INR)</label><input
-                                    class="form-control" id="price" name="price" type="number" min="0" step="0.01"
-                                    required></div>
-                            <div class="col-md-3"><label class="form-label" for="stock">Initial stock</label><input
-                                    class="form-control" id="stock" name="stock_quantity" type="number" min="0" step="1"
-                                    required></div>
-                            <div class="col-12"><label class="form-label" for="description">Description</label><textarea
-                                    class="form-control" id="description" name="description" rows="4"
-                                    maxlength="3000"></textarea></div>
-                            <div class="col-12 d-flex gap-2 mt-4"><button class="btn btn-primary" type="submit">Create
-                                    product</button><a class="btn btn-light border" href="products.html">Cancel</a>
-                            </div>
-                        </div>
-                    </form>
-                    <p class="form-text mt-3 mb-0">Endpoint placeholder: POST /api/products. Price validation,
-                        permissions, and persistence belong on the server.</p>
-                </div>
-            </div>
-            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample
-                dashboard data for demonstration</footer>
-        </main>
+{% block vendor_content %}
+    <div class="page-head mb-4">
+        <div>
+            <h1>{% if is_edit %}Edit Product{% else %}Add a Product{% endif %}</h1>
+            <p class="sub">{% if is_edit %}Update details and pricing for this product.{% else %}Add a new item to your store catalog.{% endif %}</p>
+        </div>
     </div>
-    <script src="{% static 'vendor/js/app.js' %}"></script>
-</body>
 
-</html>
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold" for="name">Product Name <span class="text-danger">*</span></label>
+                        <input class="form-control" id="name" name="name" required maxlength="200"
+                               placeholder="e.g. Pure Kashmiri Handwoven Pashmina Shawl"
+                               value="{{ product.name|default:'' }}">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold" for="sku">SKU Code</label>
+                        <input class="form-control font-monospace" id="sku" name="sku" maxlength="50"
+                               placeholder="Leave blank to auto-generate"
+                               value="{{ product.sku|default:'' }}">
+                        <div class="form-text">Unique seller inventory identifier.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="category">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category" name="category_id" required>
+                            <option value="">-- Choose Category --</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if product.category_id == cat.id %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold" for="price">Selling Price (₹) <span class="text-danger">*</span></label>
+                        <input class="form-control" id="price" name="price" type="number" min="0" step="0.01" required
+                               placeholder="0.00" value="{{ product.price|default:'' }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold" for="stock">Available Stock Units <span class="text-danger">*</span></label>
+                        <input class="form-control" id="stock" name="stock_quantity" type="number" min="0" step="1" required
+                               placeholder="0" value="{{ product.stock_quantity|default:'0' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="image">Product Image URL</label>
+                        <input class="form-control" id="image" name="image" type="text"
+                               placeholder="https://images.example.com/item.jpg"
+                               value="{{ product.image|default:'' }}">
+                        <div class="form-text">Direct image URL to display on the storefront and consumer app.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="status">Listing Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="ACTIVE" {% if not product or product.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Visible to buyers)</option>
+                            <option value="INACTIVE" {% if product.status == 'INACTIVE' %}selected{% endif %}>INACTIVE (Draft / Hidden)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold" for="description">Detailed Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="5"
+                                  placeholder="Provide authentic details about materials, care instructions, origin, dimensions...">{{ product.description|default:'' }}</textarea>
+                    </div>
+
+                    <div class="col-12 d-flex gap-2 mt-4 pt-3 border-top">
+                        <button class="btn btn-primary px-4" type="submit">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>{% if is_edit %}Save Changes{% else %}Publish Product{% endif %}
+                        </button>
+                        <a class="btn btn-light border px-4" href="{% url 'vendor_products' %}">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

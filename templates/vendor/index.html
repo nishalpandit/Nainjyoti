@@ -1,229 +1,221 @@
+{% extends "vendor/base.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dashboard · BharatBazaar Seller</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-    <link href="{% static 'vendor/css/vendor-base.css' %}" rel="stylesheet">
+{% block breadcrumb %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block page_css %}
     <link href="{% static 'vendor/css/index.css' %}" rel="stylesheet">
-</head>
+{% endblock %}
 
-<body>
-    <aside class="sidebar"><a class="brand text-white text-decoration-none" href="index.html"><span
-                class="brand-mark"><i class="fa-solid fa-store"></i></span><span
-                class="brand-name">BharatBazaar</span></a>
-        <div class="nav-label">Workspace</div><a class="active" href="index.html"><i
-                class="fa-solid fa-chart-pie"></i><span>Dashboard</span></a><a class="" href="products.html"><i
-                class="fa-solid fa-box"></i><span>Products</span></a><a class="" href="orders.html"><i
-                class="fa-solid fa-bag-shopping"></i><span>Orders</span></a><a class="" href="inventory.html"><i
-                class="fa-solid fa-warehouse"></i><span>Inventory</span></a><a class="" href="earnings.html"><i
-                class="fa-solid fa-wallet"></i><span>Earnings</span></a><a class="" href="withdrawals.html"><i
-                class="fa-solid fa-arrow-right-arrow-left"></i><span>Withdrawals</span></a>
-        <div class="nav-label mt-3">Account</div><a class="" href="settings.html"><i
-                class="fa-solid fa-gear"></i><span>Settings</span></a>
-        <div class="side-bottom">
-            <a href="settings.html"><i class="fa-regular fa-circle-question"></i><span>Help &amp; support</span></a>
-            <a href="{% url 'logout' %}" style="color:#ef4444;margin-top:4px;"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign out</span></a>
+{% block vendor_content %}
+    <div class="page-head">
+        <div>
+            <h1>Hello, {{ vendor.owner_name|default:vendor.business_name }} 👋</h1>
+            <p class="sub">Welcome to your store console for <strong>{{ vendor.business_name }}</strong>.</p>
         </div>
-    </aside>
-    <div class="workspace">
-        <header class="topbar">
-            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong
-                    class="text-dark">Dashboard</strong></div>
-            <div class="profile-mini"><button class="btn btn-light border d-none d-sm-inline-block" type="button"
-                    aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
-                <div class="avatar">JD</div>
-                <div class="d-none d-md-block"><strong style="font-size:12px">Aanya Sharma</strong>
-                    <div class="text-secondary" style="font-size:10px">Store owner</div>
+        <a class="btn btn-primary" href="{% url 'vendor_product_add' %}">
+            <i class="fa-solid fa-plus me-2"></i>Add product
+        </a>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="stat-label">Gross Sales</div>
+                        <div class="stat-value">₹{{ gross_sales|floatformat:2 }}</div>
+                        <div class="stat-foot"><span class="trend text-success"><i class="fa-solid fa-arrow-trend-up me-1"></i>Verified</span> across all orders</div>
+                    </div>
+                    <div class="icon-tile" style="background:#eef2ff;color:#4f46e5;"><i class="fa-solid fa-indian-rupee-sign"></i></div>
                 </div>
             </div>
-        </header>
-        <main class="main">
-            <div class="page-head">
-                <div>
-                    <h1>Good morning, Jordan 👋</h1>
-                    <p class="sub">Here’s what’s happening with your store today.</p>
-                </div><a class="btn btn-primary" href="product-form.html"><i class="fa-solid fa-plus me-2"></i>Add
-                    product</a>
-            </div>
-            <div class="row g-3 mb-4">
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Gross sales</div>
-                                <div class="stat-value">₹84,250</div>
-                                <div class="stat-foot"><span class="trend">↑ 12.8%</span> vs last month</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-                        </div>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="stat-label">Total Orders</div>
+                        <div class="stat-value">{{ total_orders }}</div>
+                        <div class="stat-foot"><span class="trend text-primary">{{ bal_summary.pending_clearance|yesno:"Active,None" }}</span> customer orders</div>
                     </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Orders</div>
-                                <div class="stat-value">128</div>
-                                <div class="stat-foot"><span class="trend">↑ 8.2%</span> vs last month</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-bag-shopping"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Products listed</div>
-                                <div class="stat-value">36</div>
-                                <div class="stat-foot">4 need attention</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-box"></i></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6 col-xl-3">
-                    <div class="card stat-card">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <div class="stat-label">Available balance</div>
-                                <div class="stat-value">₹18,640</div>
-                                <div class="stat-foot">Updated today</div>
-                            </div>
-                            <div class="icon-tile"><i class="fa-solid fa-wallet"></i></div>
-                        </div>
-                    </div>
+                    <div class="icon-tile" style="background:#f0fdf4;color:#16a34a;"><i class="fa-solid fa-bag-shopping"></i></div>
                 </div>
             </div>
-            <div class="row g-3 mb-4">
-                <div class="col-lg-8">
-                    <section class="card h-100">
-                        <div class="card-head">
-                            <h2>Sales overview</h2><select class="form-select" style="width:140px"
-                                aria-label="Chart time period">
-                                <option>Last 7 days</option>
-                                <option>Last 30 days</option>
-                            </select>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="stat-label">Products Listed</div>
+                        <div class="stat-value">{{ products_count }}</div>
+                        <div class="stat-foot">
+                            {% if low_stock_count > 0 %}
+                                <span class="text-warning fw-semibold">{{ low_stock_count }} low stock</span>
+                            {% else %}
+                                <span class="text-success fw-semibold">All healthy</span>
+                            {% endif %}
                         </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div><span class="stat-value" style="font-size:22px">₹24,580</span><span
-                                        class="trend ms-2" style="font-size:12px">↑ 6.4%</span></div>
-                                <div class="legend"><span><i class="dot"></i>This week</span><span><i
-                                            class="dot alt"></i>Last week</span></div>
-                            </div>
-                            <div class="mini-chart">
-                                <div class="bar-group">
-                                    <div class="bar" style="height:28%"></div>
-                                    <div class="bar alt" style="height:42%"></div><span class="bar-label">Mon</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:48%"></div>
-                                    <div class="bar alt" style="height:66%"></div><span class="bar-label">Tue</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:38%"></div>
-                                    <div class="bar alt" style="height:52%"></div><span class="bar-label">Wed</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:56%"></div>
-                                    <div class="bar alt" style="height:82%"></div><span class="bar-label">Thu</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:43%"></div>
-                                    <div class="bar alt" style="height:61%"></div><span class="bar-label">Fri</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:68%"></div>
-                                    <div class="bar alt" style="height:92%"></div><span class="bar-label">Sat</span>
-                                </div>
-                                <div class="bar-group">
-                                    <div class="bar" style="height:52%"></div>
-                                    <div class="bar alt" style="height:74%"></div><span class="bar-label">Sun</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-                <div class="col-lg-4">
-                    <section class="card h-100">
-                        <div class="card-head">
-                            <h2>Store snapshot</h2><a href="inventory.html" class="text-decoration-none small">View
-                                stock</a>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between mb-3"><span>In stock</span><strong>31
-                                    products</strong></div>
-                            <div class="progress mb-4" style="height:7px">
-                                <div class="progress-bar" style="width:78%;background:#6958d6"></div>
-                            </div>
-                            <div class="alert-note mb-3"><i class="fa-solid fa-circle-exclamation me-2"></i>5 products
-                                are running low on stock.</div>
-                            <div class="d-flex justify-content-between"><span class="text-secondary">Fulfillment
-                                    rate</span><strong>96.2%</strong></div>
-                            <hr>
-                            <div class="d-flex justify-content-between"><span class="text-secondary">Avg. order
-                                    value</span><strong>₹1,845</strong></div>
-                        </div>
-                    </section>
+                    </div>
+                    <div class="icon-tile" style="background:#fff7ed;color:#ea580c;"><i class="fa-solid fa-box"></i></div>
                 </div>
             </div>
-            <section class="card">
-                <div class="card-head">
-                    <h2>Recent orders</h2><a href="orders.html" class="text-decoration-none small">View all orders <i
-                            class="fa-solid fa-arrow-right ms-1"></i></a>
+        </div>
+        <div class="col-6 col-xl-3">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="stat-label">Available Balance</div>
+                        <div class="stat-value">₹{{ available_balance|floatformat:2 }}</div>
+                        <div class="stat-foot"><a href="{% url 'vendor_withdrawals' %}" class="text-decoration-none fw-semibold">Withdraw funds &rarr;</a></div>
+                    </div>
+                    <div class="icon-tile" style="background:#faf5ff;color:#9333ea;"><i class="fa-solid fa-wallet"></i></div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Order</th>
-                                <th>Date</th>
-                                <th>Customer</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>#NS-2841</td>
-                                <td>09 Oct 2026</td>
-                                <td>Ananya Mehta</td>
-                                <td>2 items</td>
-                                <td>₹2,698</td>
-                                <td><span class="badge-soft warning">Processing</span></td>
-                            </tr>
-                            <tr>
-                                <td>#NS-2840</td>
-                                <td>09 Oct 2026</td>
-                                <td>Rohan Shah</td>
-                                <td>1 item</td>
-                                <td>₹1,899</td>
-                                <td><span class="badge-soft primary">Shipped</span></td>
-                            </tr>
-                            <tr>
-                                <td>#NS-2839</td>
-                                <td>08 Oct 2026</td>
-                                <td>Priya Nair</td>
-                                <td>3 items</td>
-                                <td>₹3,147</td>
-                                <td><span class="badge-soft success">Delivered</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Snapshot Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <section class="card shadow-sm h-100">
+                <div class="card-head d-flex justify-content-between align-items-center">
+                    <h2>7-Day Store Performance</h2>
+                    <span class="badge bg-light text-secondary border">Live Storefront</span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="stat-value" style="font-size:22px">₹{{ gross_sales|floatformat:2 }}</span>
+                            <span class="badge bg-success-subtle text-success ms-2" style="font-size:11px">5% Platform Fee Included</span>
+                        </div>
+                        <div class="legend">
+                            <span><i class="dot" style="background:#4f46e5;"></i>Daily Revenue</span>
+                            <span><i class="dot alt" style="background:#c7d2fe;"></i>Relative Target</span>
+                        </div>
+                    </div>
+                    <div class="mini-chart">
+                        {% for day in chart_days %}
+                            <div class="bar-group" title="{{ day.label }}: ₹{{ day.value|floatformat:0 }}">
+                                <div class="bar" style="height:{{ day.height }}%;background:#4f46e5;"></div>
+                                <div class="bar alt" style="height:{{ day.alt_height }}%;background:#c7d2fe;"></div>
+                                <span class="bar-label">{{ day.label }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </section>
-            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample
-                dashboard data for demonstration</footer>
-        </main>
+        </div>
+        <div class="col-lg-4">
+            <section class="card shadow-sm h-100">
+                <div class="card-head d-flex justify-content-between align-items-center">
+                    <h2>Store Snapshot</h2>
+                    <a href="{% url 'vendor_inventory' %}" class="text-decoration-none small fw-semibold">View stock &rarr;</a>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">In stock items</span>
+                        <strong>{{ in_stock_count }} of {{ products_count }} products</strong>
+                    </div>
+                    <div class="progress mb-3" style="height:7px;border-radius:10px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width:{{ in_stock_pct }}%"></div>
+                    </div>
+                    {% if low_stock_count > 0 %}
+                        <div class="alert alert-warning py-2 px-3 small mb-3 border-0 rounded-3">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            <strong>{{ low_stock_count }} product{{ low_stock_count|pluralize }}</strong> running low on stock (&le;10 units).
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success py-2 px-3 small mb-3 border-0 rounded-3">
+                            <i class="fa-solid fa-circle-check me-1"></i>
+                            Catalog inventory is currently fully stocked.
+                        </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary">Fulfillment rate</span>
+                        <strong class="text-success">{{ fulfillment_rate }}%</strong>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-secondary">Average order value</span>
+                        <strong>₹{{ avg_order_value|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
-    <script src="{% static 'vendor/js/app.js' %}"></script>
-</body>
 
-</html>
+    <!-- Recent Orders Table -->
+    <section class="card shadow-sm">
+        <div class="card-head d-flex justify-content-between align-items-center">
+            <h2>Recent Orders</h2>
+            <a href="{% url 'vendor_orders' %}" class="text-decoration-none small fw-semibold">
+                View all orders ({{ total_orders }}) <i class="fa-solid fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in recent_orders_data %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'vendor_order_detail' row.order.id %}" class="fw-bold text-decoration-none">
+                                    {{ row.order.order_number }}
+                                </a>
+                            </td>
+                            <td class="text-secondary small">{{ row.order.created_at|date:"d M Y, h:i A" }}</td>
+                            <td>
+                                <div class="fw-medium">{{ row.order.customer_name }}</div>
+                                <div class="text-secondary small">{{ row.order.shipping_city }}</div>
+                            </td>
+                            <td>{{ row.item_count }} item{{ row.item_count|pluralize }}</td>
+                            <td class="fw-bold text-dark">₹{{ row.subtotal|floatformat:2 }}</td>
+                            <td>
+                                {% if row.order.status == 'DELIVERED' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">Delivered</span>
+                                {% elif row.order.status == 'SHIPPED' %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill">Shipped</span>
+                                {% elif row.order.status == 'PROCESSING' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">Processing</span>
+                                {% elif row.order.status == 'CONFIRMED' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1 rounded-pill">Confirmed</span>
+                                {% elif row.order.status == 'PENDING' %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">Pending</span>
+                                {% elif row.order.status == 'CANCELLED' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">Cancelled</span>
+                                {% else %}
+                                    <span class="badge bg-dark-subtle text-dark border px-2 py-1 rounded-pill">{{ row.order.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'vendor_order_detail' row.order.id %}" class="btn btn-sm btn-light border">
+                                    Details <i class="fa-solid fa-chevron-right ms-1"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-secondary">
+                                <i class="fa-regular fa-folder-open d-block fs-3 mb-2"></i>
+                                No customer orders received yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

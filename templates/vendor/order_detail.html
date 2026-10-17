@@ -1,0 +1,187 @@
+{% extends "vendor/base.html" %}
+{% load static %}
+
+{% block breadcrumb %}Order #{{ order.order_number }}{% endblock %}
+{% block nav_orders %}active{% endblock %}
+
+{% block vendor_content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <a href="{% url 'vendor_orders' %}" class="btn btn-sm btn-light border"><i class="fa-solid fa-arrow-left"></i></a>
+                <h1 class="h3 mb-0 font-monospace">{{ order.order_number }}</h1>
+                {% if order.status == 'DELIVERED' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill">Delivered</span>
+                {% elif order.status == 'SHIPPED' %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill">Shipped</span>
+                {% elif order.status == 'PROCESSING' %}
+                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-1 rounded-pill">Processing</span>
+                {% elif order.status == 'CONFIRMED' %}
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1 rounded-pill">Confirmed</span>
+                {% elif order.status == 'PENDING' %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-3 py-1 rounded-pill">Pending</span>
+                {% elif order.status == 'CANCELLED' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill">Cancelled</span>
+                {% else %}
+                    <span class="badge bg-dark text-white px-3 py-1 rounded-pill">{{ order.get_status_display }}</span>
+                {% endif %}
+            </div>
+            <p class="text-secondary small mb-0">Placed on {{ order.created_at|date:"d M Y, h:i A" }}</p>
+        </div>
+        <div class="text-end">
+            <div class="text-secondary small">Your Store Subtotal</div>
+            <div class="h4 text-dark mb-0 fw-bold">₹{{ subtotal|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: Items and Tracking -->
+        <div class="col-lg-8">
+            <!-- Ordered Items -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title mb-0">Purchased Items</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item</th>
+                                <th>SKU</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for it in items %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ it.product_name }}</div>
+                                        {% if it.courier_name or it.tracking_number %}
+                                            <div class="text-secondary small">
+                                                <i class="fa-solid fa-truck-fast me-1"></i>{{ it.courier_name }}: <span class="font-monospace">{{ it.tracking_number }}</span>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-light text-secondary border font-monospace">{{ it.product_sku }}</span></td>
+                                    <td class="text-center fw-bold">{{ it.quantity }}</td>
+                                    <td class="text-end">₹{{ it.price|floatformat:2 }}</td>
+                                    <td class="text-end fw-bold text-dark">₹{{ it.total_price|floatformat:2 }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4" class="text-end">Subtotal for Your Store:</th>
+                                <th class="text-end text-dark">₹{{ subtotal|floatformat:2 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Status Timeline History -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title mb-0">Order Progression Timeline</h5>
+                </div>
+                <div class="card-body">
+                    {% if history %}
+                        <div class="timeline position-relative ps-3 border-start ms-2">
+                            {% for h in history %}
+                                <div class="mb-3 position-relative ps-3">
+                                    <span class="position-absolute start-0 top-0 translate-middle-x rounded-circle bg-primary" style="width:12px;height:12px;"></span>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong class="text-dark">{{ h.new_status }}</strong>
+                                        <span class="text-secondary small">{{ h.created_at|date:"d M Y, h:i A" }}</span>
+                                    </div>
+                                    <div class="text-secondary small mt-1">{{ h.notes|default:"Status updated" }}</div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-secondary small">No status changes recorded yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Customer Details & Status Form -->
+        <div class="col-lg-4">
+            <!-- Customer Dossier -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title mb-0"><i class="fa-solid fa-user me-2 text-primary"></i>Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="text-secondary small">Full Name</div>
+                        <div class="fw-bold">{{ order.customer_name }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-secondary small">Phone Number</div>
+                        <div class="fw-semibold"><a href="tel:{{ order.customer_phone }}" class="text-decoration-none">{{ order.customer_phone }}</a></div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-secondary small">Email</div>
+                        <div>{{ order.customer_email|default:"Not specified" }}</div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <div class="text-secondary small">Shipping Address</div>
+                        <div class="small fw-medium">{{ order.shipping_address }}</div>
+                        <div class="small text-secondary">{{ order.shipping_city }}, {{ order.shipping_state }} - {{ order.shipping_pincode }}</div>
+                    </div>
+                    <hr>
+                    <div>
+                        <div class="text-secondary small">Payment</div>
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <span class="badge bg-light text-dark border">{{ order.payment_method }}</span>
+                            {% if order.payment_status == 'PAID' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">PAID</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">PENDING</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Order Status Form -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title mb-0"><i class="fa-solid fa-truck-fast me-2 text-primary"></i>Fulfillment Action</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{% url 'vendor_order_update_status' order.id %}" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Update Status</label>
+                            <select class="form-select" name="status" required>
+                                {% for st in allowed_statuses %}
+                                    <option value="{{ st }}" {% if order.status == st %}selected{% endif %}>{{ st }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Courier Name</label>
+                            <input class="form-control" name="courier_name" placeholder="e.g. Delhivery, BlueDart">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tracking Number / AWB</label>
+                            <input class="form-control font-monospace" name="tracking_number" placeholder="e.g. BD-8849102">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Fulfillment Notes</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Optional comments on dispatch..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-check me-2"></i>Update Order Status
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
