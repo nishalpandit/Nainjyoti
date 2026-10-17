@@ -1,12 +1,10 @@
-url : (http://192.168.1.52:8000/api/user/send-otp/)
-method : POST
+url: http://192.168.1.52:8000/api/user/send-otp/
+method: POST
 
-params :- 
+params:
+phone: 9876543211
 
-phone:9876543211
-
-response (Registered User - Login OTP) :- 
-
+response:
 {
   "success": true,
   "message": "OTP sent for login to 9876543211",
@@ -17,30 +15,14 @@ response (Registered User - Login OTP) :-
   "expires_in_minutes": 10
 }
 
-response (New User - Registration OTP) :- 
+url: http://192.168.1.52:8000/api/user/verify-otp-login/
+method: POST
 
-{
-  "success": true,
-  "message": "Phone not registered. OTP sent for registration to 9988776655",
-  "phone": "9988776655",
-  "is_registered": false,
-  "action": "REGISTER",
-  "otp_debug": "848235",
-  "expires_in_minutes": 10
-}
+params:
+phone: 9876543211
+otp: 598906
 
-
-
-url : (http://192.168.1.52:8000/api/user/verify-otp-login/)
-method : POST
-
-params :- 
-
-phone:9876543211
-otp:598906
-
-response (Registered User - Login Success) :- 
-
+response:
 {
   "success": true,
   "message": "Login successful",
@@ -60,33 +42,19 @@ response (Registered User - Login Success) :-
   }
 }
 
-response (New User - Verified, Redirect to Register Screen) :- 
+url: http://192.168.1.52:8000/api/user/register/
+method: POST
 
-{
-  "success": true,
-  "message": "Phone number verified. Please complete user registration.",
-  "is_registered": false,
-  "phone": "9988776655",
-  "otp_verified": true
-}
+params:
+first_name: Ananya
+last_name: Iyer
+phone: 9876543211
+email: ananya.iyer@example.com
+dob: 1999-04-12
+gender: Female
+profile_photo: ananya_profile.png
 
-
-
-url : (http://192.168.1.52:8000/api/user/register/)
-method : POST
-
-params :- 
-
-first_name:Ananya
-last_name:Iyer
-phone:9876543211
-email:ananya.iyer@example.com
-dob:1999-04-12
-gender:Female
-profile_photo:ananya_profile.png
-
-response :- 
-
+response:
 {
   "success": true,
   "message": "User registered successfully",
@@ -105,17 +73,13 @@ response :-
   }
 }
 
+url: http://192.168.1.52:8000/api/user/profile/
+method: GET
 
+headers:
+Authorization: Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
 
-url : (http://192.168.1.52:8000/api/user/profile/)
-method : GET
-
-headers :- 
-
-Authorization:Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
-
-response :- 
-
+response:
 {
   "success": true,
   "user": {
@@ -132,25 +96,20 @@ response :-
   }
 }
 
+url: http://192.168.1.52:8000/api/user/profile/
+method: POST
 
+headers:
+Authorization: Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
 
-url : (http://192.168.1.52:8000/api/user/profile/)
-method : POST
+params:
+first_name: Ananya
+last_name: Iyer
+email: ananya.updated@example.com
+dob: 1999-04-12
+gender: Female
 
-headers :- 
-
-Authorization:Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
-
-params :- 
-
-first_name:Ananya
-last_name:Iyer
-email:ananya.updated@example.com
-dob:1999-04-12
-gender:Female
-
-response :- 
-
+response:
 {
   "success": true,
   "message": "Profile updated successfully",
@@ -168,17 +127,13 @@ response :-
   }
 }
 
+url: http://192.168.1.52:8000/api/user/logout/
+method: POST
 
+headers:
+Authorization: Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
 
-url : (http://192.168.1.52:8000/api/user/logout/)
-method : POST
-
-headers :- 
-
-Authorization:Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
-
-response :- 
-
+response:
 {
   "success": true,
   "message": "User successfully logged out"

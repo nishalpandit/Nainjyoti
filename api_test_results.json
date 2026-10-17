@@ -1,0 +1,320 @@
+{
+  "generated_at": "2026-10-16T11:28:27Z",
+  "server_url": "http://127.0.0.1:8000",
+  "test_phone": "9892150106",
+  "total_tests": 15,
+  "passed_tests": 15,
+  "tests": [
+    {
+      "test_id": "TC-01",
+      "name": "Request OTP with invalid short phone number",
+      "method": "POST",
+      "endpoint": "/api/user/send-otp/",
+      "request_payload": {
+        "phone": "123"
+      },
+      "token_used": false,
+      "status_code": 400,
+      "elapsed_ms": 25.74,
+      "response_data": {
+        "success": false,
+        "message": "Please provide a valid 10-digit mobile phone number."
+      }
+    },
+    {
+      "test_id": "TC-02",
+      "name": "Request OTP for new registration",
+      "method": "POST",
+      "endpoint": "/api/user/send-otp/",
+      "request_payload": {
+        "phone": "9892150106",
+        "purpose": "REGISTER"
+      },
+      "token_used": false,
+      "status_code": 200,
+      "elapsed_ms": 21.47,
+      "response_data": {
+        "success": true,
+        "message": "Phone not registered. OTP sent for registration to 9892150106",
+        "phone": "9892150106",
+        "is_registered": false,
+        "action": "REGISTER",
+        "otp_debug": "714577",
+        "expires_in_minutes": 10
+      }
+    },
+    {
+      "test_id": "TC-03",
+      "name": "Send OTP with unsupported HTTP GET method",
+      "method": "GET",
+      "endpoint": "/api/user/send-otp/",
+      "request_payload": null,
+      "token_used": false,
+      "status_code": 405,
+      "elapsed_ms": 3.38,
+      "response_data": {
+        "success": false,
+        "message": "Method not allowed. Use POST."
+      }
+    },
+    {
+      "test_id": "TC-04",
+      "name": "Verify OTP with wrong code",
+      "method": "POST",
+      "endpoint": "/api/user/verify-otp-login/",
+      "request_payload": {
+        "phone": "9892150106",
+        "otp": "000000"
+      },
+      "token_used": false,
+      "status_code": 400,
+      "elapsed_ms": 4.36,
+      "response_data": {
+        "success": false,
+        "message": "Invalid or expired OTP. Please request a new code."
+      }
+    },
+    {
+      "test_id": "TC-05",
+      "name": "Verify OTP for unregistered user",
+      "method": "POST",
+      "endpoint": "/api/user/verify-otp-login/",
+      "request_payload": {
+        "phone": "9892150106",
+        "otp": "714577"
+      },
+      "token_used": false,
+      "status_code": 200,
+      "elapsed_ms": 21.7,
+      "response_data": {
+        "success": true,
+        "message": "Phone number verified. Please complete user registration.",
+        "is_registered": false,
+        "phone": "9892150106",
+        "otp_verified": true
+      }
+    },
+    {
+      "test_id": "TC-06",
+      "name": "Register user with missing required name fields",
+      "method": "POST",
+      "endpoint": "/api/user/register/",
+      "request_payload": {
+        "phone": "9892150106"
+      },
+      "token_used": false,
+      "status_code": 400,
+      "elapsed_ms": 2.43,
+      "response_data": {
+        "success": false,
+        "message": "Both First Name and Last Name are required."
+      }
+    },
+    {
+      "test_id": "TC-07",
+      "name": "Register user with full profile details",
+      "method": "POST",
+      "endpoint": "/api/user/register/",
+      "request_payload": {
+        "first_name": "Aarav",
+        "last_name": "Sharma",
+        "phone": "9892150106",
+        "email": "aarav.9892150106@example.com",
+        "gender": "Male",
+        "dob": "1994-08-15"
+      },
+      "token_used": false,
+      "status_code": 201,
+      "elapsed_ms": 134.37,
+      "response_data": {
+        "success": true,
+        "message": "User registered successfully",
+        "token": "66a7b4ee38c1e2e3b0e40eaab54fed9382d4a6c8b28b8ab60973ff8e13cbf012",
+        "user": {
+          "id": 5,
+          "first_name": "Aarav",
+          "last_name": "Sharma",
+          "full_name": "Aarav Sharma",
+          "phone": "9892150106",
+          "email": "aarav.9892150106@example.com",
+          "dob": "1994-08-15",
+          "gender": "Male",
+          "profile_photo": null,
+          "created_at": "2026-10-16T11:28:26.841674+00:00"
+        }
+      }
+    },
+    {
+      "test_id": "TC-08",
+      "name": "Prevent duplicate user registration with same phone",
+      "method": "POST",
+      "endpoint": "/api/user/register/",
+      "request_payload": {
+        "first_name": "Aarav",
+        "last_name": "Sharma",
+        "phone": "9892150106",
+        "email": "aarav.9892150106@example.com",
+        "gender": "Male",
+        "dob": "1994-08-15"
+      },
+      "token_used": false,
+      "status_code": 400,
+      "elapsed_ms": 9.29,
+      "response_data": {
+        "success": false,
+        "message": "An account with phone number 9892150106 is already registered. Please sign in with OTP."
+      }
+    },
+    {
+      "test_id": "TC-09",
+      "name": "Fetch user profile without Bearer authorization token",
+      "method": "GET",
+      "endpoint": "/api/user/profile/",
+      "request_payload": null,
+      "token_used": false,
+      "status_code": 401,
+      "elapsed_ms": 4.75,
+      "response_data": {
+        "success": false,
+        "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
+      }
+    },
+    {
+      "test_id": "TC-10",
+      "name": "Fetch authenticated user profile with Bearer token",
+      "method": "GET",
+      "endpoint": "/api/user/profile/",
+      "request_payload": null,
+      "token_used": true,
+      "status_code": 200,
+      "elapsed_ms": 7.21,
+      "response_data": {
+        "success": true,
+        "user": {
+          "id": 5,
+          "first_name": "Aarav",
+          "last_name": "Sharma",
+          "full_name": "Aarav Sharma",
+          "phone": "9892150106",
+          "email": "aarav.9892150106@example.com",
+          "dob": "1994-08-15",
+          "gender": "Male",
+          "profile_photo": null,
+          "created_at": "2026-10-16T11:28:26.841674+00:00"
+        }
+      }
+    },
+    {
+      "test_id": "TC-11",
+      "name": "Update authenticated user profile details",
+      "method": "POST",
+      "endpoint": "/api/user/profile/",
+      "request_payload": {
+        "first_name": "Aarav",
+        "last_name": "Verma",
+        "email": "aarav.verma.9892150106@domain.in",
+        "gender": "Male",
+        "dob": "1993-05-20"
+      },
+      "token_used": true,
+      "status_code": 200,
+      "elapsed_ms": 40.02,
+      "response_data": {
+        "success": true,
+        "message": "Profile updated successfully",
+        "user": {
+          "id": 5,
+          "first_name": "Aarav",
+          "last_name": "Verma",
+          "full_name": "Aarav Verma",
+          "phone": "9892150106",
+          "email": "aarav.verma.9892150106@domain.in",
+          "dob": "1993-05-20",
+          "gender": "Male",
+          "profile_photo": null,
+          "created_at": "2026-10-16T11:28:26.841674+00:00"
+        }
+      }
+    },
+    {
+      "test_id": "TC-12",
+      "name": "Request OTP for registered customer login",
+      "method": "POST",
+      "endpoint": "/api/user/send-otp/",
+      "request_payload": {
+        "phone": "9892150106"
+      },
+      "token_used": false,
+      "status_code": 200,
+      "elapsed_ms": 21.15,
+      "response_data": {
+        "success": true,
+        "message": "OTP sent for login to 9892150106",
+        "phone": "9892150106",
+        "is_registered": true,
+        "action": "LOGIN",
+        "otp_debug": "772575",
+        "expires_in_minutes": 10
+      }
+    },
+    {
+      "test_id": "TC-13",
+      "name": "Verify OTP login for registered customer",
+      "method": "POST",
+      "endpoint": "/api/user/verify-otp-login/",
+      "request_payload": {
+        "phone": "9892150106",
+        "otp": "772575"
+      },
+      "token_used": false,
+      "status_code": 200,
+      "elapsed_ms": 68.04,
+      "response_data": {
+        "success": true,
+        "message": "Login successful",
+        "is_registered": true,
+        "token": "66a7b4ee38c1e2e3b0e40eaab54fed9382d4a6c8b28b8ab60973ff8e13cbf012",
+        "user": {
+          "id": 5,
+          "first_name": "Aarav",
+          "last_name": "Verma",
+          "full_name": "Aarav Verma",
+          "phone": "9892150106",
+          "email": "aarav.verma.9892150106@domain.in",
+          "dob": "1993-05-20",
+          "gender": "Male",
+          "profile_photo": null,
+          "created_at": "2026-10-16T11:28:26.841674+00:00"
+        }
+      }
+    },
+    {
+      "test_id": "TC-14",
+      "name": "Logout user and invalidate authentication token",
+      "method": "POST",
+      "endpoint": "/api/user/logout/",
+      "request_payload": null,
+      "token_used": true,
+      "status_code": 200,
+      "elapsed_ms": 21.27,
+      "response_data": {
+        "success": true,
+        "message": "User successfully logged out"
+      }
+    },
+    {
+      "test_id": "TC-15",
+      "name": "Verify revoked token can no longer access protected profile",
+      "method": "GET",
+      "endpoint": "/api/user/profile/",
+      "request_payload": null,
+      "token_used": true,
+      "status_code": 401,
+      "elapsed_ms": 4.55,
+      "response_data": {
+        "success": false,
+        "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
+      }
+    }
+  ]
+}

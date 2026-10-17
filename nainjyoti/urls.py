@@ -17,6 +17,7 @@ urlpatterns = [
     # Admin Protected Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-dashboard/vendor-approval/', views.admin_vendor_approval, name='admin_vendor_approval'),
+    path('admin-dashboard/vendor/<int:vendor_id>/kyc/', views.admin_vendor_kyc_detail, name='admin_vendor_kyc_detail'),
 
     # Vendor Protected Dashboard
     path('vendor-dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
@@ -29,6 +30,16 @@ urlpatterns = [
     path('api/user/register/', api_views.api_user_register, name='api_user_register'),
     path('api/user/profile/', api_views.api_user_profile, name='api_user_profile'),
     path('api/user/logout/', api_views.api_user_logout, name='api_user_logout'),
+
+    # =========================================================================
+    # Vendor / Merchant REST APIs
+    # =========================================================================
+    path('api/vendor/register/', api_views.api_vendor_register, name='api_vendor_register'),
+    path('api/vendor/login/', api_views.api_vendor_login, name='api_vendor_login'),
+    path('api/vendor/profile/', api_views.api_vendor_profile, name='api_vendor_profile'),
+    path('api/vendor/profile/change-password/', api_views.api_vendor_change_password, name='api_vendor_change_password'),
+    path('api/vendor/status/', api_views.api_vendor_status_lookup, name='api_vendor_status_lookup'),
+    path('api/vendor/logout/', api_views.api_vendor_logout, name='api_vendor_logout'),
 
     # =========================================================================
     # Customer / User Web UI (Mobile-First Web Experience)

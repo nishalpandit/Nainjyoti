@@ -40,9 +40,16 @@ class VendorProfile(models.Model):
     pan_document = models.FileField(upload_to='vendor_documents/pan/', blank=True, null=True)
     id_proof = models.FileField(upload_to='vendor_documents/id_proof/', blank=True, null=True)
 
+    # Store Branding & Description
+    store_description = models.TextField(blank=True)
+    store_logo = models.ImageField(upload_to='vendor_documents/logos/', blank=True, null=True)
+    store_banner = models.ImageField(upload_to='vendor_documents/banners/', blank=True, null=True)
+    support_email = models.EmailField(blank=True, null=True)
+
     # Verification Lifecycle
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     rejection_reason = models.TextField(blank=True)
+    auth_token = models.CharField(max_length=64, unique=True, blank=True, null=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -55,7 +62,59 @@ class VendorProfile(models.Model):
     def save(self, *args, **kwargs):
         if not self.vendor_code:
             self.vendor_code = f"VEND-{random.randint(10000, 99999)}"
+        if not self.auth_token:
+            self.auth_token = secrets.token_hex(32)
         super().save(*args, **kwargs)
+
+    @property
+    def logo_url(self):
+        if self.store_logo and hasattr(self.store_logo, 'url'):
+            return self.store_logo.url
+        return None
+
+    @property
+    def banner_url(self):
+        if self.store_banner and hasattr(self.store_banner, 'url'):
+            return self.store_banner.url
+        return None
+
+    def generate_new_token(self):
+        self.auth_token = secrets.token_hex(32)
+        self.save(update_fields=['auth_token'])
+        return self.auth_token
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vendor_code': self.vendor_code,
+            'business_name': self.business_name,
+            'owner_name': self.owner_name,
+            'email': self.user.email if self.user else '',
+            'support_email': self.support_email or '',
+            'phone': self.phone,
+            'business_type': self.business_type,
+            'category': self.category,
+            'store_description': self.store_description,
+            'store_logo': self.logo_url,
+            'store_banner': self.banner_url,
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'rejection_reason': self.rejection_reason if self.status == 'REJECTED' else '',
+            'gst_number': self.gst_number,
+            'pan_number': self.pan_number,
+            'bank_name': self.bank_name,
+            'account_number': self.account_number,
+            'ifsc_code': self.ifsc_code,
+            'address': self.address,
+            'city': self.city,
+            'state': self.state,
+            'pincode': self.pincode,
+            'gst_document': self.gst_document.url if self.gst_document and hasattr(self.gst_document, 'url') else None,
+            'pan_document': self.pan_document.url if self.pan_document and hasattr(self.pan_document, 'url') else None,
+            'id_proof': self.id_proof.url if self.id_proof and hasattr(self.id_proof, 'url') else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class UserProfile(models.Model):

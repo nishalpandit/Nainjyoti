@@ -4,31 +4,35 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>User Sign In · Phone &amp; OTP · Nainjyoti</title>
+    <title>Customer Sign In · Phone &amp; OTP · Nainjyoti</title>
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts Inter matching Dashboard -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <link href="{% static 'css/user_auth.css' %}" rel="stylesheet">
 </head>
 <body>
     <div class="user-auth-wrapper">
         <div class="user-auth-card">
-            <!-- Brand Emblem -->
+            <!-- Brand Emblem matching Dashboard -->
             <div class="user-auth-header">
                 <a href="{% url 'user_login' %}" class="brand-emblem">
-                    <div class="emblem-icon">N</div>
+                    <div class="emblem-icon"><i class="fa-solid fa-shop"></i></div>
                     <div class="emblem-text">Nain<span>jyoti</span></div>
                 </a>
+
+                <div class="auth-badge-tag">
+                    <i class="fa-solid fa-shield-halved"></i> CUSTOMER SECURE PORTAL
+                </div>
 
                 {% if step == 'phone' %}
                     <h1 class="auth-title">Welcome Back</h1>
                     <p class="auth-sub">Enter your mobile phone number to sign in or get started.</p>
                 {% else %}
                     <h1 class="auth-title">Verify Phone</h1>
-                    <p class="auth-sub">Enter the 6-digit code sent to <strong>+91 {{ phone }}</strong></p>
+                    <p class="auth-sub">Enter the 6-digit verification code sent to <strong>+91 {{ phone }}</strong></p>
                 {% endif %}
             </div>
 
@@ -77,7 +81,7 @@
                             <input type="text" id="otp" name="otp" class="otp-big-input" maxlength="6" pattern="[0-9]{6}" required placeholder="••••••" autofocus autocomplete="one-time-code" value="{{ otp_debug }}">
                         </div>
                         {% if otp_debug %}
-                            <div style="font-size:12px;color:var(--gold-accent);margin-top:-6px;">
+                            <div style="font-size:12px;color:var(--forest);margin-top:-6px;font-weight:600;">
                                 <i class="fa-solid fa-key"></i> Dev OTP: <strong>{{ otp_debug }}</strong> (or fallback <code>123456</code>)
                             </div>
                         {% endif %}
@@ -107,7 +111,10 @@
             {% endif %}
 
             <div class="auth-footer-prompt">
-                New to Nainjyoti? <a href="{% url 'user_register' %}">Create user account</a>
+                <div>New to Nainjyoti? <a href="{% url 'user_register' %}">Create customer account</a></div>
+                <a href="{% url 'login' %}" class="seller-switch-link">
+                    <i class="fa-solid fa-store"></i> Are you a seller or administrator? Sign In here →
+                </a>
             </div>
         </div>
     </div>

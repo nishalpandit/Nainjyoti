@@ -3,6 +3,9 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 from .models import VendorProfile
 
 def login_view(request):
@@ -103,6 +106,22 @@ def vendor_register_view(request):
             messages.error(request, f"An account with email '{email}' already exists. Please sign in or use another email.")
             return render(request, "vendor_register.html")
 
+        if VendorProfile.objects.filter(phone=phone).exists():
+            messages.error(request, f"A seller store is already registered with mobile number '{phone}'. Please use a unique phone number.")
+            return render(request, "vendor_register.html")
+
+        if gst_number and VendorProfile.objects.filter(gst_number__iexact=gst_number).exists():
+            messages.error(request, f"A seller store is already registered with GSTIN '{gst_number}'. Duplicate GST registration is not permitted.")
+            return render(request, "vendor_register.html")
+
+        if pan_number and VendorProfile.objects.filter(pan_number__iexact=pan_number).exists():
+            messages.error(request, f"A seller store is already registered with PAN '{pan_number}'. Duplicate PAN registration is not permitted.")
+            return render(request, "vendor_register.html")
+
+        if VendorProfile.objects.filter(business_name__iexact=business_name).exists():
+            messages.error(request, f"A store named '{business_name}' is already registered. Please choose a unique business name.")
+            return render(request, "vendor_register.html")
+
         # Create Django User (Standard user, cannot be admin)
         user = User.objects.create_user(
             username=email,
@@ -187,33 +206,87 @@ def admin_dashboard(request):
     })
 
 
+@csrf_exempt
 def admin_vendor_approval(request):
     """
     Admin portal to review pending vendor applications, inspect documents,
-    and Approve or Reject stores.
+    and Approve or Reject stores dynamically.
     """
     if request.method == "POST":
-        vendor_id = request.POST.get("vendor_id")
-        action = request.POST.get("action")
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in (request.content_type or "")
+        )
+
+        data = request.POST
+        if "application/json" in (request.content_type or ""):
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                data = {}
+
+        vendor_id = data.get("vendor_id")
+        action = data.get("action", "").lower()
         vendor = get_object_or_404(VendorProfile, id=vendor_id)
 
         if action == "approve":
             vendor.status = "APPROVED"
+            vendor.rejection_reason = ""
+            if not vendor.auth_token:
+                vendor.generate_new_token()
             vendor.save()
-            messages.success(request, f"Successfully APPROVED store '{vendor.business_name}' ({vendor.vendor_code})! The vendor can now log in.")
+            msg = f"Store '{vendor.business_name}' ({vendor.vendor_code}) APPROVED! KYC accepted and seller access activated."
+            if not is_ajax:
+                messages.success(request, msg)
+
         elif action == "reject":
-            reason = request.POST.get("reason", "Submitted business verification documents could not be validated.")
+            reason = str(data.get("reason", "")).strip() or "Submitted business verification documents could not be validated."
             vendor.status = "REJECTED"
             vendor.rejection_reason = reason
             vendor.save()
-            messages.warning(request, f"Rejected store application '{vendor.business_name}'.")
+            msg = f"Store application '{vendor.business_name}' declined. Reason: {reason}"
+            if not is_ajax:
+                messages.warning(request, msg)
+
+        elif action == "pending":
+            vendor.status = "PENDING"
+            vendor.rejection_reason = ""
+            vendor.save()
+            msg = f"Store '{vendor.business_name}' reset back to PENDING review."
+            if not is_ajax:
+                messages.info(request, msg)
+
+        else:
+            msg = "No state change performed."
+
+        if is_ajax:
+            pending_count = VendorProfile.objects.filter(status="PENDING").count()
+            approved_count = VendorProfile.objects.filter(status="APPROVED").count()
+            rejected_count = VendorProfile.objects.filter(status="REJECTED").count()
+            total_count = VendorProfile.objects.count()
+
+            return JsonResponse({
+                "success": True,
+                "message": msg,
+                "vendor_id": vendor.id,
+                "vendor_code": vendor.vendor_code,
+                "business_name": vendor.business_name,
+                "owner_name": vendor.owner_name,
+                "status": vendor.status,
+                "status_display": vendor.get_status_display(),
+                "rejection_reason": vendor.rejection_reason,
+                "pending_count": pending_count,
+                "approved_count": approved_count,
+                "rejected_count": rejected_count,
+                "total_count": total_count,
+            }, status=200)
 
         return redirect("admin_vendor_approval")
 
-    filter_status = request.GET.get("status", "ALL")
+    filter_status = request.GET.get("status", "ALL").upper()
     search_query = request.GET.get("q", "").strip()
 
-    vendors = VendorProfile.objects.all()
+    vendors = VendorProfile.objects.all().select_related("user")
     if filter_status == "PENDING":
         vendors = vendors.filter(status="PENDING")
     elif filter_status == "APPROVED":
@@ -226,19 +299,36 @@ def admin_vendor_approval(request):
             Q(business_name__icontains=search_query) |
             Q(owner_name__icontains=search_query) |
             Q(vendor_code__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(city__icontains=search_query) |
             Q(state__icontains=search_query)
         )
 
     pending_count = VendorProfile.objects.filter(status="PENDING").count()
     approved_count = VendorProfile.objects.filter(status="APPROVED").count()
+    rejected_count = VendorProfile.objects.filter(status="REJECTED").count()
+    total_count = VendorProfile.objects.count()
 
     return render(request, "admin/vendor-approval.html", {
         "vendors": vendors,
         "pending_count": pending_count,
         "approved_count": approved_count,
+        "rejected_count": rejected_count,
+        "total_count": total_count,
         "current_status": filter_status,
         "search_query": search_query
     })
+
+
+def admin_vendor_kyc_detail(request, vendor_id):
+    """
+    API endpoint: Fetch full KYC dossier for a single vendor as JSON.
+    """
+    vendor = get_object_or_404(VendorProfile, id=vendor_id)
+    return JsonResponse({
+        "success": True,
+        "vendor": vendor.to_dict()
+    }, status=200)
 
 
 def vendor_dashboard(request):

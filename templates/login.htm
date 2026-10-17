@@ -4,77 +4,100 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Seller Sign In · Nainjyoti Marketplace</title>
+    <title>Seller &amp; Admin Sign In · Nainjyoti Marketplace</title>
 
-    <!-- Bespoke Google Fonts Pairing -->
+    <!-- Google Fonts Inter matching Dashboard -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
 
     <!-- Font Awesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 
-    <!-- Full-Screen Stylesheet -->
+    <!-- Login Page Stylesheet (Dashboard Themed 70/30 Split) -->
     <link href="{% static 'css/login.css' %}" rel="stylesheet">
 </head>
 <body>
     <div class="fullscreen-login-page">
-        <!-- Main Full-Screen Body (Zero Navbars, Pure Focused Authentication) -->
         <main class="fullscreen-main">
             <div class="fullscreen-grid">
-                <!-- Left Editorial Storytelling & Live Market Trust -->
-                <div class="editorial-col">
-                    <div class="brand-identity-hero">
-                        <div class="brand-monogram">N</div>
-                        <div class="brand-text">
-                            <span class="brand-name">Nain<span>jyoti</span></span>
-                            <span class="brand-tag">SELLER HUB · MERCHANT OPERATING SYSTEM</span>
-                        </div>
-                    </div>
+                <!-- Left Column (70%): Clear Photographic Hero with Dashboard Metric Highlights -->
+                <div class="editorial-col" style="background-image: linear-gradient(180deg, rgba(15, 27, 21, 0.42) 0%, rgba(15, 27, 21, 0.30) 45%, rgba(10, 20, 15, 0.88) 100%), url('{% static 'img/merchant_hero.jpg' %}');">
+                    <div class="editorial-inner">
+                        <div>
+                            <!-- Brand Identity with Glassmorphic Badge -->
+                            <a href="{% url 'login' %}" class="brand-identity-hero">
+                                <div class="brand-monogram">
+                                    <i class="fa-solid fa-shop"></i>
+                                </div>
+                                <div class="brand-text">
+                                    <span class="brand-name">Nain<span>jyoti</span></span>
+                                    <span class="brand-tag">SELLER HUB · MERCHANT OPERATING SYSTEM</span>
+                                </div>
+                            </a>
 
-                    <div class="editorial-eyebrow">
-                        <span>OFFICIAL MERCHANT GATEWAY</span>
-                    </div>
-                    <h1 class="editorial-title">
-                        Empowering India’s finest <em>artisans, manufacturers &amp; brands.</em>
-                    </h1>
-                    <p class="editorial-desc">
-                        Access your unified merchant console for sovereign catalog management, automated GST e-invoicing, pan-India logistics fulfillment, and guaranteed next-day bank disbursements.
-                    </p>
+                            <div class="editorial-eyebrow">
+                                <span class="eyebrow-dot"></span>
+                                <span>CONTROL CENTRE · MERCHANT GATEWAY</span>
+                            </div>
 
-                    <!-- Live Market Metric Highlights -->
-                    <div class="metrics-grid">
-                        <div class="metric-item">
-                            <div class="metric-value">₹48.2 <span>Cr+</span></div>
-                            <div class="metric-label">Seller payouts disbursed this fiscal</div>
-                        </div>
-                        <div class="metric-item">
-                            <div class="metric-value">42,000 <span>+</span></div>
-                            <div class="metric-label">Verified merchants in 28 states</div>
-                        </div>
-                        <div class="metric-item">
-                            <div class="metric-value">0 <span>%</span></div>
-                            <div class="metric-label">Onboarding fee &amp; instant KYC</div>
-                        </div>
-                    </div>
+                            <h1 class="editorial-title">
+                                Empowering India’s finest <em>merchants, artisans &amp; brands.</em>
+                            </h1>
 
-                    <!-- Trust Points -->
-                    <div class="editorial-trust">
-                        <div class="trust-pill"><i class="fa-solid fa-shield-halved"></i> RBI &amp; GST Compliant</div>
-                        <div class="trust-pill"><i class="fa-solid fa-truck-fast"></i> Integrated 28,000+ Pincodes</div>
-                        <div class="trust-pill"><i class="fa-solid fa-bolt"></i> T+1 Automated Settlements</div>
+                            <p class="editorial-desc">
+                                Access your unified merchant console for real-time catalog management, automated GST e-invoicing, pan-India logistics fulfillment, and next-day bank disbursements.
+                            </p>
+
+                            <!-- Live Market Metric Highlights (Dashboard Stat Cards Style) -->
+                            <div class="metrics-grid">
+                                <div class="metric-item">
+                                    <div class="metric-top">
+                                        <span class="metric-label">Seller Payouts</span>
+                                        <div class="metric-icon-box"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                                    </div>
+                                    <div class="metric-value">₹48.2 <span>Cr+</span></div>
+                                    <div class="metric-foot">Disbursed this fiscal</div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-top">
+                                        <span class="metric-label">Verified Stores</span>
+                                        <div class="metric-icon-box"><i class="fa-solid fa-store"></i></div>
+                                    </div>
+                                    <div class="metric-value">42,000 <span>+</span></div>
+                                    <div class="metric-foot">Across 28 states</div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-top">
+                                        <span class="metric-label">Settlements</span>
+                                        <div class="metric-icon-box"><i class="fa-solid fa-bolt"></i></div>
+                                    </div>
+                                    <div class="metric-value">T+1 <span>Direct</span></div>
+                                    <div class="metric-foot">Automated daily cycle</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trust Badges -->
+                        <div class="editorial-trust">
+                            <div class="trust-pill"><i class="fa-solid fa-shield-halved"></i> RBI &amp; GST Compliant</div>
+                            <div class="trust-pill"><i class="fa-solid fa-truck-fast"></i> 28,000+ Pincodes Integrated</div>
+                            <div class="trust-pill"><i class="fa-solid fa-lock"></i> Bank-Grade 256-bit SSL</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Right Form Column (Full Height, No Card Box, Seamlessly Blends on Screen) -->
+                <!-- Right Column (30%): Dedicated Form Console -->
                 <div class="form-col">
                     <div class="form-content">
-                        <div class="form-badge-pill">
-                            <i class="fa-solid fa-lock"></i>
-                            <span>SECURE MERCHANT ACCESS</span>
+                        <div class="form-header">
+                            <div class="form-badge-pill">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <span>SECURE ACCESS PORTAL</span>
+                            </div>
+                            <h2 class="form-heading">Sign In to Seller Hub</h2>
+                            <p class="form-subheading">Enter your registered business credentials to manage your store.</p>
                         </div>
-                        <h2 class="form-heading">Sign In to Seller Hub</h2>
-                        <p class="form-subheading">Enter your registered business email and credentials to manage your store.</p>
 
                         <!-- Flash Messages -->
                         {% if messages %}
@@ -117,19 +140,15 @@
                             </div>
 
                             <button type="submit" class="btn-submit-login">
-                                <span>Sign In to Seller Dashboard</span>
+                                <span>Sign In to Dashboard</span>
                                 <i class="fa-solid fa-arrow-right"></i>
                             </button>
                         </form>
 
                         <div class="form-actions-footer">
-                            <div class="register-prompt">
+                            <div class="footer-prompt-item">
                                 <span>New seller wanting to sell on Nainjyoti?</span>
-                                <a href="{% url 'vendor_register' %}" class="link-register-now">Register Your Store →</a>
-                            </div>
-                            <div class="status-prompt">
-                                <span>Already submitted application?</span>
-                                <a href="{% url 'vendor_status' %}" class="link-track-status">Track Verification Status →</a>
+                                <a href="{% url 'vendor_register' %}" class="footer-link">Register Your Store →</a>
                             </div>
                         </div>
                     </div>

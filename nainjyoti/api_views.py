@@ -3,9 +3,10 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
+from django.db.models import Q
 from django.utils import timezone
-from .models import UserProfile, OTPRecord
+from .models import UserProfile, OTPRecord, VendorProfile
 
 def _parse_request_data(request):
     """Helper to extract data from JSON body or POST form data."""
@@ -329,4 +330,457 @@ def api_user_logout(request):
     return JsonResponse({
         "success": True,
         "message": "User successfully logged out"
+    }, status=200)
+
+
+# =============================================================================
+# VENDOR REST APIS (Registration, Login, Profile & Status Tracking)
+# =============================================================================
+
+def _get_authenticated_vendor(request):
+    """
+    Authenticate vendor via 'Authorization: Bearer <token>'
+    or active Django session with vendor_profile.
+    """
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            token = parts[1].strip()
+            vendor = VendorProfile.objects.filter(auth_token=token).first()
+            if vendor:
+                return vendor
+
+    if request.user.is_authenticated and hasattr(request.user, 'vendor_profile'):
+        return request.user.vendor_profile
+
+    return None
+
+
+@csrf_exempt
+def api_vendor_register(request):
+    """
+    API: Register a new Vendor / Merchant Store
+    Endpoint: POST /api/vendor/register/
+    Accepts: JSON or form-data (supports document file uploads)
+    Fields:
+      - business_name (required)
+      - owner_name (required)
+      - email (required)
+      - phone (required)
+      - password (required, min 6 chars)
+      - category (optional, default: 'General Merchandise')
+      - business_type (optional, default: 'Retailer')
+      - gst_number (optional)
+      - pan_number (optional)
+      - address, city, state, pincode (optional)
+      - bank_name, account_number, ifsc_code (optional)
+      - gst_document, pan_document, id_proof (optional files)
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+
+    business_name = data.get("business_name", "").strip()
+    owner_name = data.get("owner_name", "").strip()
+    email = data.get("email", "").strip().lower()
+    phone = str(data.get("phone", "")).strip().replace(" ", "").replace("-", "")
+    password = data.get("password", "")
+
+    category = data.get("category", "General Merchandise").strip() or "General Merchandise"
+    business_type = data.get("business_type", "Retailer").strip() or "Retailer"
+
+    gst_number = data.get("gst_number", "").strip().upper()
+    pan_number = data.get("pan_number", "").strip().upper()
+
+    address = data.get("address", "").strip()
+    city = data.get("city", "").strip()
+    state = data.get("state", "").strip()
+    pincode = str(data.get("pincode", "")).strip()
+
+    bank_name = data.get("bank_name", "").strip()
+    account_number = str(data.get("account_number", "")).strip()
+    ifsc_code = data.get("ifsc_code", "").strip().upper()
+
+    # Validations
+    if not business_name or not owner_name:
+        return JsonResponse({
+            "success": False,
+            "message": "Both 'business_name' and 'owner_name' are required fields."
+        }, status=400)
+
+    if not email or "@" not in email:
+        return JsonResponse({
+            "success": False,
+            "message": "A valid 'email' address is required for vendor account creation."
+        }, status=400)
+
+    if not phone or len(phone) < 10:
+        return JsonResponse({
+            "success": False,
+            "message": "A valid 10-digit 'phone' number is required."
+        }, status=400)
+
+    if not password or len(password) < 6:
+        return JsonResponse({
+            "success": False,
+            "message": "Password must be at least 6 characters in length."
+        }, status=400)
+
+    # Check if user with this email already exists
+    if User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email)).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"An account with email '{email}' already exists. Please log in."
+        }, status=400)
+
+    # Prevent duplicate phone number registration
+    if VendorProfile.objects.filter(phone=phone).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"A seller store is already registered with mobile number '{phone}'. Please use a unique phone number."
+        }, status=400)
+
+    # Prevent duplicate GSTIN registration
+    if gst_number and VendorProfile.objects.filter(gst_number__iexact=gst_number).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"A seller store is already registered with GSTIN '{gst_number}'. Duplicate GST registration is not permitted."
+        }, status=400)
+
+    # Prevent duplicate PAN registration
+    if pan_number and VendorProfile.objects.filter(pan_number__iexact=pan_number).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"A seller store is already registered with PAN '{pan_number}'. Duplicate PAN registration is not permitted."
+        }, status=400)
+
+    # Prevent duplicate Store / Business Name
+    if VendorProfile.objects.filter(business_name__iexact=business_name).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"A store named '{business_name}' is already registered. Please choose a unique business name."
+        }, status=400)
+
+    # Create Django User
+    user = User.objects.create_user(
+        username=email,
+        email=email,
+        password=password,
+        first_name=owner_name,
+        is_staff=False,
+        is_superuser=False
+    )
+
+    # File attachments if present
+    gst_document = request.FILES.get("gst_document", None)
+    pan_document = request.FILES.get("pan_document", None)
+    id_proof = request.FILES.get("id_proof", None)
+
+    # Create VendorProfile with status PENDING
+    vendor = VendorProfile.objects.create(
+        user=user,
+        business_name=business_name,
+        owner_name=owner_name,
+        phone=phone,
+        category=category,
+        business_type=business_type,
+        gst_number=gst_number,
+        pan_number=pan_number,
+        address=address,
+        city=city,
+        state=state,
+        pincode=pincode,
+        bank_name=bank_name,
+        account_number=account_number,
+        ifsc_code=ifsc_code,
+        gst_document=gst_document,
+        pan_document=pan_document,
+        id_proof=id_proof,
+        status="PENDING"
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Vendor registration submitted successfully! Your application is under compliance review.",
+        "vendor_code": vendor.vendor_code,
+        "status": vendor.status,
+        "token": vendor.auth_token,
+        "vendor": vendor.to_dict()
+    }, status=201)
+
+
+@csrf_exempt
+def api_vendor_login(request):
+    """
+    API: Vendor Store Sign In
+    Endpoint: POST /api/vendor/login/
+    Fields:
+      - username or email (required, can be email or vendor_code)
+      - password (required)
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+    identifier = str(data.get("username", "") or data.get("email", "")).strip()
+    password = str(data.get("password", "")).strip()
+
+    if not identifier or not password:
+        return JsonResponse({
+            "success": False,
+            "message": "Both identifier ('username'/'email') and 'password' are required."
+        }, status=400)
+
+    # Lookup user by username, email, or vendor_code
+    user_obj = User.objects.filter(
+        Q(username__iexact=identifier) |
+        Q(email__iexact=identifier) |
+        Q(vendor_profile__vendor_code__iexact=identifier)
+    ).first()
+
+    user = None
+    if user_obj:
+        user = authenticate(request, username=user_obj.username, password=password)
+
+    if user is None:
+        return JsonResponse({
+            "success": False,
+            "message": "Invalid seller credentials. Please verify your email/username and password."
+        }, status=401)
+
+    # Check for Admin role
+    if user.is_staff or user.is_superuser:
+        if hasattr(request, 'session'):
+            login(request, user)
+        return JsonResponse({
+            "success": True,
+            "message": f"Welcome back, Administrator {user.first_name or user.username}!",
+            "role": "ADMIN",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser
+            }
+        }, status=200)
+
+    # Check for Vendor profile
+    if hasattr(user, 'vendor_profile'):
+        vendor = user.vendor_profile
+
+        if vendor.status == "APPROVED":
+            if not vendor.auth_token:
+                vendor.generate_new_token()
+            if hasattr(request, 'session'):
+                login(request, user)
+            return JsonResponse({
+                "success": True,
+                "message": f"Login successful. Welcome back to your seller console, {vendor.business_name}!",
+                "status": "APPROVED",
+                "role": "VENDOR",
+                "token": vendor.auth_token,
+                "vendor": vendor.to_dict()
+            }, status=200)
+
+        elif vendor.status == "PENDING":
+            return JsonResponse({
+                "success": False,
+                "status": "PENDING",
+                "vendor_code": vendor.vendor_code,
+                "message": f"Application Under Review: Your store '{vendor.business_name}' ({vendor.vendor_code}) is awaiting Admin review. You will be able to access the dashboard once approved."
+            }, status=403)
+
+        elif vendor.status == "REJECTED":
+            return JsonResponse({
+                "success": False,
+                "status": "REJECTED",
+                "vendor_code": vendor.vendor_code,
+                "rejection_reason": vendor.rejection_reason or "Submitted documents could not be validated.",
+                "message": f"Application Declined: Store registration was not approved. Reason: {vendor.rejection_reason or 'Document verification failed.'}"
+            }, status=403)
+
+    return JsonResponse({
+        "success": False,
+        "message": "No active vendor account found for these credentials."
+    }, status=404)
+
+
+@csrf_exempt
+def api_vendor_profile(request):
+    """
+    API: Get or Update Authenticated Vendor Store Profile
+    Endpoint: GET, PUT/POST /api/vendor/profile/
+    Header: Authorization: Bearer <token>
+    """
+    vendor = _get_authenticated_vendor(request)
+    if not vendor:
+        return JsonResponse({
+            "success": False,
+            "message": "Authentication required. Pass valid Vendor Bearer token in 'Authorization' header."
+        }, status=401)
+
+    if request.method == "GET":
+        return JsonResponse({
+            "success": True,
+            "vendor": vendor.to_dict()
+        }, status=200)
+
+    elif request.method in ["POST", "PUT"]:
+        data = _parse_request_data(request)
+
+        # Allow updating editable profile fields
+        editable_fields = [
+            "business_name", "owner_name", "phone", "category", "business_type",
+            "address", "city", "state", "pincode", "bank_name", "account_number",
+            "ifsc_code", "gst_number", "pan_number", "store_description", "support_email"
+        ]
+
+        for field in editable_fields:
+            if field in data and str(data[field]).strip() != "":
+                setattr(vendor, field, str(data[field]).strip())
+
+        if "owner_name" in data and data["owner_name"].strip():
+            vendor.user.first_name = data["owner_name"].strip()
+            vendor.user.save()
+
+        # Handle branding & document file updates
+        if "store_logo" in request.FILES:
+            vendor.store_logo = request.FILES["store_logo"]
+        if "store_banner" in request.FILES:
+            vendor.store_banner = request.FILES["store_banner"]
+        if "gst_document" in request.FILES:
+            vendor.gst_document = request.FILES["gst_document"]
+        if "pan_document" in request.FILES:
+            vendor.pan_document = request.FILES["pan_document"]
+        if "id_proof" in request.FILES:
+            vendor.id_proof = request.FILES["id_proof"]
+
+        vendor.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Store profile updated successfully",
+            "vendor": vendor.to_dict()
+        }, status=200)
+
+    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+@csrf_exempt
+def api_vendor_change_password(request):
+    """
+    API: Change Vendor Account Password
+    Endpoint: POST /api/vendor/profile/change-password/
+    Header: Authorization: Bearer <token>
+    Fields:
+      - current_password (required)
+      - new_password (required, min 6 chars)
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    vendor = _get_authenticated_vendor(request)
+    if not vendor:
+        return JsonResponse({
+            "success": False,
+            "message": "Authentication required. Pass valid Vendor Bearer token in 'Authorization' header."
+        }, status=401)
+
+    data = _parse_request_data(request)
+    current_password = data.get("current_password", "")
+    new_password = data.get("new_password", "")
+
+    if not current_password or not new_password:
+        return JsonResponse({
+            "success": False,
+            "message": "Both 'current_password' and 'new_password' are required."
+        }, status=400)
+
+    if not vendor.user.check_password(current_password):
+        return JsonResponse({
+            "success": False,
+            "message": "Current password is incorrect. Please re-enter."
+        }, status=400)
+
+    if len(new_password) < 6:
+        return JsonResponse({
+            "success": False,
+            "message": "New password must be at least 6 characters in length."
+        }, status=400)
+
+    vendor.user.set_password(new_password)
+    vendor.user.save()
+    vendor.generate_new_token()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Password updated successfully. New token generated.",
+        "token": vendor.auth_token
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_status_lookup(request):
+    """
+    API: Track Vendor Application Status by Reference Code or Email (Public)
+    Endpoint: GET, POST /api/vendor/status/
+    Params / Body: code=VEND-XXXXX or email=seller@domain.com
+    """
+    if request.method == "GET":
+        query = request.GET.get("code", "") or request.GET.get("query", "") or request.GET.get("email", "")
+    else:
+        data = _parse_request_data(request)
+        query = data.get("code", "") or data.get("query", "") or data.get("email", "")
+
+    query = str(query).strip()
+    if not query:
+        return JsonResponse({
+            "success": False,
+            "message": "Please provide a 'code' (e.g. VEND-12345) or 'email' to track application status."
+        }, status=400)
+
+    vendor = VendorProfile.objects.filter(
+        Q(vendor_code__iexact=query) | Q(user__email__iexact=query) | Q(phone__iexact=query)
+    ).first()
+
+    if not vendor:
+        return JsonResponse({
+            "success": False,
+            "message": f"No vendor application found matching reference '{query}'."
+        }, status=404)
+
+    return JsonResponse({
+        "success": True,
+        "vendor_code": vendor.vendor_code,
+        "business_name": vendor.business_name,
+        "owner_name": vendor.owner_name,
+        "status": vendor.status,
+        "status_display": vendor.get_status_display(),
+        "rejection_reason": vendor.rejection_reason if vendor.status == "REJECTED" else None,
+        "submitted_at": vendor.created_at.isoformat(),
+        "updated_at": vendor.updated_at.isoformat()
+    }, status=200)
+
+
+@csrf_exempt
+def api_vendor_logout(request):
+    """
+    API: Logout vendor & rotate token
+    Endpoint: POST /api/vendor/logout/
+    Header: Authorization: Bearer <token>
+    """
+    vendor = _get_authenticated_vendor(request)
+    if vendor:
+        vendor.generate_new_token()  # Invalidate token
+
+    if hasattr(request, 'session'):
+        logout(request)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Vendor successfully logged out"
     }, status=200)
