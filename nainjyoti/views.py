@@ -610,11 +610,11 @@ def logout_view(request):
 
 
 def admin_customers(request):
-    """Admin Customers Directory."""
+    """Admin Customers Directory & Account Management."""
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "ALL").upper()
 
-    customers_qs = UserProfile.objects.all().order_by('-created_at')
+    customers_qs = UserProfile.objects.all().select_related('user').order_by('-created_at')
     if search_query:
         customers_qs = customers_qs.filter(
             Q(first_name__icontains=search_query) |
@@ -624,7 +624,7 @@ def admin_customers(request):
         )
     if status_filter == "ACTIVE":
         customers_qs = customers_qs.filter(is_active=True)
-    elif status_filter == "INACTIVE":
+    elif status_filter in ["INACTIVE", "BLOCKED"]:
         customers_qs = customers_qs.filter(is_active=False)
 
     customers_list = []
@@ -641,14 +641,98 @@ def admin_customers(request):
             'orders_count': ords.count(),
             'lifetime_value': format_inr(spent),
             'is_active': c.is_active,
+            'created_at': c.created_at,
+            'gender': c.gender,
+            'dob': c.dob.strftime('%d %b %Y') if c.dob else 'N/A',
+            'photo_url': c.photo_url,
         })
+
+    active_count = UserProfile.objects.filter(is_active=True).count()
+    inactive_count = UserProfile.objects.filter(is_active=False).count()
 
     return render(request, "admin/customers.html", {
         "customers": customers_list,
         "total_count": len(customers_list),
+        "active_count": active_count,
+        "inactive_count": inactive_count,
         "search_query": search_query,
         "status_filter": status_filter,
     })
+
+
+@csrf_exempt
+def admin_customer_toggle_status(request, customer_id):
+    """
+    Admin Control: Toggle Customer Active / Blocked Status
+    Endpoint: POST /admin-dashboard/customers/<customer_id>/toggle-status/
+    """
+    customer = get_object_or_404(UserProfile, id=customer_id)
+
+    # Toggle status
+    new_status = not customer.is_active
+    customer.is_active = new_status
+    if customer.user:
+        customer.user.is_active = new_status
+        customer.user.save(update_fields=['is_active'])
+
+    customer.save(update_fields=['is_active'])
+
+    action_label = "ACTIVATED" if new_status else "DEACTIVATED / BLOCKED"
+    msg = f"Customer '{customer.full_name}' ({customer.phone}) has been {action_label}."
+    messages.success(request, msg)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in getattr(request, 'content_type', '')
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "customer_id": customer.id,
+            "is_active": customer.is_active,
+            "status_label": "Active" if customer.is_active else "Blocked"
+        }, status=200)
+
+    return redirect("admin_customers")
+
+
+def admin_customer_detail(request, customer_id):
+    """
+    Admin Control: Fetch full dossier for a single customer
+    Endpoint: GET /admin-dashboard/customers/<customer_id>/detail/
+    """
+    customer = get_object_or_404(UserProfile, id=customer_id)
+    orders = customer.orders.all().order_by('-created_at')[:5]
+    total_spent = customer.orders.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0
+
+    recent_orders = []
+    for o in orders:
+        recent_orders.append({
+            'order_number': o.order_number,
+            'total_amount': format_inr(o.total_amount),
+            'status': o.status,
+            'status_display': o.get_status_display(),
+            'created_at': o.created_at.strftime('%d %b %Y %H:%M') if o.created_at else ''
+        })
+
+    return JsonResponse({
+        "success": True,
+        "customer": {
+            "id": customer.id,
+            "customer_code": f"CUS-{customer.id + 48200}",
+            "full_name": customer.full_name,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "phone": customer.phone,
+            "email": customer.email or 'N/A',
+            "gender": customer.gender,
+            "dob": customer.dob.strftime('%d %b %Y') if customer.dob else 'N/A',
+            "photo_url": customer.photo_url,
+            "is_active": customer.is_active,
+            "registered_at": customer.created_at.strftime('%d %b %Y %H:%M') if customer.created_at else 'N/A',
+            "total_orders": customer.orders.count(),
+            "lifetime_value": format_inr(total_spent),
+            "recent_orders": recent_orders
+        }
+    }, status=200)
 
 
 def admin_vendors(request):

@@ -18,6 +18,8 @@ urlpatterns = [
     # Admin Protected Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-dashboard/customers/', views.admin_customers, name='admin_customers'),
+    path('admin-dashboard/customers/<int:customer_id>/toggle-status/', views.admin_customer_toggle_status, name='admin_customer_toggle_status'),
+    path('admin-dashboard/customers/<int:customer_id>/detail/', views.admin_customer_detail, name='admin_customer_detail'),
     path('admin-dashboard/vendors/', views.admin_vendors, name='admin_vendors'),
     path('admin-dashboard/vendor-approval/', views.admin_vendor_approval, name='admin_vendor_approval'),
     path('admin-dashboard/vendor/<int:vendor_id>/kyc/', views.admin_vendor_kyc_detail, name='admin_vendor_kyc_detail'),
@@ -54,6 +56,8 @@ urlpatterns = [
     path('api/user/send-otp/', api_views.api_send_otp, name='api_send_otp'),
     path('api/user/verify-otp-login/', api_views.api_verify_otp_login, name='api_verify_otp_login'),
     path('api/user/register/', api_views.api_user_register, name='api_user_register'),
+    path('api/user/login/', api_views.api_user_login, name='api_user_login'),
+    path('api/user/status/', api_views.api_user_status, name='api_user_status'),
     path('api/user/profile/', api_views.api_user_profile, name='api_user_profile'),
     path('api/user/logout/', api_views.api_user_logout, name='api_user_logout'),
 

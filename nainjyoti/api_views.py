@@ -65,7 +65,14 @@ def api_send_otp(request):
         }, status=400)
 
     # Automatically check if user is already registered or new
-    is_registered = UserProfile.objects.filter(phone=phone).exists()
+    existing_profile = UserProfile.objects.filter(phone=phone).first()
+    if existing_profile and (not existing_profile.is_active or (existing_profile.user and not existing_profile.user.is_active)):
+        return JsonResponse({
+            "success": False,
+            "message": "Your account has been deactivated by administrator. Please contact support."
+        }, status=403)
+
+    is_registered = existing_profile is not None
     purpose = "LOGIN" if is_registered else "REGISTER"
 
     # Generate 6-digit OTP
@@ -135,6 +142,13 @@ def api_verify_otp_login(request):
     profile = UserProfile.objects.filter(phone=phone).first()
 
     if profile:
+        # Check if deactivated by admin
+        if not profile.is_active or (profile.user and not profile.user.is_active):
+            return JsonResponse({
+                "success": False,
+                "message": "Your account has been deactivated by administrator. Please contact support."
+            }, status=403)
+
         # User is registered -> authenticate and return token
         if not profile.auth_token:
             profile.generate_new_token()
@@ -235,7 +249,11 @@ def api_user_register(request):
         first_name=first_name,
         last_name=last_name
     )
-    user.set_unusable_password()
+    password = data.get("password", "").strip()
+    if password:
+        user.set_password(password)
+    else:
+        user.set_unusable_password()
     user.save()
 
     # Create Customer UserProfile
@@ -247,7 +265,8 @@ def api_user_register(request):
         email=email,
         dob=dob_parsed,
         gender=gender,
-        profile_photo=profile_photo
+        profile_photo=profile_photo,
+        is_active=True
     )
 
     if hasattr(request, 'session'):
@@ -259,6 +278,110 @@ def api_user_register(request):
         "token": profile.auth_token,
         "user": profile.to_dict()
     }, status=201)
+
+
+@csrf_exempt
+def api_user_login(request):
+    """
+    API: Direct Password Login for Registered User (Phone or Email)
+    Endpoint: POST /api/user/login/
+    Body: {"identifier": "9876543210" or "user@example.com", "password": "your_password"}
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+    identifier = str(data.get("identifier", "") or data.get("phone", "") or data.get("email", "")).strip()
+    password = str(data.get("password", "")).strip()
+
+    if not identifier or not password:
+        return JsonResponse({
+            "success": False,
+            "message": "Both 'identifier' (phone or email) and 'password' are required."
+        }, status=400)
+
+    clean_phone = identifier.replace(" ", "").replace("-", "")
+    profile = UserProfile.objects.filter(
+        Q(phone=clean_phone) | Q(email__iexact=identifier) | Q(user__username__iexact=identifier)
+    ).first()
+
+    if not profile:
+        return JsonResponse({
+            "success": False,
+            "message": "No registered account found matching the provided phone number or email."
+        }, status=404)
+
+    # Check if deactivated by admin
+    if not profile.is_active or (profile.user and not profile.user.is_active):
+        return JsonResponse({
+            "success": False,
+            "message": "Your account has been deactivated by administrator. Please contact support."
+        }, status=403)
+
+    # Check password
+    if not profile.user.check_password(password):
+        return JsonResponse({
+            "success": False,
+            "message": "Invalid password. Please check your credentials or sign in with OTP."
+        }, status=400)
+
+    if not profile.auth_token:
+        profile.generate_new_token()
+
+    if hasattr(request, 'session'):
+        login(request, profile.user)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Login successful",
+        "token": profile.auth_token,
+        "user": profile.to_dict()
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_status(request):
+    """
+    API: Check User Authentication Status & Admin Account Health
+    Endpoint: GET /api/user/status/
+    Header: Authorization: Bearer <token>
+    """
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    token = ''
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            token = parts[1].strip()
+
+    if not token and request.user.is_authenticated and hasattr(request.user, 'customer_profile'):
+        profile = request.user.customer_profile
+    elif token:
+        # Check without is_active filter first to provide accurate feedback if deactivated
+        profile = UserProfile.objects.filter(auth_token=token).first()
+    else:
+        profile = None
+
+    if not profile:
+        return JsonResponse({
+            "success": False,
+            "authenticated": False,
+            "message": "Invalid or missing authentication token."
+        }, status=401)
+
+    if not profile.is_active or (profile.user and not profile.user.is_active):
+        return JsonResponse({
+            "success": False,
+            "authenticated": False,
+            "is_active": False,
+            "message": "Your account has been deactivated by administrator. Please contact support."
+        }, status=403)
+
+    return JsonResponse({
+        "success": True,
+        "authenticated": True,
+        "is_active": True,
+        "user": profile.to_dict()
+    }, status=200)
 
 
 @csrf_exempt
