@@ -332,9 +332,9 @@ method: POST
 
 headers:  
 Authorization: Bearer <vendor_token> (optional, automatically scopes to authenticated merchant store)  
-Content-Type: multipart/form-data (when uploading image file) or application/json  
+Content-Type: multipart/form-data  
 
-params:  
+body (multipart/form-data):  
 name: Wireless Noise Cancelling Smart Watch Pro  
 sku: WATCH-PRO-001 (optional, auto-generated unique if left blank)  
 category_id: 2 (master category ID)  
@@ -476,9 +476,9 @@ method: POST
 
 headers:  
 Authorization: Bearer <vendor_token>  
-Content-Type: multipart/form-data (when uploading image file) or application/json  
+Content-Type: multipart/form-data  
 
-params:  
+body (multipart/form-data):  
 price: 3199.00  
 discount_price: 2799.00  
 stock_quantity: 42  
