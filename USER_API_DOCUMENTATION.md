@@ -3,14 +3,13 @@ url: http://192.168.1.52:8000/api/user/send-otp/
 method: POST
 
 headers:
-Content-Type: application/json
+Content-Type: multipart/form-data
 
-body:
-{
-  "phone": "9812345678"
-}
+params:
+phone: 9812345678
 
-response (for new unregistered phone):
+response:
+```json
 {
   "success": true,
   "message": "Phone not registered. OTP sent for registration to 9812345678",
@@ -20,8 +19,10 @@ response (for new unregistered phone):
   "otp_debug": "802881",
   "expires_in_minutes": 10
 }
+```
 
-response (for existing registered phone):
+response (for existing registered user):
+```json
 {
   "success": true,
   "message": "OTP sent for login to 9812345678",
@@ -31,28 +32,29 @@ response (for existing registered phone):
   "otp_debug": "942730",
   "expires_in_minutes": 10
 }
+```
 
-response (if account was blocked / deactivated by admin):
+response (if account was deactivated / blocked by admin):
+```json
 {
   "success": false,
   "message": "Your account has been deactivated by administrator. Please contact support."
 }
+```
 
-
-API for Verifying OTP and Logging In
+API for Verifying OTP and Sign In
 url: http://192.168.1.52:8000/api/user/verify-otp-login/
 method: POST
 
 headers:
-Content-Type: application/json
+Content-Type: multipart/form-data
 
-body:
-{
-  "phone": "9812345678",
-  "otp": "942730"
-}
+params:
+phone: 9812345678
+otp: 942730
 
 response (successful login for registered user):
+```json
 {
   "success": true,
   "message": "Login successful",
@@ -72,8 +74,10 @@ response (successful login for registered user):
     "created_at": "2026-10-22T12:25:46.398042+00:00"
   }
 }
+```
 
-response (for new phone verified, ready for registration):
+response (for verified new phone, ready to complete registration):
+```json
 {
   "success": true,
   "message": "Phone number verified. Please complete user registration.",
@@ -81,34 +85,35 @@ response (for new phone verified, ready for registration):
   "phone": "9812345678",
   "otp_verified": true
 }
+```
 
-response (if account was blocked / deactivated by admin):
+response (if account was deactivated / blocked by admin):
+```json
 {
   "success": false,
   "message": "Your account has been deactivated by administrator. Please contact support."
 }
-
+```
 
 API for User Registration
 url: http://192.168.1.52:8000/api/user/register/
 method: POST
 
 headers:
-Content-Type: application/json (or multipart/form-data if uploading profile_photo)
+Content-Type: multipart/form-data
 
-body:
-{
-  "first_name": "Dev",
-  "last_name": "Sharma",
-  "phone": "9812345678",
-  "email": "dev.sharma@example.com",
-  "password": "Password@2026",
-  "gender": "Male",
-  "dob": "1995-08-15",
-  "profile_photo": "<binary file optional>"
-}
+params:
+first_name: Dev
+last_name: Sharma
+phone: 9812345678
+email: dev.sharma@example.com (optional)
+password: Password@2026 (optional, enables direct password login)
+gender: Male (choices: Male, Female, Other, Prefer not to say)
+dob: 1995-08-15 (optional, YYYY-MM-DD)
+profile_photo: [Upload binary image file, e.g. avatar.jpg / png] (optional)
 
 response:
+```json
 {
   "success": true,
   "message": "User registered successfully",
@@ -122,33 +127,26 @@ response:
     "email": "dev.sharma@example.com",
     "dob": "1995-08-15",
     "gender": "Male",
-    "profile_photo": null,
+    "profile_photo": "/media/user_profiles/photos/avatar.jpg",
     "is_active": true,
     "created_at": "2026-10-22T12:25:46.398042+00:00"
   }
 }
-
+```
 
 API for Direct Password Login (Phone or Email)
 url: http://192.168.1.52:8000/api/user/login/
 method: POST
 
 headers:
-Content-Type: application/json
+Content-Type: multipart/form-data
 
-body (via phone):
-{
-  "identifier": "9812345678",
-  "password": "Password@2026"
-}
+params:
+identifier: 9812345678 (or user email address, e.g. dev.sharma@example.com)
+password: Password@2026
 
-body (via email):
-{
-  "identifier": "dev.sharma@example.com",
-  "password": "Password@2026"
-}
-
-response (success):
+response:
+```json
 {
   "success": true,
   "message": "Login successful",
@@ -167,13 +165,15 @@ response (success):
     "created_at": "2026-10-22T12:25:46.398042+00:00"
   }
 }
+```
 
-response (if account was blocked / deactivated by admin):
+response (if account was deactivated / blocked by admin):
+```json
 {
   "success": false,
   "message": "Your account has been deactivated by administrator. Please contact support."
 }
-
+```
 
 API for Checking User Authentication Status & Admin Access Health
 url: http://192.168.1.52:8000/api/user/status/
@@ -182,7 +182,11 @@ method: GET
 headers:
 Authorization: Bearer <user_token> (required)
 
-response (if active and valid):
+params:
+none
+
+response (if active and authenticated):
+```json
 {
   "success": true,
   "authenticated": true,
@@ -201,15 +205,17 @@ response (if active and valid):
     "created_at": "2026-10-22T12:25:46.398042+00:00"
   }
 }
+```
 
 response (if blocked / deactivated by administrator):
+```json
 {
   "success": false,
   "authenticated": false,
   "is_active": false,
   "message": "Your account has been deactivated by administrator. Please contact support."
 }
-
+```
 
 API for User Logout
 url: http://192.168.1.52:8000/api/user/logout/
@@ -217,22 +223,31 @@ method: POST
 
 headers:
 Authorization: Bearer <user_token> (required)
+Content-Type: multipart/form-data
+
+params:
+none
 
 response:
+```json
 {
   "success": true,
   "message": "User successfully logged out"
 }
+```
 
-
-API for Admin Dashboard: Toggle Customer Status (Activate or Block)
+API for Admin Dashboard: Toggle Customer Account Status (Activate or Block)
 url: http://192.168.1.52:8000/admin-dashboard/customers/<customer_id>/toggle-status/
 method: POST
 
 headers:
-X-Requested-With: XMLHttpRequest (or regular browser form POST)
+X-Requested-With: XMLHttpRequest (or standard browser form submission)
+
+params:
+none
 
 response:
+```json
 {
   "success": true,
   "message": "Customer 'Dev Sharma' (9812345678) has been DEACTIVATED / BLOCKED.",
@@ -240,13 +255,20 @@ response:
   "is_active": false,
   "status_label": "Blocked"
 }
-
+```
 
 API for Admin Dashboard: Fetch Customer Full Dossier & Order History
 url: http://192.168.1.52:8000/admin-dashboard/customers/<customer_id>/detail/
 method: GET
 
+headers:
+none
+
+params:
+none
+
 response:
+```json
 {
   "success": true,
   "customer": {
@@ -275,3 +297,4 @@ response:
     ]
   }
 }
+```

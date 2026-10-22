@@ -326,28 +326,29 @@ response:
   "category_id": 8
 }
 
-API for Create Product
-url: http://192.168.1.52:8000/api/vendor/product/create/
-method: POST
+API for Create Product  
+url: http://192.168.1.52:8000/api/vendor/product/create/  
+method: POST  
 
-headers:
-Authorization: Bearer <vendor_token> (optional, automatically scopes to authenticated merchant store)
-Content-Type: multipart/form-data
+headers:  
+Authorization: Bearer <vendor_token> (optional, automatically scopes to authenticated merchant store)  
+Content-Type: multipart/form-data (when uploading image file) or application/json  
 
-body (multipart/form-data):
-name: Wireless Noise Cancelling Smart Watch Pro
-sku: WATCH-PRO-001 (optional, auto-generated unique if left blank)
-category_id: 2 (master category ID)
-price: 3499.00
-discount_price: 2999.00 (optional offer price)
-stock_quantity: 50
-low_stock_threshold: 10 (optional, default: 10 alert threshold)
-unit: Piece (optional, default: Piece)
-description: High-performance smartwatch featuring OLED display, health tracking, and 7-day battery life.
-status: ACTIVE (choices: ACTIVE, INACTIVE, OUT_OF_STOCK)
-image: [Upload binary image file, e.g. watch.jpg / png]
+params:  
+name: Wireless Noise Cancelling Smart Watch Pro  
+sku: WATCH-PRO-001 (optional, auto-generated unique if left blank)  
+category_id: 2 (master category ID)  
+price: 3499.00  
+discount_price: 2999.00 (optional offer price)  
+stock_quantity: 50  
+low_stock_threshold: 10 (optional, default: 10 alert threshold)  
+unit: Piece (optional, default: Piece)  
+description: High-performance smartwatch featuring OLED display, health tracking, and 7-day battery life.  
+status: ACTIVE (choices: ACTIVE, INACTIVE, OUT_OF_STOCK)  
+image: [Upload binary image file, e.g. watch.jpg / png]  
 
-response:
+response:  
+```json
 {
   "success": true,
   "message": "Product created successfully",
@@ -375,25 +376,29 @@ response:
     "updated_at": "2026-10-17T05:12:37.568922+00:00"
   }
 }
+```
 
-API for List Products
-url: http://192.168.1.52:8000/api/vendor/product/list/
-method: GET
+---
 
-headers:
-Authorization: Bearer <vendor_token> (optional, scopes product list to logged-in vendor)
+API for List Products  
+url: http://192.168.1.52:8000/api/vendor/product/list/  
+method: GET  
 
-params:
-category_id: 2 (optional, filter by Category master ID)
-category: Electronics (optional, filter by Category master name)
-search: Watch (optional, search in product name, SKU, or description)
-status: ACTIVE (optional, filter by ACTIVE, INACTIVE, OUT_OF_STOCK)
-min_price: 2000 (optional, filter minimum price)
-max_price: 4000 (optional, filter maximum price)
-in_stock: true (optional, filter items where stock_quantity > 0)
-ordering: -created_at (optional, choices: created_at, -created_at, price, -price, name, -name, stock_quantity, -stock_quantity)
+headers:  
+Authorization: Bearer <vendor_token> (optional, scopes product list to logged-in vendor)  
 
-response:
+params:  
+category_id: 2 (optional, filter by Category master ID)  
+category: Electronics (optional, filter by Category master name)  
+search: Watch (optional, search in product name, SKU, or description)  
+status: ACTIVE (optional, filter by ACTIVE, INACTIVE, OUT_OF_STOCK)  
+min_price: 2000 (optional, filter minimum price)  
+max_price: 4000 (optional, filter maximum price)  
+in_stock: true (optional, filter items where stock_quantity > 0)  
+ordering: -created_at (optional, choices: created_at, -created_at, price, -price, name, -name, stock_quantity, -stock_quantity)  
+
+response:  
+```json
 {
   "success": true,
   "count": 1,
@@ -423,15 +428,19 @@ response:
     }
   ]
 }
+```
 
-API for Get Product Details
-url: http://192.168.1.52:8000/api/vendor/product/detail/1/
-method: GET
+---
 
-params:
-none
+API for Get Product Details  
+url: http://192.168.1.52:8000/api/vendor/product/detail/1/  
+method: GET  
 
-response:
+params:  
+none  
+
+response:  
+```json
 {
   "success": true,
   "product": {
@@ -458,25 +467,28 @@ response:
     "updated_at": "2026-10-17T05:12:37.568922+00:00"
   }
 }
+```
+---
 
-API for Update Product
-url: http://192.168.1.52:8000/api/vendor/product/update/1/
-method: POST
+API for Update Product  
+url: http://192.168.1.52:8000/api/vendor/product/update/1/  
+method: POST  
 
-headers:
-Authorization: Bearer <vendor_token>
-Content-Type: multipart/form-data
+headers:  
+Authorization: Bearer <vendor_token>  
+Content-Type: multipart/form-data (when uploading image file) or application/json  
 
-body (multipart/form-data):
-price: 3199.00
-discount_price: 2799.00
-stock_quantity: 42
-low_stock_threshold: 10 (optional, update low stock alert threshold)
-description: Updated: Now includes 2 additional magnetic bands and 10-day battery.
-status: ACTIVE
-image: [optional, new binary image file to update product photo]
+params:  
+price: 3199.00  
+discount_price: 2799.00  
+stock_quantity: 42  
+low_stock_threshold: 10 (optional, update low stock alert threshold)  
+description: Updated: Now includes 2 additional magnetic bands and 10-day battery.  
+status: ACTIVE  
+image: [optional, new binary image file to update product photo]  
 
-response:
+response:  
+```json
 {
   "success": true,
   "message": "Product updated successfully",
@@ -504,32 +516,40 @@ response:
     "updated_at": "2026-10-17T05:12:37.603566+00:00"
   }
 }
+```
 
-API for Delete Product
-url: http://192.168.1.52:8000/api/vendor/product/delete/1/
-method: POST
+---
 
-params:
-none
+API for Delete Product  
+url: http://192.168.1.52:8000/api/vendor/product/delete/1/  
+method: POST  
 
-response:
+params:  
+none  
+
+response:  
+```json
 {
   "success": true,
   "message": "Product 'Wireless Noise Cancelling Smart Watch Pro' (WATCH-PRO-001) deleted successfully.",
   "product_id": 1
 }
+```
 
-API for Inventory Stock Summary
-url: http://192.168.1.52:8000/api/vendor/stock/summary/
-method: GET
+---
 
-headers:
-Authorization: Bearer <vendor_token> (optional, scopes inventory KPIs to authenticated vendor)
+API for Inventory Stock Summary  
+url: http://192.168.1.52:8000/api/vendor/stock/summary/  
+method: GET  
 
-params:
-none
+headers:  
+Authorization: Bearer <vendor_token> (optional, scopes inventory KPIs to authenticated vendor)  
 
-response:
+params:  
+none  
+
+response:  
+```json
 {
   "success": true,
   "summary": {
@@ -542,21 +562,25 @@ response:
     "currency": "INR"
   }
 }
+```
 
-API for Inventory Stock List
-url: http://192.168.1.52:8000/api/vendor/stock/list/
-method: GET
+---
 
-headers:
-Authorization: Bearer <vendor_token> (optional, scopes inventory to logged-in vendor)
+API for Inventory Stock List  
+url: http://192.168.1.52:8000/api/vendor/stock/list/  
+method: GET  
 
-params:
-level: low_stock (optional, choices: all, low_stock, out_of_stock, healthy)
-category_id: 2 (optional, filter by Category master ID)
-search: Plate (optional, search by product name or SKU)
-ordering: -stock_quantity (optional, choices: -stock_quantity, stock_quantity, -price, price)
+headers:  
+Authorization: Bearer <vendor_token> (optional, scopes inventory to logged-in vendor)  
 
-response:
+params:  
+level: low_stock (optional, choices: all, low_stock, out_of_stock, healthy)  
+category_id: 2 (optional, filter by Category master ID)  
+search: Plate (optional, search by product name or SKU)  
+ordering: -stock_quantity (optional, choices: -stock_quantity, stock_quantity, -price, price)  
+
+response:  
+```json
 {
   "success": true,
   "count": 1,
@@ -580,23 +604,27 @@ response:
     }
   ]
 }
+```
 
-API for Adjust Inventory Stock
-url: http://192.168.1.52:8000/api/vendor/stock/update/6/
-method: POST
+---
 
-headers:
-Authorization: Bearer <vendor_token> (optional)
+API for Adjust Inventory Stock  
+url: http://192.168.1.52:8000/api/vendor/stock/update/6/  
+method: POST  
 
-params:
-action: ADD (required, choices: ADD, SUBTRACT, SET)
-quantity: 20 (required, units to add/subtract or target count)
-movement_type: RESTOCK (optional, choices: RESTOCK, SALE, RETURN, DAMAGE, CORRECTION)
-reason: Received batch invoice #REC-8841 from supplier (optional)
-reference_id: PO-8841 (optional, purchase order / batch / receipt number)
-low_stock_threshold: 10 (optional, update reorder alert threshold)
+headers:  
+Authorization: Bearer <vendor_token> (optional)  
 
-response:
+params:  
+action: ADD (required, choices: ADD, SUBTRACT, SET)  
+quantity: 20 (required, units to add/subtract or target count)  
+movement_type: RESTOCK (optional, choices: RESTOCK, SALE, RETURN, DAMAGE, CORRECTION)  
+reason: Received batch invoice #REC-8841 from supplier (optional)  
+reference_id: PO-8841 (optional, purchase order / batch / receipt number)  
+low_stock_threshold: 10 (optional, update reorder alert threshold)  
+
+response:  
+```json
 {
   "success": true,
   "message": "Stock for 'Jaipur Handcrafted Ceramic Dinner Plate' adjusted from 30 to 50 units.",
@@ -629,19 +657,23 @@ response:
     "created_at": "2026-10-17T07:11:16.920456+00:00"
   }
 }
+```
 
-API for Stock Movement Audit Logs
-url: http://192.168.1.52:8000/api/vendor/stock/logs/6/
-method: GET
+---
 
-headers:
-Authorization: Bearer <vendor_token> (optional)
+API for Stock Movement Audit Logs  
+url: http://192.168.1.52:8000/api/vendor/stock/logs/6/  
+method: GET  
 
-params:
-movement_type: RESTOCK (optional, filter by RESTOCK, SALE, RETURN, DAMAGE, CORRECTION)
-limit: 50 (optional, default: 50)
+headers:  
+Authorization: Bearer <vendor_token> (optional)  
 
-response:
+params:  
+movement_type: RESTOCK (optional, filter by RESTOCK, SALE, RETURN, DAMAGE, CORRECTION)  
+limit: 50 (optional, default: 50)  
+
+response:  
+```json
 {
   "success": true,
   "count": 2,
@@ -678,3 +710,9 @@ response:
     }
   ]
 }
+```
+
+
+
+
+
