@@ -1218,7 +1218,7 @@ def api_product_search(request):
         }, status=400)
 
     products = Product.objects.select_related('vendor', 'category').filter(
-        status='ACTIVE',
+        status__in=['ACTIVE', 'OUT_OF_STOCK'],
         is_approved=True,
         vendor__status='APPROVED',
     ).filter(

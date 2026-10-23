@@ -832,3 +832,48 @@ response:
   "is_active": false
 }
 ```
+
+
+API for Product Search and Filtering
+url: http://192.168.1.52:8000/api/user/products/search/
+method: GET
+
+headers:
+none (public endpoint)
+
+params (query parameters):
+q: shirt (optional search keyword across name, description, sku, category, vendor)
+category_id: 1 (optional category filter)
+min_price: 500 (optional minimum price filter)
+max_price: 2000 (optional maximum price filter)
+in_stock: true (optional, true/1 to only include available inventory)
+sort: price_low_to_high (options: price_low_to_high, price_high_to_low, newest; default: newest)
+page: 1 (optional, default: 1)
+limit: 20 (optional, default: 20, max: 100)
+
+response:
+```json
+{
+  "success": true,
+  "query": "shirt",
+  "total_matches": 15,
+  "page": 1,
+  "total_pages": 1,
+  "has_next": false,
+  "products": [
+    {
+      "id": 10,
+      "name": "Cotton Casual Denim Shirt",
+      "sku": "SKU-SHIRT-01",
+      "price": 1200.0,
+      "discount_price": 999.0,
+      "image_url": "/media/products/shirt.jpg",
+      "category_id": 1,
+      "category_name": "Clothing & Apparel",
+      "vendor_name": "Apex Fashion Hub",
+      "stock_quantity": 15,
+      "in_stock": true
+    }
+  ]
+}
+```
