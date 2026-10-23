@@ -26,7 +26,7 @@
     <a class="{% if active_nav == 'products' %}active{% endif %}" href="{% url 'admin_products' %}">
       <i class="fa-solid fa-boxes-stacked"></i><span>Products</span>
     </a>
-    <a class="{% if active_nav == 'product_approval' %}active{% endif %}" href="{% url 'admin_products' %}?status=PENDING">
+    <a class="{% if active_nav == 'product_approval' %}active{% endif %}" href="{% url 'admin_product_approval' %}">
       <i class="fa-solid fa-clipboard-check"></i><span>Product approval</span>
     </a>
     <a class="{% if active_nav == 'orders' %}active{% endif %}" href="{% url 'admin_orders' %}">

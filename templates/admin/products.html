@@ -38,8 +38,10 @@
             <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search products, SKU, vendor" aria-label="Search records">
             <select class="form-select" name="status" onchange="this.form.submit()">
               <option value="ALL" {% if status_filter == 'ALL' %}selected{% endif %}>All statuses</option>
-              <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Active</option>
+              <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending review ({{ pending_count }})</option>
+              <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Active / Approved</option>
               <option value="OUT_OF_STOCK" {% if status_filter == 'OUT_OF_STOCK' %}selected{% endif %}>Out of stock</option>
+              <option value="INACTIVE" {% if status_filter == 'INACTIVE' %}selected{% endif %}>Inactive / Rejected</option>
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
@@ -107,9 +109,11 @@
                     <span class="text-muted small">Single item</span>
                   {% endif %}
                 </td>
-                <td>
-                  {% if product.status == 'ACTIVE' %}
-                    <span class="pill green">Approved</span>
+                <td id="productStatusCell{{ product.id }}">
+                  {% if not product.is_approved %}
+                    <span class="pill amber"><i class="fa-solid fa-clock me-1"></i>Pending Review</span>
+                  {% elif product.status == 'ACTIVE' %}
+                    <span class="pill green"><i class="fa-solid fa-check me-1"></i>Approved</span>
                   {% elif product.status == 'OUT_OF_STOCK' %}
                     <span class="pill amber">Out of Stock</span>
                   {% else %}
@@ -117,10 +121,22 @@
                   {% endif %}
                 </td>
                 <td class="text-end">
-                  <button type="button" class="btn btn-sm btn-outline-primary" 
-                          onclick="openAdminVariantsModal({{ product.id }}, '{{ product.name|escapejs }}', '{{ product.sku|escapejs }}', {{ product.price }})">
-                    <i class="fa-solid fa-sliders me-1"></i>Variants
-                  </button>
+                  <div class="d-inline-flex gap-1 align-items-center justify-content-end" id="productActions{{ product.id }}">
+                    {% if not product.is_approved %}
+                      <button type="button" class="btn btn-sm btn-success px-2 py-1" title="Approve Product" 
+                              onclick="quickApproveProduct({{ product.id }}, '{{ product.name|escapejs }}')">
+                        <i class="fa-solid fa-check me-1"></i>Approve
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1" title="Reject Product" 
+                              onclick="quickRejectProduct({{ product.id }}, '{{ product.name|escapejs }}')">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            onclick="openAdminVariantsModal({{ product.id }}, '{{ product.name|escapejs }}', '{{ product.sku|escapejs }}', {{ product.price }})">
+                      <i class="fa-solid fa-sliders me-1"></i>Variants
+                    </button>
+                  </div>
                 </td>
               </tr>
               {% empty %}
@@ -630,6 +646,72 @@
         await reloadAdminVariants();
       } catch (err) {
         showAdminAlert('Network error while deleting variant.');
+      }
+    }
+
+    async function quickApproveProduct(productId, productName) {
+      if (!confirm(`Approve "${productName}" and publish it to the marketplace?`)) return;
+      try {
+        const resp = await fetch(`/admin-dashboard/products/${productId}/approve/`, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await resp.json();
+        if (data.success) {
+          const statusCell = document.getElementById(`productStatusCell${productId}`);
+          if (statusCell) {
+            statusCell.innerHTML = '<span class="pill green"><i class="fa-solid fa-check me-1"></i>Approved</span>';
+          }
+          const actionsDiv = document.getElementById(`productActions${productId}`);
+          if (actionsDiv) {
+            const approveBtn = actionsDiv.querySelector('.btn-success');
+            const rejectBtn = actionsDiv.querySelector('.btn-outline-danger');
+            if (approveBtn) approveBtn.remove();
+            if (rejectBtn) rejectBtn.remove();
+          }
+          alert(`Product "${productName}" approved successfully!`);
+        } else {
+          alert(data.message || 'Approval failed.');
+        }
+      } catch (err) {
+        alert('Error approving product.');
+      }
+    }
+
+    async function quickRejectProduct(productId, productName) {
+      const reason = prompt(`Reason for rejecting "${productName}":`, 'Listing declined by administrator.');
+      if (reason === null) return;
+      try {
+        const resp = await fetch(`/admin-dashboard/products/${productId}/reject/`, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ reason: reason })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          const statusCell = document.getElementById(`productStatusCell${productId}`);
+          if (statusCell) {
+            statusCell.innerHTML = '<span class="pill rose"><i class="fa-solid fa-xmark me-1"></i>Inactive</span>';
+          }
+          const actionsDiv = document.getElementById(`productActions${productId}`);
+          if (actionsDiv) {
+            const approveBtn = actionsDiv.querySelector('.btn-success');
+            const rejectBtn = actionsDiv.querySelector('.btn-outline-danger');
+            if (approveBtn) approveBtn.remove();
+            if (rejectBtn) rejectBtn.remove();
+          }
+          alert(`Product "${productName}" rejected.`);
+        } else {
+          alert(data.message || 'Rejection failed.');
+        }
+      } catch (err) {
+        alert('Error rejecting product.');
       }
     }
   </script>

@@ -170,6 +170,14 @@
                 </span>
                 <i class="fa-solid fa-chevron-right"></i>
               </a>
+              <a href="{% url 'admin_product_approval' %}">
+                <span class="queue-icon teal" style="background:#eaf3e8;color:#4f7954;"><i class="fa-solid fa-clipboard-check"></i></span>
+                <span>
+                  <b>Product approvals</b>
+                  <small>{{ pending_products_count }} listings awaiting review</small>
+                </span>
+                <i class="fa-solid fa-chevron-right"></i>
+              </a>
               <a href="{% url 'admin_products' %}?status=OUT_OF_STOCK">
                 <span class="queue-icon blue"><i class="fa-solid fa-box"></i></span>
                 <span>

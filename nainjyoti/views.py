@@ -276,8 +276,9 @@ def admin_dashboard(request):
     pending_payouts_count = VendorPayout.objects.filter(status='PENDING').count()
     out_of_stock_count = Product.objects.filter(status='OUT_OF_STOCK').count()
     pending_orders_count = Order.objects.filter(status='PENDING').count()
-    open_issues_count = pending_vendors_count + pending_payouts_count + out_of_stock_count + pending_orders_count
-    issues_today_count = pending_vendors_count + pending_payouts_count
+    pending_products_count = Product.objects.filter(is_approved=False).count()
+    open_issues_count = pending_vendors_count + pending_payouts_count + out_of_stock_count + pending_orders_count + pending_products_count
+    issues_today_count = pending_vendors_count + pending_payouts_count + pending_products_count
 
     # 5. Dynamic Sales Bar Chart (Last 7 or 30 days)
     selected_days = 7
@@ -423,6 +424,7 @@ def admin_dashboard(request):
         "chart_y1": chart_y1,
         "out_of_stock_count": out_of_stock_count,
         "pending_payouts_count": pending_payouts_count,
+        "pending_products_count": pending_products_count,
         "recent_orders": recent_orders,
         "top_categories": top_categories,
     })
@@ -989,15 +991,250 @@ def admin_products(request):
             Q(category__name__icontains=search_query)
         )
     if status_filter == "ACTIVE":
-        products_qs = products_qs.filter(status='ACTIVE')
+        products_qs = products_qs.filter(status='ACTIVE', is_approved=True)
     elif status_filter == "OUT_OF_STOCK":
         products_qs = products_qs.filter(status='OUT_OF_STOCK')
+    elif status_filter == "PENDING":
+        products_qs = products_qs.filter(is_approved=False)
+    elif status_filter == "INACTIVE":
+        products_qs = products_qs.filter(status='INACTIVE')
+
+    pending_count = Product.objects.filter(is_approved=False).count()
 
     return render(request, "admin/products.html", {
         "products": products_qs,
         "total_count": products_qs.count(),
+        "pending_count": pending_count,
         "search_query": search_query,
         "status_filter": status_filter,
+    })
+
+
+@csrf_exempt
+def admin_product_approval(request):
+    """
+    Admin portal to review pending vendor product listings, inspect variants/pricing,
+    and Approve or Reject products dynamically.
+    """
+    if request.method == "POST":
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in (request.content_type or "")
+        )
+
+        data = request.POST
+        if "application/json" in (request.content_type or ""):
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                data = {}
+
+        product_id = data.get("product_id")
+        action = data.get("action", "").lower()
+        product = get_object_or_404(Product, id=product_id)
+
+        if action == "approve":
+            product.is_approved = True
+            if product.stock_quantity > 0:
+                product.status = "ACTIVE"
+            else:
+                product.status = "OUT_OF_STOCK"
+            product.save()
+            msg = f"Product '{product.name}' ({product.sku}) APPROVED and published to store catalogue!"
+            if not is_ajax:
+                messages.success(request, msg)
+
+        elif action == "reject":
+            reason = str(data.get("reason", "")).strip() or "Listing did not meet catalogue guidelines."
+            product.is_approved = False
+            product.status = "INACTIVE"
+            product.save()
+            msg = f"Product '{product.name}' ({product.sku}) rejected / delisted. Reason: {reason}"
+            if not is_ajax:
+                messages.warning(request, msg)
+
+        elif action == "pending":
+            product.is_approved = False
+            product.save()
+            msg = f"Product '{product.name}' reset to PENDING review."
+            if not is_ajax:
+                messages.info(request, msg)
+
+        else:
+            msg = "No state change performed."
+
+        if is_ajax:
+            pending_count = Product.objects.filter(is_approved=False).count()
+            approved_count = Product.objects.filter(is_approved=True).count()
+            rejected_count = Product.objects.filter(is_approved=False, status="INACTIVE").count()
+            total_count = Product.objects.count()
+
+            return JsonResponse({
+                "success": True,
+                "message": msg,
+                "product_id": product.id,
+                "sku": product.sku,
+                "name": product.name,
+                "is_approved": product.is_approved,
+                "status": product.status,
+                "status_display": product.get_status_display(),
+                "pending_count": pending_count,
+                "approved_count": approved_count,
+                "rejected_count": rejected_count,
+                "total_count": total_count,
+            }, status=200)
+
+        return redirect("admin_product_approval")
+
+    filter_status = request.GET.get("status", "PENDING").upper()
+    search_query = request.GET.get("q", "").strip()
+
+    products = Product.objects.all().select_related("vendor", "category").prefetch_related("variants")
+    if filter_status == "PENDING":
+        products = products.filter(is_approved=False)
+    elif filter_status == "APPROVED":
+        products = products.filter(is_approved=True)
+    elif filter_status == "REJECTED":
+        products = products.filter(is_approved=False, status="INACTIVE")
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(sku__icontains=search_query) |
+            Q(vendor__business_name__icontains=search_query) |
+            Q(category__name__icontains=search_query)
+        )
+
+    pending_count = Product.objects.filter(is_approved=False).count()
+    approved_count = Product.objects.filter(is_approved=True).count()
+    rejected_count = Product.objects.filter(is_approved=False, status="INACTIVE").count()
+    total_count = Product.objects.count()
+
+    return render(request, "admin/product-approval.html", {
+        "products": products,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "rejected_count": rejected_count,
+        "total_count": total_count,
+        "current_status": filter_status,
+        "search_query": search_query,
+        "active_nav": "product_approval",
+    })
+
+
+@csrf_exempt
+def admin_product_approve(request, product_id):
+    """Direct approve endpoint for a product."""
+    product = get_object_or_404(Product, id=product_id)
+    product.is_approved = True
+    if product.stock_quantity > 0:
+        product.status = 'ACTIVE'
+    else:
+        product.status = 'OUT_OF_STOCK'
+    product.save()
+
+    msg = f"Product '{product.name}' ({product.sku}) approved successfully!"
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in (request.content_type or "")
+        or request.GET.get("format") == "json"
+    )
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "product_id": product.id,
+            "is_approved": product.is_approved,
+            "status": product.status,
+            "pending_count": Product.objects.filter(is_approved=False).count(),
+            "approved_count": Product.objects.filter(is_approved=True).count(),
+        })
+    messages.success(request, msg)
+    next_url = request.POST.get("next") or request.GET.get("next") or "admin_product_approval"
+    return redirect(next_url)
+
+
+@csrf_exempt
+def admin_product_reject(request, product_id):
+    """Direct reject endpoint for a product."""
+    product = get_object_or_404(Product, id=product_id)
+    reason = request.POST.get("reason", "").strip() or "Listing declined by marketplace admin."
+    product.is_approved = False
+    product.status = 'INACTIVE'
+    product.save()
+
+    msg = f"Product '{product.name}' ({product.sku}) rejected."
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or "application/json" in (request.content_type or "")
+        or request.GET.get("format") == "json"
+    )
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "product_id": product.id,
+            "is_approved": product.is_approved,
+            "status": product.status,
+            "pending_count": Product.objects.filter(is_approved=False).count(),
+            "approved_count": Product.objects.filter(is_approved=True).count(),
+        })
+    messages.warning(request, msg)
+    next_url = request.POST.get("next") or request.GET.get("next") or "admin_product_approval"
+    return redirect(next_url)
+
+
+def admin_product_detail_json(request, product_id):
+    """API endpoint: Fetch full product dossier for inspection modal."""
+    product = get_object_or_404(
+        Product.objects.select_related('vendor', 'category').prefetch_related('variants'),
+        id=product_id
+    )
+    variants_data = []
+    for v in product.variants.all():
+        variants_data.append({
+            "id": v.id,
+            "title": v.title,
+            "sku": v.sku,
+            "color": v.color or "",
+            "size": v.size or "",
+            "material": v.material or "",
+            "price": float(v.price),
+            "discount_price": float(v.discount_price) if v.discount_price else None,
+            "stock_quantity": v.stock_quantity,
+            "is_active": v.is_active,
+        })
+
+    return JsonResponse({
+        "success": True,
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "description": product.description or "No description provided.",
+            "category": product.category.name if product.category else "Uncategorized",
+            "price": float(product.price),
+            "discount_price": float(product.discount_price) if product.discount_price else None,
+            "stock_quantity": product.stock_quantity,
+            "low_stock_threshold": product.low_stock_threshold,
+            "unit": product.unit,
+            "status": product.status,
+            "is_approved": product.is_approved,
+            "image_url": product.image_url,
+            "created_at": product.created_at.strftime("%d %b %Y, %I:%M %p") if product.created_at else "",
+            "vendor": {
+                "id": product.vendor.id,
+                "business_name": product.vendor.business_name,
+                "vendor_code": product.vendor.vendor_code,
+                "owner_name": product.vendor.owner_name,
+                "phone": product.vendor.phone,
+                "city": product.vendor.city,
+                "state": product.vendor.state,
+                "status": product.vendor.status,
+            },
+            "has_variants": product.has_variants,
+            "variants": variants_data,
+        }
     })
 
 
@@ -1123,7 +1360,7 @@ def admin_legacy_redirect(request, page=""):
     """
     clean_page = page.lower().replace(".html", "").strip("/")
     if clean_page == "product-approval":
-        return redirect("/admin-dashboard/products/?status=PENDING")
+        return redirect("admin_product_approval")
     if clean_page == "commissions":
         return redirect("/admin-dashboard/payments/?view=commissions")
     if clean_page == "returns":
@@ -1138,6 +1375,7 @@ def admin_legacy_redirect(request, page=""):
         "categories": "admin_categories",
         "category-form": "admin_category_add",
         "products": "admin_products",
+        "product-approval": "admin_product_approval",
         "orders": "admin_orders",
         "payments": "admin_payments",
         "reports": "admin_reports",

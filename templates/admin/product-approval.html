@@ -1,2 +1,621 @@
 {% load static %}
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Product approval · Bazaar Admin</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"><link href="{% static 'admin/css/admin-base.css' %}" rel="stylesheet"><link href="{% static 'admin/css/product-approval.css' %}" rel="stylesheet"></head><body>{% include "admin/sidebar.html" with active_nav="product_approval" %}<div class="workspace"><header class="topbar"><div><span class="crumb">Marketplace / </span><strong>Product approval</strong></div><div class="top-right"><span class="date-label">09 Oct 2026 · IST</span><a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a><div class="avatar">AS</div></div></header><main class="main"><div class="page-head"><div><div class="eyebrow">CONTROL CENTRE</div><h1>Product approval</h1><p>Review new and updated listings before publishing.</p></div></div><section class="card"><div class="card-head"><div class="filters"><input class="form-control" type="search" placeholder="Search records" aria-label="Search records"><select class="form-select"><option>All statuses</option><option>Active</option><option>Pending</option></select><button class="btn btn-outline-secondary"><i class="fa-solid fa-filter me-2"></i>Filter</button></div><span class="record-count">Sample records</span></div><div class="table-responsive"><table class="table"><thead><tr><th>Submission</th><th>Product</th><th>Vendor</th><th>Category</th><th>Submitted</th><th>Review</th></tr></thead><tbody><tr><td>PR-9018</td><td>Rosewood Attar · 12ml</td><td>Lucknow Fragrance Works</td><td>Beauty & wellness</td><td>09 Oct 2026</td><td><a class="row-action" href="#">Inspect</a></td></tr><tr><td>PR-9017</td><td>Madhubani Wall Art</td><td>Mithila Studio</td><td>Home & living</td><td>09 Oct 2026</td><td><a class="row-action" href="#">Inspect</a></td></tr><tr><td>PR-9016</td><td>Organic A2 Ghee · 500ml</td><td>Pahadi Pantry</td><td>Food & pantry</td><td>08 Oct 2026</td><td><a class="row-action" href="#">Inspect</a></td></tr></tbody></table></div></section><footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Sample data for demonstration</footer></main></div><script src="{% static 'admin/js/admin.js' %}"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Product Approval &amp; Curation · Bazaar Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="{% static 'admin/css/admin-base.css' %}" rel="stylesheet">
+  <link href="{% static 'admin/css/product-approval.css' %}" rel="stylesheet">
+</head>
+<body>
+  <!-- CSRF token for dynamic AJAX calls -->
+  {% csrf_token %}
+
+  <!-- Real-time Toast Notification Container -->
+  <div class="admin-toast-container" id="toastContainer"></div>
+
+  {% include "admin/sidebar.html" with active_nav="product_approval" %}
+
+  <div class="workspace">
+    <header class="topbar">
+      <div><span class="crumb">Marketplace / </span><strong>Product approval</strong></div>
+      <div class="top-right">
+        <span class="date-label">Today · IST</span>
+        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <div class="avatar">{{ admin_initials|default:"AS" }}</div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">CONTROL CENTRE</div>
+          <h1>Product Approval &amp; Curation</h1>
+          <p>Review new vendor catalog submissions, verify pricing &amp; inventory, and publish listings to the buyer storefront.</p>
+        </div>
+      </div>
+
+      <!-- Messages & Alerts -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'warning' %}warning{% else %}success{% endif %} alert-dismissible fade show" role="alert" style="font-size:12px;">
+            <i class="fa-solid fa-circle-check me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="padding:0.75rem;"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="notice mb-3" id="topNotice">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+          Approval authorizes vendor catalog items and publishes them to the buyer storefront and search index immediately.
+          <strong><span id="counterNotice">{{ pending_count }}</span> listing(s) awaiting review.</strong>
+        </span>
+      </div>
+
+      <section class="card">
+        <div class="card-head">
+          <form method="get" class="filters d-flex align-items-center gap-2">
+            <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search products, SKU, vendor" aria-label="Search records">
+            <select class="form-select" name="status" onchange="this.form.submit()">
+              <option value="PENDING" {% if current_status == 'PENDING' %}selected{% endif %}>Pending review (<span id="count-pending">{{ pending_count }}</span>)</option>
+              <option value="APPROVED" {% if current_status == 'APPROVED' %}selected{% endif %}>Approved (<span id="count-approved">{{ approved_count }}</span>)</option>
+              <option value="REJECTED" {% if current_status == 'REJECTED' %}selected{% endif %}>Rejected (<span id="count-rejected">{{ rejected_count }}</span>)</option>
+              <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All listings (<span id="count-total">{{ total_count }}</span>)</option>
+            </select>
+            <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
+          </form>
+          <span class="record-count"><span id="recordCountText">{{ products|length }}</span> item(s) displayed</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle" id="productApprovalTable">
+            <thead>
+              <tr>
+                <th>SKU &amp; Submission</th>
+                <th>Product Details</th>
+                <th>Vendor / Seller</th>
+                <th>Category</th>
+                <th>Pricing</th>
+                <th>Stock &amp; Variants</th>
+                <th>Status</th>
+                <th style="text-align:right;">Decision &amp; Actions</th>
+              </tr>
+            </thead>
+            <tbody id="productTableBody">
+              {% for product in products %}
+              <tr id="product-row-{{ product.id }}"
+                  data-id="{{ product.id }}"
+                  data-sku="{{ product.sku }}"
+                  data-name="{{ product.name|escape }}"
+                  data-vendor="{{ product.vendor.business_name|escape }}"
+                  data-approved="{{ product.is_approved|yesno:'true,false' }}"
+                  data-status="{{ product.status }}">
+                <td>
+                  <strong class="font-monospace text-dark">{{ product.sku }}</strong>
+                  <br><small class="text-muted" style="font-size:10px;">{{ product.created_at|date:"d M Y, H:i" }}</small>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if product.image_url %}
+                      <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;">
+                    {% else %}
+                      <div style="width:40px;height:40px;background:#eef1eb;border-radius:6px;display:grid;place-items:center;color:#719175;border:1px solid #e2e8f0;">
+                        <i class="fa-solid fa-image"></i>
+                      </div>
+                    {% endif %}
+                    <div>
+                      <strong>{{ product.name }}</strong>
+                      <br><small class="text-muted">Unit: {{ product.unit|default:"Piece" }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <strong>{{ product.vendor.business_name }}</strong>
+                    <br><small class="text-muted font-monospace">{{ product.vendor.vendor_code }}</small>
+                    {% if product.vendor.status == 'APPROVED' %}
+                      <span class="pill green" style="padding:1px 6px;font-size:9px;">KYC Valid</span>
+                    {% else %}
+                      <span class="pill amber" style="padding:1px 6px;font-size:9px;">KYC {{ product.vendor.status }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <span class="pill blue">{{ product.category.name|default:"Uncategorized" }}</span>
+                </td>
+                <td>
+                  {% if product.has_variants %}
+                    <strong>₹{{ product.customer_effective_price|floatformat:0 }}</strong>
+                    <br><small class="text-muted" style="font-size:10px;">from variants</small>
+                  {% elif product.discount_price and product.discount_price < product.price %}
+                    <strong>₹{{ product.discount_price|floatformat:0 }}</strong>
+                    <br><small class="text-muted text-decoration-line-through">₹{{ product.price|floatformat:0 }}</small>
+                  {% else %}
+                    <strong>₹{{ product.price|floatformat:0 }}</strong>
+                  {% endif %}
+                </td>
+                <td>
+                  <strong>{{ product.stock_quantity }}</strong> units
+                  <br>
+                  {% if product.has_variants %}
+                    <span class="pill blue" style="font-size:9px;padding:2px 6px;">
+                      <i class="fa-solid fa-layer-group me-1"></i>{{ product.active_variant_count }} variant{{ product.active_variant_count|pluralize }}
+                    </span>
+                  {% else %}
+                    <small class="text-muted">Single item</small>
+                  {% endif %}
+                </td>
+                <td id="status-cell-{{ product.id }}">
+                  {% if not product.is_approved %}
+                    <span class="pill amber" id="badge-{{ product.id }}"><i class="fa-solid fa-clock me-1"></i>Pending Review</span>
+                  {% elif product.status == 'ACTIVE' %}
+                    <span class="pill green" id="badge-{{ product.id }}"><i class="fa-solid fa-check me-1"></i>Approved</span>
+                  {% elif product.status == 'OUT_OF_STOCK' %}
+                    <span class="pill amber" id="badge-{{ product.id }}"><i class="fa-solid fa-box-open me-1"></i>Out of Stock</span>
+                  {% else %}
+                    <span class="pill rose" id="badge-{{ product.id }}"><i class="fa-solid fa-xmark me-1"></i>{{ product.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td style="text-align:right;">
+                  <div class="d-inline-flex gap-1 align-items-center justify-content-end" id="actions-group-{{ product.id }}">
+                    <button type="button" class="btn btn-action btn-review" onclick="openProductInspectModal({{ product.id }})" title="Inspect Full Dossier">
+                      <i class="fa-solid fa-eye"></i> Inspect
+                    </button>
+                    {% if not product.is_approved %}
+                      <button type="button" class="btn btn-action btn-approve" onclick="quickProductDecision({{ product.id }}, 'approve')" title="Approve &amp; Publish">
+                        <i class="fa-solid fa-check"></i> Approve
+                      </button>
+                      <button type="button" class="btn btn-action btn-reject" onclick="promptProductReject({{ product.id }})" title="Reject Listing">
+                        <i class="fa-solid fa-xmark"></i> Reject
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-action btn-reject" onclick="promptProductReject({{ product.id }})" title="Revoke Approval">
+                        <i class="fa-solid fa-ban"></i> Delist
+                      </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <i class="fa-solid fa-clipboard-check fa-2x mb-2 text-secondary"></i>
+                  <p class="mb-0">No product submissions found for this filter.</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
+    </main>
+  </div>
+
+  <!-- Product Inspection Modal -->
+  <div class="modal fade" id="productInspectModal" tabindex="-1" aria-labelledby="productInspectModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow border-0" style="border-radius:12px;">
+        <div class="modal-header border-bottom py-3" style="background:#f8faf8;">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="pill blue" id="modalProductSkuBadge">PROD-000000</span>
+              <h5 class="modal-title mb-0 fw-bold" id="productInspectModalTitle">Product Dossier</h5>
+              <span id="modalProductStatusPill" class="pill amber">Pending</span>
+            </div>
+            <div class="text-muted small mt-1" id="modalProductSubmitted">Submitted by vendor</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4" id="productInspectModalBody">
+          <div class="text-center py-4" id="modalLoadingSpinner">
+            <div class="spinner-border text-success" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="text-muted small mt-2">Loading product dossier...</div>
+          </div>
+
+          <div id="modalDossierContent" style="display:none;">
+            <div class="row g-4">
+              <!-- Left Column: Media & Vendor -->
+              <div class="col-lg-5">
+                <div class="prod-modal-card text-center">
+                  <div class="prod-modal-title">Product Image</div>
+                  <div id="modalProductImageWrapper" class="mb-3">
+                    <img id="modalProductImage" src="" alt="Product Photo" style="max-height:220px;max-width:100%;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;">
+                  </div>
+                  <div id="modalProductImageFallback" style="display:none;height:180px;background:#f8faf8;border:1px dashed #cbd5e1;border-radius:8px;display:grid;place-items:center;color:#94a3b8;">
+                    <div><i class="fa-solid fa-image fa-2x mb-2"></i><br>No product photo uploaded</div>
+                  </div>
+                </div>
+
+                <div class="prod-modal-card">
+                  <div class="prod-modal-title">
+                    <span>Seller Information</span>
+                    <span id="modalVendorKycBadge" class="pill green">KYC Valid</span>
+                  </div>
+                  <div class="mb-2">
+                    <div class="prod-field-label">Store Name</div>
+                    <div class="prod-field-value" id="modalVendorBusiness">-</div>
+                  </div>
+                  <div class="row g-2 mb-2">
+                    <div class="col-6">
+                      <div class="prod-field-label">Vendor Code</div>
+                      <div class="prod-field-value font-monospace" id="modalVendorCode">-</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="prod-field-label">Owner</div>
+                      <div class="prod-field-value" id="modalVendorOwner">-</div>
+                    </div>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="prod-field-label">Phone</div>
+                      <div class="prod-field-value" id="modalVendorPhone">-</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="prod-field-label">Location</div>
+                      <div class="prod-field-value" id="modalVendorLocation">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Specs, Pricing & Variants -->
+              <div class="col-lg-7">
+                <div class="prod-modal-card">
+                  <div class="prod-modal-title">Specifications &amp; Pricing</div>
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Category</div>
+                      <div class="prod-field-value" id="modalProductCategory">-</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Base Price</div>
+                      <div class="prod-field-value text-success" id="modalProductPrice">-</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Discount Price</div>
+                      <div class="prod-field-value" id="modalProductDiscount">-</div>
+                    </div>
+                  </div>
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Stock Quantity</div>
+                      <div class="prod-field-value" id="modalProductStock">-</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Low Stock Threshold</div>
+                      <div class="prod-field-value" id="modalProductLowStock">-</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="prod-field-label">Sales Unit</div>
+                      <div class="prod-field-value" id="modalProductUnit">-</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="prod-field-label">Description</div>
+                    <div class="p-2 rounded bg-light text-secondary small" style="max-height:100px;overflow-y:auto;" id="modalProductDescription">-</div>
+                  </div>
+                </div>
+
+                <!-- Product Variants Section -->
+                <div class="prod-modal-card">
+                  <div class="prod-modal-title">
+                    <span>Product Variants</span>
+                    <span id="modalVariantsBadge" class="pill blue">0 Variants</span>
+                  </div>
+                  <div id="modalVariantsWrapper">
+                    <div class="table-responsive">
+                      <table class="table table-sm align-middle mb-0" style="font-size:11px;">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Variant</th>
+                            <th>SKU</th>
+                            <th>Attrs</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody id="modalVariantsTableBody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div id="modalNoVariantsNotice" class="text-muted small py-2 text-center" style="display:none;">
+                    This item has no variants. Standard single SKU listing.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-top py-3 justify-content-between" style="background:#f8faf8;">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-danger btn-sm" id="modalBtnReject">
+              <i class="fa-solid fa-xmark me-1"></i>Reject Listing
+            </button>
+            <button type="button" class="btn btn-success btn-sm" id="modalBtnApprove">
+              <i class="fa-solid fa-check me-1"></i>Approve &amp; Publish
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    const inspectModalEl = document.getElementById('productInspectModal');
+    let inspectModal = null;
+    let currentInspectProductId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      inspectModal = new bootstrap.Modal(inspectModalEl);
+
+      document.getElementById('modalBtnApprove').addEventListener('click', () => {
+        if (currentInspectProductId) {
+          executeProductDecision(currentInspectProductId, 'approve', '', () => {
+            inspectModal.hide();
+          });
+        }
+      });
+
+      document.getElementById('modalBtnReject').addEventListener('click', () => {
+        if (currentInspectProductId) {
+          const reason = prompt('Specify rejection reason for vendor:', 'Listing did not satisfy marketplace guidelines.');
+          if (reason !== null) {
+            executeProductDecision(currentInspectProductId, 'reject', reason, () => {
+              inspectModal.hide();
+            });
+          }
+        }
+      });
+    });
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `admin-toast ${type}`;
+      const icon = type === 'success' ? 'fa-circle-check text-success' : (type === 'warning' ? 'fa-triangle-exclamation text-warning' : 'fa-circle-xmark text-danger');
+      toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    async function openProductInspectModal(productId) {
+      currentInspectProductId = productId;
+      document.getElementById('modalLoadingSpinner').style.display = 'block';
+      document.getElementById('modalDossierContent').style.display = 'none';
+      inspectModal.show();
+
+      try {
+        const resp = await fetch(`/admin-dashboard/products/${productId}/detail-json/`);
+        const data = await resp.json();
+        if (!data.success) {
+          showToast(data.message || 'Failed to load product dossier.', 'error');
+          inspectModal.hide();
+          return;
+        }
+
+        const p = data.product;
+        document.getElementById('modalProductSkuBadge').textContent = p.sku;
+        document.getElementById('productInspectModalTitle').textContent = p.name;
+        document.getElementById('modalProductSubmitted').textContent = `Submitted on ${p.created_at || 'Recent'}`;
+
+        const statusPill = document.getElementById('modalProductStatusPill');
+        if (!p.is_approved) {
+          statusPill.className = 'pill amber';
+          statusPill.innerHTML = '<i class="fa-solid fa-clock me-1"></i>Pending Review';
+        } else if (p.status === 'ACTIVE') {
+          statusPill.className = 'pill green';
+          statusPill.innerHTML = '<i class="fa-solid fa-check me-1"></i>Approved';
+        } else {
+          statusPill.className = 'pill rose';
+          statusPill.innerHTML = '<i class="fa-solid fa-xmark me-1"></i>Inactive';
+        }
+
+        // Image
+        const imgEl = document.getElementById('modalProductImage');
+        const imgWrap = document.getElementById('modalProductImageWrapper');
+        const imgFallback = document.getElementById('modalProductImageFallback');
+        if (p.image_url) {
+          imgEl.src = p.image_url;
+          imgWrap.style.display = 'block';
+          imgFallback.style.display = 'none';
+        } else {
+          imgWrap.style.display = 'none';
+          imgFallback.style.display = 'grid';
+        }
+
+        // Vendor
+        document.getElementById('modalVendorBusiness').textContent = p.vendor.business_name;
+        document.getElementById('modalVendorCode').textContent = p.vendor.vendor_code;
+        document.getElementById('modalVendorOwner').textContent = p.vendor.owner_name;
+        document.getElementById('modalVendorPhone').textContent = p.vendor.phone;
+        document.getElementById('modalVendorLocation').textContent = `${p.vendor.city || ''}, ${p.vendor.state || ''}`.trim() || 'India';
+        const kycBadge = document.getElementById('modalVendorKycBadge');
+        if (p.vendor.status === 'APPROVED') {
+          kycBadge.className = 'pill green';
+          kycBadge.textContent = 'KYC Valid';
+        } else {
+          kycBadge.className = 'pill amber';
+          kycBadge.textContent = `KYC ${p.vendor.status}`;
+        }
+
+        // Specs
+        document.getElementById('modalProductCategory').textContent = p.category;
+        document.getElementById('modalProductPrice').textContent = `₹${p.price.toFixed(0)}`;
+        document.getElementById('modalProductDiscount').textContent = p.discount_price ? `₹${p.discount_price.toFixed(0)}` : 'None';
+        document.getElementById('modalProductStock').textContent = `${p.stock_quantity} units`;
+        document.getElementById('modalProductLowStock').textContent = `${p.low_stock_threshold} units`;
+        document.getElementById('modalProductUnit').textContent = p.unit || 'Piece';
+        document.getElementById('modalProductDescription').textContent = p.description;
+
+        // Variants
+        const variantsWrapper = document.getElementById('modalVariantsWrapper');
+        const noVariantsNotice = document.getElementById('modalNoVariantsNotice');
+        const variantsBadge = document.getElementById('modalVariantsBadge');
+        const variantsTbody = document.getElementById('modalVariantsTableBody');
+        variantsTbody.innerHTML = '';
+
+        if (p.has_variants && p.variants.length > 0) {
+          variantsWrapper.style.display = 'block';
+          noVariantsNotice.style.display = 'none';
+          variantsBadge.textContent = `${p.variants.length} Variant${p.variants.length > 1 ? 's' : ''}`;
+
+          p.variants.forEach(v => {
+            const tr = document.createElement('tr');
+            const attrs = [v.color, v.size, v.material].filter(Boolean).join(' / ') || '-';
+            tr.innerHTML = `
+              <td><strong>${v.title}</strong></td>
+              <td class="font-monospace text-muted">${v.sku}</td>
+              <td>${attrs}</td>
+              <td>₹${v.price.toFixed(0)}</td>
+              <td>${v.stock_quantity}</td>
+              <td><span class="pill ${v.is_active ? 'green' : 'rose'}" style="padding:1px 6px;font-size:9px;">${v.is_active ? 'Active' : 'Inactive'}</span></td>
+            `;
+            variantsTbody.appendChild(tr);
+          });
+        } else {
+          variantsWrapper.style.display = 'none';
+          noVariantsNotice.style.display = 'block';
+          variantsBadge.textContent = 'Single SKU';
+        }
+
+        document.getElementById('modalLoadingSpinner').style.display = 'none';
+        document.getElementById('modalDossierContent').style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        showToast('Error loading product dossier.', 'error');
+        inspectModal.hide();
+      }
+    }
+
+    function quickProductDecision(productId, action) {
+      const actionVerb = action === 'approve' ? 'approve and publish' : 'reject';
+      if (!confirm(`Are you sure you want to ${actionVerb} this product?`)) return;
+      executeProductDecision(productId, action);
+    }
+
+    function promptProductReject(productId) {
+      const reason = prompt('Enter rejection reason for vendor:', 'Listing does not satisfy catalogue standards.');
+      if (reason === null) return;
+      executeProductDecision(productId, action = 'reject', reason);
+    }
+
+    async function executeProductDecision(productId, action, reason = '', callback = null) {
+      try {
+        const resp = await fetch("{% url 'admin_product_approval' %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: JSON.stringify({
+            product_id: productId,
+            action: action,
+            reason: reason
+          })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          updateProductTableRow(data);
+          updateCounters(data);
+          showToast(data.message, action === 'reject' ? 'warning' : 'success');
+        } else {
+          showToast(data.message || 'Operation failed.', 'error');
+        }
+        if (callback) callback();
+      } catch (err) {
+        console.error(err);
+        showToast('Network error while processing product decision.', 'error');
+        if (callback) callback();
+      }
+    }
+
+    function updateProductTableRow(data) {
+      const row = document.getElementById(`product-row-${data.product_id}`);
+      if (!row) return;
+
+      row.dataset.approved = data.is_approved ? 'true' : 'false';
+      row.dataset.status = data.status;
+
+      const statusCell = document.getElementById(`status-cell-${data.product_id}`);
+      const actionsGroup = document.getElementById(`actions-group-${data.product_id}`);
+
+      if (data.is_approved) {
+        statusCell.innerHTML = `<span class="pill green" id="badge-${data.product_id}"><i class="fa-solid fa-check me-1"></i>Approved</span>`;
+        actionsGroup.innerHTML = `
+          <button type="button" class="btn btn-action btn-review" onclick="openProductInspectModal(${data.product_id})" title="Inspect Full Dossier">
+            <i class="fa-solid fa-eye"></i> Inspect
+          </button>
+          <button type="button" class="btn btn-action btn-reject" onclick="promptProductReject(${data.product_id})" title="Revoke Approval">
+            <i class="fa-solid fa-ban"></i> Delist
+          </button>
+        `;
+      } else {
+        const isInactive = data.status === 'INACTIVE';
+        statusCell.innerHTML = isInactive 
+          ? `<span class="pill rose" id="badge-${data.product_id}"><i class="fa-solid fa-xmark me-1"></i>Rejected</span>`
+          : `<span class="pill amber" id="badge-${data.product_id}"><i class="fa-solid fa-clock me-1"></i>Pending Review</span>`;
+        actionsGroup.innerHTML = `
+          <button type="button" class="btn btn-action btn-review" onclick="openProductInspectModal(${data.product_id})" title="Inspect Full Dossier">
+            <i class="fa-solid fa-eye"></i> Inspect
+          </button>
+          <button type="button" class="btn btn-action btn-approve" onclick="quickProductDecision(${data.product_id}, 'approve')" title="Approve &amp; Publish">
+            <i class="fa-solid fa-check"></i> Approve
+          </button>
+          <button type="button" class="btn btn-action btn-reject" onclick="promptProductReject(${data.product_id})" title="Reject Listing">
+            <i class="fa-solid fa-xmark"></i> Reject
+          </button>
+        `;
+      }
+
+      // If current filter is PENDING and product was approved, fade out
+      const currentFilter = document.querySelector('select[name=status]')?.value;
+      if (currentFilter === 'PENDING' && data.is_approved) {
+        row.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        row.style.opacity = '0.3';
+        row.style.transform = 'scale(0.98)';
+      }
+    }
+
+    function updateCounters(data) {
+      if (data.pending_count !== undefined) {
+        const counterNotice = document.getElementById('counterNotice');
+        if (counterNotice) counterNotice.textContent = data.pending_count;
+        const countPending = document.getElementById('count-pending');
+        if (countPending) countPending.textContent = data.pending_count;
+      }
+      if (data.approved_count !== undefined) {
+        const countApproved = document.getElementById('count-approved');
+        if (countApproved) countApproved.textContent = data.approved_count;
+      }
+      if (data.rejected_count !== undefined) {
+        const countRejected = document.getElementById('count-rejected');
+        if (countRejected) countRejected.textContent = data.rejected_count;
+      }
+      if (data.total_count !== undefined) {
+        const countTotal = document.getElementById('count-total');
+        if (countTotal) countTotal.textContent = data.total_count;
+      }
+    }
+  </script>
+</body>
+</html>
