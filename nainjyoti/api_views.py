@@ -619,6 +619,16 @@ def api_user_profile_photo(request):
 
 def _require_user_auth(request):
     """Return the authenticated customer or a consistent API error response."""
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    parts = auth_header.split()
+    if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+        raw_profile = UserProfile.objects.select_related('user').filter(auth_token=parts[1].strip()).first()
+        if raw_profile and (not raw_profile.is_active or not raw_profile.user.is_active):
+            return None, JsonResponse({
+                "success": False,
+                "message": "Your account has been deactivated by administrator. Please contact support."
+            }, status=403)
+
     profile = _get_authenticated_profile(request)
     if not profile:
         return None, JsonResponse({
@@ -3060,7 +3070,6 @@ def api_vendor_payout_detail(request, payout_id):
         "success": True,
         "payout": payout.to_dict()
     }, status=200)
-
 
 
 

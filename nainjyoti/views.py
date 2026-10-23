@@ -18,6 +18,7 @@ from .models import (
     VendorPayout,
     VendorEarning,
     UserProfile,
+    UserAddress,
     StockLog,
 )
 
@@ -614,7 +615,9 @@ def admin_customers(request):
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "ALL").upper()
 
-    customers_qs = UserProfile.objects.all().select_related('user').order_by('-created_at')
+    customers_qs = UserProfile.objects.all().select_related('user').annotate(
+        saved_address_count=Count('addresses')
+    ).order_by('-created_at')
     if search_query:
         customers_qs = customers_qs.filter(
             Q(first_name__icontains=search_query) |
@@ -631,6 +634,7 @@ def admin_customers(request):
     for c in customers_qs:
         ords = c.orders.all()
         spent = ords.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0
+        default_address = c.addresses.filter(is_default=True).first()
         customers_list.append({
             'id': c.id,
             'customer_code': f"CUS-{c.id + 48200}",
@@ -639,6 +643,11 @@ def admin_customers(request):
             'email': c.email or 'N/A',
             'phone': c.phone,
             'orders_count': ords.count(),
+            'addresses_count': c.saved_address_count,
+            'default_location': (
+                f"{default_address.city}, {default_address.state}"
+                if default_address else 'No saved address'
+            ),
             'lifetime_value': format_inr(spent),
             'is_active': c.is_active,
             'created_at': c.created_at,
@@ -649,14 +658,56 @@ def admin_customers(request):
 
     active_count = UserProfile.objects.filter(is_active=True).count()
     inactive_count = UserProfile.objects.filter(is_active=False).count()
+    address_count = UserAddress.objects.count()
 
     return render(request, "admin/customers.html", {
         "customers": customers_list,
         "total_count": len(customers_list),
         "active_count": active_count,
         "inactive_count": inactive_count,
+        "address_count": address_count,
         "search_query": search_query,
         "status_filter": status_filter,
+    })
+
+
+def admin_addresses(request):
+    """Dynamic admin directory for customer delivery addresses."""
+    search_query = request.GET.get("q", "").strip()
+    address_type = request.GET.get("type", "ALL").strip().title()
+    default_filter = request.GET.get("default", "ALL").strip().upper()
+
+    addresses = UserAddress.objects.select_related('user', 'user__user').order_by(
+        '-is_default', '-updated_at'
+    )
+    if search_query:
+        addresses = addresses.filter(
+            Q(full_name__icontains=search_query) |
+            Q(phone__icontains=search_query) |
+            Q(address_line_1__icontains=search_query) |
+            Q(city__icontains=search_query) |
+            Q(state__icontains=search_query) |
+            Q(pincode__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__phone__icontains=search_query)
+        )
+    if address_type in ['Home', 'Work', 'Other']:
+        addresses = addresses.filter(address_type=address_type)
+    if default_filter == 'YES':
+        addresses = addresses.filter(is_default=True)
+    elif default_filter == 'NO':
+        addresses = addresses.filter(is_default=False)
+
+    return render(request, "admin/addresses.html", {
+        "addresses": addresses,
+        "filtered_count": addresses.count(),
+        "total_count": UserAddress.objects.count(),
+        "default_count": UserAddress.objects.filter(is_default=True).count(),
+        "customers_with_addresses": UserProfile.objects.filter(addresses__isnull=False).distinct().count(),
+        "search_query": search_query,
+        "address_type": address_type if address_type in ['Home', 'Work', 'Other'] else 'ALL',
+        "default_filter": default_filter if default_filter in ['YES', 'NO'] else 'ALL',
     })
 
 
@@ -713,6 +764,8 @@ def admin_customer_detail(request, customer_id):
             'created_at': o.created_at.strftime('%d %b %Y %H:%M') if o.created_at else ''
         })
 
+    saved_addresses = [address.to_dict() for address in customer.addresses.all()]
+
     return JsonResponse({
         "success": True,
         "customer": {
@@ -730,7 +783,9 @@ def admin_customer_detail(request, customer_id):
             "registered_at": customer.created_at.strftime('%d %b %Y %H:%M') if customer.created_at else 'N/A',
             "total_orders": customer.orders.count(),
             "lifetime_value": format_inr(total_spent),
-            "recent_orders": recent_orders
+            "recent_orders": recent_orders,
+            "saved_address_count": len(saved_addresses),
+            "addresses": saved_addresses,
         }
     }, status=200)
 

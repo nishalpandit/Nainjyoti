@@ -18,6 +18,7 @@ urlpatterns = [
     # Admin Protected Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-dashboard/customers/', views.admin_customers, name='admin_customers'),
+    path('admin-dashboard/addresses/', views.admin_addresses, name='admin_addresses'),
     path('admin-dashboard/customers/<int:customer_id>/toggle-status/', views.admin_customer_toggle_status, name='admin_customer_toggle_status'),
     path('admin-dashboard/customers/<int:customer_id>/detail/', views.admin_customer_detail, name='admin_customer_detail'),
     path('admin-dashboard/customers/<int:customer_id>/edit/', views.admin_customer_edit, name='admin_customer_edit'),

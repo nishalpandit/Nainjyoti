@@ -76,6 +76,206 @@ response (successful login for registered user):
 }
 ```
 
+---
+
+API for Creating a Saved Address
+url: http://192.168.1.52:8000/api/user/address/create/
+method: POST
+
+headers:
+Authorization: Bearer USER_TOKEN
+Content-Type: multipart/form-data
+
+params:
+address_type: Home
+full_name: Ananya Iyer
+phone: 9876543211
+address_line_1: 12, MG Road
+address_line_2: Apartment 4B
+landmark: Near Metro Station
+city: Bengaluru
+state: Karnataka
+pincode: 560001
+country: India
+is_default: true
+
+response:
+```json
+{
+  "success": true,
+  "message": "Address added successfully",
+  "address": {
+    "id": 1,
+    "address_type": "Home",
+    "full_name": "Ananya Iyer",
+    "phone": "9876543211",
+    "address_line_1": "12, MG Road",
+    "address_line_2": "Apartment 4B",
+    "landmark": "Near Metro Station",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "pincode": "560001",
+    "country": "India",
+    "is_default": true,
+    "created_at": "2026-10-23T06:13:59.358870+00:00",
+    "updated_at": "2026-10-23T06:13:59.358899+00:00"
+  }
+}
+```
+
+API for Listing Saved Addresses
+url: http://192.168.1.52:8000/api/user/address/list/
+method: GET
+
+headers:
+Authorization: Bearer USER_TOKEN
+
+params:
+No body params
+
+response:
+```json
+{
+  "success": true,
+  "message": "Addresses fetched successfully",
+  "count": 1,
+  "default_address_id": 1,
+  "addresses": [
+    {
+      "id": 1,
+      "address_type": "Home",
+      "full_name": "Ananya Iyer",
+      "phone": "9876543211",
+      "address_line_1": "12, MG Road",
+      "address_line_2": "Apartment 4B",
+      "landmark": "Near Metro Station",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "pincode": "560001",
+      "country": "India",
+      "is_default": true,
+      "created_at": "2026-10-23T06:13:59.358870+00:00",
+      "updated_at": "2026-10-23T06:13:59.358899+00:00"
+    }
+  ]
+}
+```
+
+API for Getting One Saved Address
+url: http://192.168.1.52:8000/api/user/address/detail/1/
+method: GET
+
+headers:
+Authorization: Bearer USER_TOKEN
+
+params:
+No body params
+
+response:
+```json
+{
+  "success": true,
+  "message": "Address fetched successfully",
+  "address": {
+    "id": 1,
+    "address_type": "Home",
+    "full_name": "Ananya Iyer",
+    "phone": "9876543211",
+    "address_line_1": "12, MG Road",
+    "address_line_2": "Apartment 4B",
+    "landmark": "Near Metro Station",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "pincode": "560001",
+    "country": "India",
+    "is_default": true,
+    "created_at": "2026-10-23T06:13:59.358870+00:00",
+    "updated_at": "2026-10-23T06:13:59.358899+00:00"
+  }
+}
+```
+
+API for Updating a Saved Address
+url: http://192.168.1.52:8000/api/user/address/update/1/
+method: POST
+
+headers:
+Authorization: Bearer USER_TOKEN
+Content-Type: multipart/form-data
+
+params (send one or more fields):
+address_type: Work
+address_line_1: 44, Residency Road
+landmark: Opposite City Library
+city: Bengaluru
+state: Karnataka
+pincode: 560025
+
+response:
+```json
+{
+  "success": true,
+  "message": "Address updated successfully",
+  "address": {
+    "id": 1,
+    "address_type": "Work",
+    "full_name": "Ananya Iyer",
+    "phone": "9876543211",
+    "address_line_1": "44, Residency Road",
+    "address_line_2": "Apartment 4B",
+    "landmark": "Opposite City Library",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "pincode": "560025",
+    "country": "India",
+    "is_default": true,
+    "created_at": "2026-10-23T00:00:00+00:00",
+    "updated_at": "2026-10-23T00:00:00+00:00"
+  }
+}
+```
+
+API for Setting the Default Address
+url: http://192.168.1.52:8000/api/user/address/set-default/1/
+method: POST
+
+headers:
+Authorization: Bearer USER_TOKEN
+
+params:
+No body params
+
+response:
+```json
+{
+  "success": true,
+  "message": "Default address updated successfully",
+  "address": {
+    "id": 1,
+    "is_default": true
+  }
+}
+```
+
+API for Deleting a Saved Address
+url: http://192.168.1.52:8000/api/user/address/delete/1/
+method: DELETE
+
+headers:
+Authorization: Bearer USER_TOKEN
+
+params:
+No body params
+
+response:
+```json
+{
+  "success": true,
+  "message": "Address deleted successfully",
+  "deleted_address_id": 1
+}
+```
+
 response (for verified new phone, ready to complete registration):
 ```json
 {
