@@ -28,6 +28,7 @@ urlpatterns = [
     path('admin-dashboard/categories/', views.admin_categories, name='admin_categories'),
     path('admin-dashboard/categories/add/', views.admin_category_form, name='admin_category_add'),
     path('admin-dashboard/categories/<int:category_id>/edit/', views.admin_category_form, name='admin_category_edit'),
+    path('admin-dashboard/categories/<int:category_id>/toggle-status/', views.admin_category_toggle_status, name='admin_category_toggle_status'),
     path('admin-dashboard/products/', views.admin_products, name='admin_products'),
     path('admin-dashboard/orders/', views.admin_orders, name='admin_orders'),
     path('admin-dashboard/payments/', views.admin_payments, name='admin_payments'),
@@ -70,6 +71,14 @@ urlpatterns = [
     path('api/user/address/update/<int:address_id>/', api_views.api_user_address_update, name='api_user_address_update'),
     path('api/user/address/set-default/<int:address_id>/', api_views.api_user_address_set_default, name='api_user_address_set_default'),
     path('api/user/address/delete/<int:address_id>/', api_views.api_user_address_delete, name='api_user_address_delete'),
+    path('api/user/categories/', api_views.api_user_category_list, name='api_user_category_list'),
+    path('api/user/category/list/', api_views.api_user_category_list, name='api_user_category_list_alias'),
+    path('api/user/categories/<int:category_id>/', api_views.api_user_category_detail, name='api_user_category_detail'),
+    path('api/user/category/detail/<int:category_id>/', api_views.api_user_category_detail, name='api_user_category_detail_alias'),
+    path('api/user/categories/<int:category_id>/products/', api_views.api_user_category_products, name='api_user_category_products'),
+    path('api/user/category/products/<int:category_id>/', api_views.api_user_category_products, name='api_user_category_products_alias'),
+    path('api/user/products/search/', api_views.api_product_search, name='api_user_product_search'),
+    path('api/products/search/', api_views.api_product_search, name='api_product_search_alias'),
 
     # =========================================================================
     # Vendor / Merchant REST APIs

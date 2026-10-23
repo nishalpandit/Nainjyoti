@@ -684,3 +684,151 @@ response:
 }
 ```
 
+
+
+API for Listing Active Product Categories
+url: http://192.168.1.52:8000/api/user/categories/
+method: GET
+
+headers:
+none (public endpoint)
+
+params:
+q: Electronics (optional keyword search for category name)
+
+response:
+```json
+{
+  "success": true,
+  "message": "Categories fetched successfully",
+  "count": 2,
+  "categories": [
+    {
+      "id": 1,
+      "name": "Electronics & Gadgets",
+      "description": "Smartphones, audio, and accessories",
+      "image_url": "/media/categories/images/electronics.jpg",
+      "status": "ACTIVE",
+      "products_count": 24,
+      "created_at": "2026-10-17T04:47:00+00:00",
+      "updated_at": "2026-10-23T06:40:00+00:00"
+    },
+    {
+      "id": 2,
+      "name": "Clothing & Apparel",
+      "description": "Men's and women's fashion wear",
+      "image_url": "/media/categories/images/fashion.jpg",
+      "status": "ACTIVE",
+      "products_count": 18,
+      "created_at": "2026-10-17T04:48:00+00:00",
+      "updated_at": "2026-10-23T06:40:00+00:00"
+    }
+  ]
+}
+```
+
+API for Getting Single Category Details
+url: http://192.168.1.52:8000/api/user/categories/<category_id>/
+method: GET
+
+headers:
+none (public endpoint)
+
+params:
+none
+
+response (active category):
+```json
+{
+  "success": true,
+  "message": "Category fetched successfully",
+  "category": {
+    "id": 1,
+    "name": "Electronics & Gadgets",
+    "description": "Smartphones, audio, and accessories",
+    "image_url": "/media/categories/images/electronics.jpg",
+    "status": "ACTIVE",
+    "products_count": 24,
+    "created_at": "2026-10-17T04:47:00+00:00",
+    "updated_at": "2026-10-23T06:40:00+00:00"
+  }
+}
+```
+
+response (if category is inactive or does not exist):
+```json
+{
+  "success": false,
+  "message": "Category with ID '1' was not found or is inactive."
+}
+```
+
+API for Fetching Products Under a Specific Category
+url: http://192.168.1.52:8000/api/user/categories/<category_id>/products/
+method: GET
+
+headers:
+none (public endpoint)
+
+params (query parameters):
+q: headphones (optional keyword search within this category)
+min_price: 500 (optional minimum price)
+max_price: 3000 (optional maximum price)
+in_stock: true (optional, true/1 to only show in-stock products)
+sort: price_low_to_high (options: price_low_to_high, price_high_to_low, newest; default: newest)
+page: 1 (optional, default: 1)
+limit: 20 (optional, default: 20, max: 100)
+
+response:
+```json
+{
+  "success": true,
+  "category": {
+    "id": 1,
+    "name": "Electronics & Gadgets",
+    "description": "Smartphones, audio, and accessories",
+    "image_url": "/media/categories/images/electronics.jpg",
+    "total_products": 24
+  },
+  "total_products": 24,
+  "page": 1,
+  "total_pages": 2,
+  "has_next": true,
+  "products": [
+    {
+      "id": 10,
+      "name": "Wireless Noise Cancelling Headphones",
+      "sku": "PRD-2039",
+      "price": 2999.0,
+      "discount_price": 2499.0,
+      "image_url": "/media/products/headphones.jpg",
+      "category_id": 1,
+      "category_name": "Electronics & Gadgets",
+      "vendor_name": "Audio World",
+      "stock_quantity": 15,
+      "in_stock": true
+    }
+  ]
+}
+```
+
+API for Admin Dashboard: Toggle Category Status (Activate or Deactivate)
+url: http://192.168.1.52:8000/admin-dashboard/categories/<category_id>/toggle-status/
+method: POST
+
+headers:
+X-Requested-With: XMLHttpRequest (or standard browser form submission)
+
+params:
+none
+
+response:
+```json
+{
+  "success": true,
+  "message": "Category 'Electronics & Gadgets' has been DEACTIVATED.",
+  "category_id": 1,
+  "status": "INACTIVE",
+  "is_active": false
+}
+```

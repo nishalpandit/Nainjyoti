@@ -2,13 +2,15 @@ import json
 import base64
 import random
 import secrets
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
 from django.db import transaction
-from django.db.models import Q, Sum, Count, Avg
+from django.db.models import Q, Sum, Count, Avg, DecimalField
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
@@ -923,6 +925,361 @@ def api_user_address_delete(request, address_id):
         "success": True,
         "message": "Address deleted successfully",
         "deleted_address_id": deleted_id,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_category_list(request):
+    """
+    API: List all active categories for customer shopping
+    Endpoint: GET /api/user/categories/ (alias /api/user/category/list/)
+    """
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    qs = Category.objects.filter(status='ACTIVE')
+    q = request.GET.get('q', '').strip()
+    if q:
+        qs = qs.filter(name__icontains=q)
+
+    categories_data = [cat.to_dict() for cat in qs]
+
+    return JsonResponse({
+        "success": True,
+        "message": "Categories fetched successfully",
+        "count": len(categories_data),
+        "categories": categories_data,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_category_detail(request, category_id):
+    """
+    API: Get details for a specific active category
+    Endpoint: GET /api/user/categories/<category_id>/ (alias /api/user/category/detail/<category_id>/)
+    """
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    category = Category.objects.filter(id=category_id, status='ACTIVE').first()
+    if not category:
+        return JsonResponse({
+            "success": False,
+            "message": f"Category with ID '{category_id}' was not found or is inactive."
+        }, status=404)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Category fetched successfully",
+        "category": category.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_category_products(request, category_id):
+    """
+    API: Fetch active approved products under a specific category with filtering, sorting & pagination
+    Endpoint: GET /api/user/categories/<category_id>/products/ (alias /api/user/category/products/<category_id>/)
+    """
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    category = Category.objects.filter(id=category_id, status='ACTIVE').first()
+    if not category:
+        return JsonResponse({
+            "success": False,
+            "message": f"Category with ID '{category_id}' was not found or is inactive."
+        }, status=404)
+
+    products_qs = Product.objects.select_related('vendor', 'category').filter(
+        category=category,
+        status='ACTIVE',
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).annotate(
+        effective_price=Coalesce(
+            'discount_price',
+            'price',
+            output_field=DecimalField(max_digits=10, decimal_places=2),
+        )
+    )
+
+    # Search keyword filter within category
+    q = request.GET.get('q', '').strip()
+    if q:
+        for term in q.split():
+            products_qs = products_qs.filter(
+                Q(name__icontains=term) |
+                Q(description__icontains=term) |
+                Q(sku__icontains=term) |
+                Q(vendor__business_name__icontains=term)
+            )
+
+    # Price range filters
+    min_price_raw = request.GET.get('min_price')
+    if min_price_raw not in [None, '']:
+        try:
+            min_price = float(min_price_raw)
+            if min_price < 0:
+                return JsonResponse({"success": False, "message": "Query parameter 'min_price' cannot be negative."}, status=400)
+            products_qs = products_qs.filter(effective_price__gte=min_price)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Query parameter 'min_price' must be a valid number."}, status=400)
+
+    max_price_raw = request.GET.get('max_price')
+    if max_price_raw not in [None, '']:
+        try:
+            max_price = float(max_price_raw)
+            if max_price < 0:
+                return JsonResponse({"success": False, "message": "Query parameter 'max_price' cannot be negative."}, status=400)
+            products_qs = products_qs.filter(effective_price__lte=max_price)
+        except (ValueError, TypeError):
+            return JsonResponse({"success": False, "message": "Query parameter 'max_price' must be a valid number."}, status=400)
+
+    # In-stock filter
+    in_stock_raw = request.GET.get('in_stock', '').strip().lower()
+    if in_stock_raw in ['true', '1', 'yes']:
+        products_qs = products_qs.filter(stock_quantity__gt=0)
+
+    # Sorting
+    sort = request.GET.get('sort', 'newest').strip() or 'newest'
+    sort_options = {
+        'price_low_to_high': ('effective_price', 'id'),
+        'price_high_to_low': ('-effective_price', '-id'),
+        'newest': ('-created_at', '-id'),
+    }
+    if sort not in sort_options:
+        return JsonResponse({
+            "success": False,
+            "message": "Invalid sort option. Use 'price_low_to_high', 'price_high_to_low', or 'newest'."
+        }, status=400)
+
+    products_qs = products_qs.order_by(*sort_options[sort])
+
+    # Pagination
+    try:
+        page = max(1, int(request.GET.get('page', 1)))
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Query parameter 'page' must be a valid integer."}, status=400)
+
+    try:
+        limit = min(100, max(1, int(request.GET.get('limit', 20))))
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Query parameter 'limit' must be a valid integer."}, status=400)
+
+    total_products = products_qs.count()
+    total_pages = (total_products + limit - 1) // limit if total_products > 0 else 1
+    offset = (page - 1) * limit
+    page_items = products_qs[offset:offset + limit]
+
+    product_list = []
+    for product in page_items:
+        product_list.append({
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "price": float(product.price),
+            "discount_price": float(product.discount_price) if product.discount_price is not None else None,
+            "image_url": product.image_url,
+            "category_id": category.id,
+            "category_name": category.name,
+            "vendor_name": product.vendor.business_name if product.vendor else None,
+            "stock_quantity": product.stock_quantity,
+            "in_stock": product.stock_quantity > 0,
+        })
+
+    return JsonResponse({
+        "success": True,
+        "category": {
+            "id": category.id,
+            "name": category.name,
+            "description": category.description,
+            "image_url": category.image_url,
+            "total_products": category.products_count,
+        },
+        "total_products": total_products,
+        "page": page,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "products": product_list,
+    }, status=200)
+
+
+def api_product_search(request):
+    """Public customer catalog search with filtering, sorting, and pagination."""
+    if request.method != 'GET':
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use GET."
+        }, status=405)
+
+    raw_query = request.GET.get('q')
+    query = raw_query.strip() if raw_query is not None else ''
+    if raw_query is not None and not query:
+        return JsonResponse({
+            "success": False,
+            "message": "Search parameter 'q' cannot be empty."
+        }, status=400)
+
+    def parse_positive_integer(name, default, maximum=None):
+        raw_value = request.GET.get(name)
+        if raw_value in [None, '']:
+            return default, None
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            return None, f"Query parameter '{name}' must be a valid integer."
+        if value < 1:
+            return None, f"Query parameter '{name}' must be at least 1."
+        if maximum is not None and value > maximum:
+            return None, f"Query parameter '{name}' cannot exceed {maximum}."
+        return value, None
+
+    def parse_price(name):
+        raw_value = request.GET.get(name)
+        if raw_value in [None, '']:
+            return None, None
+        try:
+            value = Decimal(raw_value)
+        except (InvalidOperation, TypeError, ValueError):
+            return None, f"Query parameter '{name}' must be a valid number."
+        if not value.is_finite():
+            return None, f"Query parameter '{name}' must be a finite number."
+        if value < 0:
+            return None, f"Query parameter '{name}' cannot be negative."
+        return value, None
+
+    page, error = parse_positive_integer('page', 1)
+    if error:
+        return JsonResponse({"success": False, "message": error}, status=400)
+
+    limit, error = parse_positive_integer('limit', 20, maximum=100)
+    if error:
+        return JsonResponse({"success": False, "message": error}, status=400)
+
+    category_id = None
+    raw_category_id = request.GET.get('category_id')
+    if raw_category_id not in [None, '']:
+        try:
+            category_id = int(raw_category_id)
+        except (TypeError, ValueError):
+            return JsonResponse({
+                "success": False,
+                "message": "Query parameter 'category_id' must be a valid integer."
+            }, status=400)
+        if category_id < 1:
+            return JsonResponse({
+                "success": False,
+                "message": "Query parameter 'category_id' must be at least 1."
+            }, status=400)
+        if not Category.objects.filter(pk=category_id).exists():
+            return JsonResponse({
+                "success": False,
+                "message": f"Category with ID '{category_id}' was not found."
+            }, status=404)
+
+    min_price, error = parse_price('min_price')
+    if error:
+        return JsonResponse({"success": False, "message": error}, status=400)
+    max_price, error = parse_price('max_price')
+    if error:
+        return JsonResponse({"success": False, "message": error}, status=400)
+    if min_price is not None and max_price is not None and min_price > max_price:
+        return JsonResponse({
+            "success": False,
+            "message": "Query parameter 'min_price' cannot be greater than 'max_price'."
+        }, status=400)
+
+    raw_in_stock = request.GET.get('in_stock')
+    in_stock_only = False
+    if raw_in_stock not in [None, '']:
+        normalized_in_stock = raw_in_stock.strip().lower()
+        if normalized_in_stock in ['true', '1']:
+            in_stock_only = True
+        elif normalized_in_stock not in ['false', '0']:
+            return JsonResponse({
+                "success": False,
+                "message": "Query parameter 'in_stock' must be true, false, 1, or 0."
+            }, status=400)
+
+    sort = request.GET.get('sort', 'newest').strip() or 'newest'
+    sort_options = {
+        'price_low_to_high': ('effective_price', 'id'),
+        'price_high_to_low': ('-effective_price', '-id'),
+        'newest': ('-created_at', '-id'),
+    }
+    if sort not in sort_options:
+        return JsonResponse({
+            "success": False,
+            "message": (
+                "Invalid sort option. Use 'price_low_to_high', "
+                "'price_high_to_low', or 'newest'."
+            )
+        }, status=400)
+
+    products = Product.objects.select_related('vendor', 'category').filter(
+        status='ACTIVE',
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).filter(
+        Q(category__isnull=True) | Q(category__status='ACTIVE')
+    ).annotate(
+        effective_price=Coalesce(
+            'discount_price',
+            'price',
+            output_field=DecimalField(max_digits=10, decimal_places=2),
+        )
+    )
+
+    if query:
+        for term in query.split():
+            products = products.filter(
+                Q(name__icontains=term) |
+                Q(description__icontains=term) |
+                Q(sku__icontains=term) |
+                Q(category__name__icontains=term) |
+                Q(vendor__business_name__icontains=term)
+            )
+
+    if category_id is not None:
+        products = products.filter(category_id=category_id)
+    if min_price is not None:
+        products = products.filter(effective_price__gte=min_price)
+    if max_price is not None:
+        products = products.filter(effective_price__lte=max_price)
+    if in_stock_only:
+        products = products.filter(stock_quantity__gt=0)
+
+    products = products.order_by(*sort_options[sort])
+    total_matches = products.count()
+    total_pages = (total_matches + limit - 1) // limit
+    offset = (page - 1) * limit
+    page_products = products[offset:offset + limit]
+
+    product_data = [{
+        'id': product.id,
+        'name': product.name,
+        'sku': product.sku,
+        'price': float(product.price),
+        'discount_price': (
+            float(product.discount_price) if product.discount_price is not None else None
+        ),
+        'image_url': product.image_url,
+        'category_id': product.category_id,
+        'category_name': product.category.name if product.category else None,
+        'vendor_name': product.vendor.business_name,
+        'stock_quantity': product.stock_quantity,
+        'in_stock': product.stock_quantity > 0,
+    } for product in page_products]
+
+    return JsonResponse({
+        "success": True,
+        "query": query,
+        "total_matches": total_matches,
+        "page": page,
+        "total_pages": total_pages,
+        "has_next": page < total_pages,
+        "products": product_data,
     }, status=200)
 
 
@@ -3070,6 +3427,5 @@ def api_vendor_payout_detail(request, payout_id):
         "success": True,
         "payout": payout.to_dict()
     }, status=200)
-
 
 

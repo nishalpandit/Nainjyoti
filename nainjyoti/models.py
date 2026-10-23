@@ -297,7 +297,7 @@ class OTPRecord(models.Model):
 class Category(models.Model):
     """
     Master Category Taxonomy.
-    Master table containing only name and status for product listings.
+    Includes name, description, image thumbnail, and active status for product listings.
     """
     STATUS_CHOICES = [
         ('ACTIVE', 'Active'),
@@ -305,6 +305,8 @@ class Category(models.Model):
     ]
 
     name = models.CharField(max_length=150, unique=True)
+    description = models.TextField(blank=True, default='')
+    image = models.ImageField(upload_to='categories/images/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -317,11 +319,24 @@ class Category(models.Model):
     def __str__(self):
         return f"{self.name} ({self.status})"
 
+    @property
+    def image_url(self):
+        if self.image and hasattr(self.image, 'url'):
+            return self.image.url
+        return None
+
+    @property
+    def products_count(self):
+        return self.products.filter(status='ACTIVE', is_approved=True, vendor__status='APPROVED').count()
+
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
+            'description': self.description,
+            'image_url': self.image_url,
             'status': self.status,
+            'products_count': self.products_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

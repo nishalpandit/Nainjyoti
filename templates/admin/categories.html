@@ -90,10 +90,12 @@
           <table class="table align-middle">
             <thead>
               <tr>
-                <th style="width: 80px;">ID</th>
+                <th style="width: 70px;">ID</th>
+                <th style="width: 80px;">Thumbnail</th>
                 <th>Category Name</th>
-                <th style="width: 140px;">Status</th>
-                <th style="width: 120px;" class="text-end">Actions</th>
+                <th style="width: 140px;">Products</th>
+                <th style="width: 120px;">Status</th>
+                <th style="width: 180px;" class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -101,7 +103,22 @@
               <tr>
                 <td><span class="text-muted fw-bold">#{{ cat.id }}</span></td>
                 <td>
-                  <strong class="fs-6">{{ cat.name }}</strong>
+                  {% if cat.image_url %}
+                    <img src="{{ cat.image_url }}" alt="{{ cat.name }}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid #edf0eb;">
+                  {% else %}
+                    <div style="width:40px;height:40px;border-radius:8px;background:#f3f6f1;color:#4a6b52;display:grid;place-items:center;font-size:16px;">
+                      <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                  {% endif %}
+                </td>
+                <td>
+                  <strong class="fs-6 d-block">{{ cat.name }}</strong>
+                  {% if cat.description %}
+                    <small class="text-muted">{{ cat.description|truncatewords:10 }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border px-2 py-1">{{ cat.products_count }} active</span>
                 </td>
                 <td>
                   {% if cat.status == 'ACTIVE' %}
@@ -111,14 +128,28 @@
                   {% endif %}
                 </td>
                 <td class="text-end">
-                  <a class="btn btn-sm btn-outline-dark" href="{% url 'admin_category_edit' cat.id %}">
-                    <i class="fa-solid fa-pen-to-square me-1"></i>Edit
-                  </a>
+                  <div class="d-inline-flex gap-1">
+                    <a class="btn btn-sm btn-outline-dark" href="{% url 'admin_category_edit' cat.id %}">
+                      <i class="fa-solid fa-pen-to-square me-1"></i>Edit
+                    </a>
+                    <form method="post" action="{% url 'admin_category_toggle_status' cat.id %}" style="display:inline;">
+                      {% csrf_token %}
+                      {% if cat.status == 'ACTIVE' %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Deactivate Category">
+                          <i class="fa-solid fa-ban"></i>
+                        </button>
+                      {% else %}
+                        <button type="submit" class="btn btn-sm btn-outline-success" title="Activate Category">
+                          <i class="fa-solid fa-check"></i>
+                        </button>
+                      {% endif %}
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="4" class="text-center py-5 text-muted">
+                <td colspan="6" class="text-center py-5 text-muted">
                   <i class="fa-solid fa-layer-group fa-2x mb-3 d-block text-secondary"></i>
                   No categories found. Click <strong>Add category</strong> to add master records.
                 </td>

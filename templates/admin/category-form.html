@@ -68,13 +68,33 @@
 
       <section class="card form-card" style="max-width: 600px;">
         <div class="card-body p-4">
-          <form method="post" class="row g-4">
+          <form method="post" enctype="multipart/form-data" class="row g-4">
             {% csrf_token %}
 
             <div class="col-12">
               <label class="form-label fw-semibold" for="name">Category Name <span class="text-danger">*</span></label>
               <input class="form-control form-control-lg" id="name" name="name" type="text" value="{{ category.name|default:'' }}" placeholder="e.g. Handicrafts & Handlooms" required autofocus>
               <div class="form-text">Unique master name for the product category.</div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="description">Description</label>
+              <textarea class="form-control" id="description" name="description" rows="3" placeholder="Short description of products in this category">{{ category.description|default:'' }}</textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold" for="image">Category Display Image / Thumbnail</label>
+              {% if category.image_url %}
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <img src="{{ category.image_url }}" alt="{{ category.name }}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;border:1px solid #ddd;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
+                    <label class="form-check-label text-muted small" for="remove_image">Remove current image</label>
+                  </div>
+                </div>
+              {% endif %}
+              <input class="form-control" id="image" name="image" type="file" accept="image/*">
+              <div class="form-text">Used on the customer app and homepage category grid.</div>
             </div>
 
             <div class="col-12">

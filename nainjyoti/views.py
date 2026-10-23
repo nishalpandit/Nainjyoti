@@ -438,13 +438,14 @@ def admin_categories(request):
 
 
 def admin_category_form(request, category_id=None):
-    """Admin Category Create/Edit Form View"""
+    """Admin Category Create/Edit Form View with Image Upload & Description"""
     category = None
     if category_id:
         category = get_object_or_404(Category, id=category_id)
 
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
+        description = request.POST.get("description", "").strip()
         status_raw = request.POST.get("status", "").strip().upper()
         if status_raw in ["ACTIVE", "INACTIVE"]:
             status_val = status_raw
@@ -452,10 +453,17 @@ def admin_category_form(request, category_id=None):
             status_val = "ACTIVE" if request.POST.get("status") in ["on", "1", "true", "ACTIVE"] else "INACTIVE"
 
         if not category:
-            category = Category(name=name, status=status_val)
+            category = Category(name=name, description=description, status=status_val)
         else:
             category.name = name
+            category.description = description
             category.status = status_val
+
+        # Handle image upload / removal
+        if request.FILES.get("image"):
+            category.image = request.FILES["image"]
+        elif request.POST.get("remove_image") in ["1", "true", "on"]:
+            category.image = None
 
         category.save()
         messages.success(request, f"Category '{category.name}' saved successfully!")
@@ -464,6 +472,34 @@ def admin_category_form(request, category_id=None):
     return render(request, "admin/category-form.html", {
         "category": category
     })
+
+
+@csrf_exempt
+def admin_category_toggle_status(request, category_id):
+    """
+    Admin Control: Toggle Category ACTIVE / INACTIVE status with instant effect
+    Endpoint: POST /admin-dashboard/categories/<category_id>/toggle-status/
+    """
+    category = get_object_or_404(Category, id=category_id)
+    new_status = 'INACTIVE' if category.status == 'ACTIVE' else 'ACTIVE'
+    category.status = new_status
+    category.save(update_fields=['status', 'updated_at'])
+
+    action_label = "ACTIVATED" if new_status == 'ACTIVE' else "DEACTIVATED"
+    msg = f"Category '{category.name}' has been {action_label}."
+    messages.success(request, msg)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in getattr(request, 'content_type', '')
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "category_id": category.id,
+            "status": category.status,
+            "is_active": category.status == 'ACTIVE'
+        }, status=200)
+
+    return redirect("admin_categories")
 
 
 
