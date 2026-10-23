@@ -68,7 +68,7 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count"><span id="recordCountText">{{ products|length }}</span> item(s) displayed</span>
+          <span class="record-count"><span id="recordCountText">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ filtered_count }}</span> item(s)</span>
         </div>
 
         <div class="table-responsive">
@@ -191,6 +191,7 @@
             </tbody>
           </table>
         </div>
+        {% include "admin/pagination.html" %}
       </section>
 
       <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>

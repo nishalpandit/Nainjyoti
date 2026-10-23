@@ -48,7 +48,7 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">{{ filtered_count }} matching record{{ filtered_count|pluralize }}</span>
+          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ filtered_count }} matching record{{ filtered_count|pluralize }}</span>
         </div>
         <div class="table-responsive">
           <table class="table align-middle">
@@ -71,6 +71,7 @@
             </tbody>
           </table>
         </div>
+        {% include "admin/pagination.html" %}
       </section>
       <footer>BAZAAR ADMIN <span>·</span> Address data synchronized from the live database</footer>
     </main>

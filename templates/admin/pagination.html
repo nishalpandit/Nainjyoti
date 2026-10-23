@@ -1,0 +1,51 @@
+{% if page_obj and page_obj.paginator.count > 0 %}
+<div class="card-footer-pagination">
+  <div class="pagination-info">
+    Showing <strong>{{ page_obj.start_index }}-{{ page_obj.end_index }}</strong> of <strong>{{ page_obj.paginator.count }}</strong> entries
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="pagination-nav" aria-label="Table pagination">
+    <ul class="admin-pagination">
+      <!-- Previous Page -->
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ querystring }}" aria-label="Previous">
+            <i class="fa-solid fa-chevron-left"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled">
+          <span class="page-link"><i class="fa-solid fa-chevron-left"></i></span>
+        </li>
+      {% endif %}
+
+      <!-- Page Numbers -->
+      {% for num in elided_page_range %}
+        {% if num == '...' %}
+          <li class="page-item disabled"><span class="page-link ellipsis">&hellip;</span></li>
+        {% elif num == page_obj.number %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% else %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{{ querystring }}">{{ num }}</a>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      <!-- Next Page -->
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ querystring }}" aria-label="Next">
+            <i class="fa-solid fa-chevron-right"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled">
+          <span class="page-link"><i class="fa-solid fa-chevron-right"></i></span>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endif %}

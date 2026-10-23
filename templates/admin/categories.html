@@ -48,11 +48,11 @@
 
       <section class="card">
         <div class="card-head">
-          <div class="filters">
-            <input class="form-control" type="search" placeholder="Search categories..." aria-label="Search records" id="categorySearch">
-            <button class="btn btn-outline-secondary" onclick="window.location.reload()"><i class="fa-solid fa-rotate me-2"></i>Refresh</button>
-          </div>
-          <span class="record-count">{{ total_categories }} categories</span>
+          <form method="get" class="filters d-flex gap-2">
+            <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search categories..." aria-label="Search records">
+            <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
+          </form>
+          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_categories }} categories</span>
         </div>
 
         <div class="table-responsive">
@@ -127,6 +127,7 @@
             </tbody>
           </table>
         </div>
+        {% include "admin/pagination.html" %}
       </section>
 
       <footer>BAZAAR ADMIN <span>·</span> Category Master Table</footer>

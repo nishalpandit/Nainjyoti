@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Sum, Count, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -225,6 +226,49 @@ def format_inr(amount):
         return f"₹{val:.0f}"
 
 
+def paginate_queryset(request, queryset, default_page_size=10):
+    """
+    Standard pagination helper for Bazaar Admin tables.
+    Preserves all active filters and URL parameters across page navigation.
+    """
+    try:
+        page_size = int(request.GET.get('page_size', default_page_size))
+        if page_size not in [5, 10, 15, 20, 25, 50, 100]:
+            page_size = default_page_size
+    except (ValueError, TypeError):
+        page_size = default_page_size
+
+    paginator = Paginator(queryset, page_size)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
+
+    # Clean query parameters for pagination URLs
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        query_params.pop('page')
+    querystring = query_params.urlencode()
+    if querystring:
+        querystring = f"&{querystring}"
+
+    raw_elided = paginator.get_elided_page_range(number=page_obj.number, on_each_side=1, on_ends=1)
+    elided_page_range = [num if isinstance(num, int) else '...' for num in raw_elided]
+
+    return {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'page_items': page_obj.object_list,
+        'querystring': querystring,
+        'elided_page_range': elided_page_range,
+        'total_count': paginator.count,
+        'page_size': page_size,
+    }
+
+
 def admin_dashboard(request):
     """
     Marketplace Admin Overview Dashboard with full real-time metrics,
@@ -432,10 +476,23 @@ def admin_dashboard(request):
 
 def admin_categories(request):
     """Admin Categories Management View"""
-    categories = Category.objects.all().order_by('name')
+    search_query = request.GET.get("q", "").strip()
+    categories_qs = Category.objects.all().order_by('name')
+    if search_query:
+        categories_qs = categories_qs.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    p_data = paginate_queryset(request, categories_qs, default_page_size=10)
+
     return render(request, "admin/categories.html", {
-        "categories": categories,
-        "total_categories": categories.count()
+        "categories": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_categories": p_data['total_count'],
+        "search_query": search_query,
     })
 
 
@@ -608,8 +665,15 @@ def admin_vendor_approval(request):
     rejected_count = VendorProfile.objects.filter(status="REJECTED").count()
     total_count = VendorProfile.objects.count()
 
+    p_data = paginate_queryset(request, vendors, default_page_size=10)
+
     return render(request, "admin/vendor-approval.html", {
-        "vendors": vendors,
+        "vendors": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "filtered_count": p_data['total_count'],
         "pending_count": pending_count,
         "approved_count": approved_count,
         "rejected_count": rejected_count,
@@ -668,8 +732,10 @@ def admin_customers(request):
     elif status_filter in ["INACTIVE", "BLOCKED"]:
         customers_qs = customers_qs.filter(is_active=False)
 
+    p_data = paginate_queryset(request, customers_qs, default_page_size=10)
+
     customers_list = []
-    for c in customers_qs:
+    for c in p_data['page_items']:
         ords = c.orders.all()
         spent = ords.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0
         default_address = c.addresses.filter(is_default=True).first()
@@ -700,7 +766,11 @@ def admin_customers(request):
 
     return render(request, "admin/customers.html", {
         "customers": customers_list,
-        "total_count": len(customers_list),
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_count": p_data['total_count'],
         "active_count": active_count,
         "inactive_count": inactive_count,
         "address_count": address_count,
@@ -737,9 +807,15 @@ def admin_addresses(request):
     elif default_filter == 'NO':
         addresses = addresses.filter(is_default=False)
 
+    p_data = paginate_queryset(request, addresses, default_page_size=10)
+
     return render(request, "admin/addresses.html", {
-        "addresses": addresses,
-        "filtered_count": addresses.count(),
+        "addresses": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "filtered_count": p_data['total_count'],
         "total_count": UserAddress.objects.count(),
         "default_count": UserAddress.objects.filter(is_default=True).count(),
         "customers_with_addresses": UserProfile.objects.filter(addresses__isnull=False).distinct().count(),
@@ -949,10 +1025,12 @@ def admin_vendors(request):
     if status_filter in ["APPROVED", "PENDING", "REJECTED"]:
         vendors_qs = vendors_qs.filter(status=status_filter)
 
+    p_data = paginate_queryset(request, vendors_qs, default_page_size=10)
+
     vendors_list = []
     now = timezone.now()
     first_of_month = now.date().replace(day=1)
-    for v in vendors_qs:
+    for v in p_data['page_items']:
         m_sales = OrderItem.objects.filter(
             vendor=v,
             order__created_at__date__gte=first_of_month
@@ -971,7 +1049,11 @@ def admin_vendors(request):
 
     return render(request, "admin/vendors.html", {
         "vendors": vendors_list,
-        "total_count": len(vendors_list),
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_count": p_data['total_count'],
         "search_query": search_query,
         "status_filter": status_filter,
     })
@@ -1000,10 +1082,15 @@ def admin_products(request):
         products_qs = products_qs.filter(status='INACTIVE')
 
     pending_count = Product.objects.filter(is_approved=False).count()
+    p_data = paginate_queryset(request, products_qs, default_page_size=10)
 
     return render(request, "admin/products.html", {
-        "products": products_qs,
-        "total_count": products_qs.count(),
+        "products": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_count": p_data['total_count'],
         "pending_count": pending_count,
         "search_query": search_query,
         "status_filter": status_filter,
@@ -1110,8 +1197,15 @@ def admin_product_approval(request):
     rejected_count = Product.objects.filter(is_approved=False, status="INACTIVE").count()
     total_count = Product.objects.count()
 
+    p_data = paginate_queryset(request, products, default_page_size=10)
+
     return render(request, "admin/product-approval.html", {
-        "products": products,
+        "products": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "filtered_count": p_data['total_count'],
         "pending_count": pending_count,
         "approved_count": approved_count,
         "rejected_count": rejected_count,
@@ -1253,8 +1347,10 @@ def admin_orders(request):
     if status_filter in ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED']:
         orders_qs = orders_qs.filter(status=status_filter)
 
+    p_data = paginate_queryset(request, orders_qs, default_page_size=10)
+
     orders_list = []
-    for o in orders_qs:
+    for o in p_data['page_items']:
         vendors = {item.vendor.business_name for item in o.items.all() if item.vendor}
         vendor_name = ", ".join(list(vendors)[:2]) if vendors else "Direct"
         st = o.status.upper()
@@ -1282,7 +1378,11 @@ def admin_orders(request):
 
     return render(request, "admin/orders.html", {
         "orders": orders_list,
-        "total_count": len(orders_list),
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_count": p_data['total_count'],
         "search_query": search_query,
         "status_filter": status_filter,
     })
@@ -1303,8 +1403,10 @@ def admin_payments(request):
     if status_filter in ['PENDING', 'PROCESSING', 'COMPLETED', 'REJECTED']:
         payouts_qs = payouts_qs.filter(status=status_filter)
 
+    p_data = paginate_queryset(request, payouts_qs, default_page_size=10)
+
     payouts_list = []
-    for p in payouts_qs:
+    for p in p_data['page_items']:
         st = p.status.upper()
         if st == 'COMPLETED':
             pill = 'green'
@@ -1327,7 +1429,11 @@ def admin_payments(request):
 
     return render(request, "admin/payments.html", {
         "payouts": payouts_list,
-        "total_count": len(payouts_list),
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_count": p_data['total_count'],
         "search_query": search_query,
         "status_filter": status_filter,
     })

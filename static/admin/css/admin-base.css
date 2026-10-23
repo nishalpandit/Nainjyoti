@@ -385,3 +385,100 @@ footer span {
     flex-direction: column;
   }
 }
+
+/* =========================================================================
+   BAZAAR ADMIN - UNIFIED CARD PAGINATION
+   ========================================================================= */
+.card-footer-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #ffffff;
+  border-top: 1px solid #edf0eb;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 11px;
+  color: #6c7c72;
+}
+
+.pagination-info strong {
+  color: #1e2924;
+  font-weight: 600;
+}
+
+.pagination-nav {
+  margin: 0;
+}
+
+.admin-pagination {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 4px;
+  align-items: center;
+}
+
+.admin-pagination .page-item {
+  margin: 0;
+}
+
+.admin-pagination .page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #495850;
+  background: #f7f9f6;
+  border: 1px solid #e2e8e2;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.admin-pagination .page-link:hover {
+  background: #eaf1e8;
+  color: #244536;
+  border-color: #cbd8c8;
+}
+
+.admin-pagination .page-item.active .page-link {
+  background: #244536;
+  color: #ffffff;
+  border-color: #244536;
+  box-shadow: 0 1px 3px rgba(36, 69, 54, 0.25);
+}
+
+.admin-pagination .page-item.disabled .page-link {
+  color: #b5c0b8;
+  background: #fafbf9;
+  border-color: #edf0ec;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.admin-pagination .page-link.ellipsis {
+  background: transparent;
+  border: none;
+  color: #8b9a90;
+  min-width: 20px;
+}
+
+@media (max-width: 600px) {
+  .card-footer-pagination {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+

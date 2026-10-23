@@ -45,7 +45,7 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">{{ total_count }} item{{ total_count|pluralize }}</span>
+          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} item{{ total_count|pluralize }}</span>
         </div>
 
         <div class="table-responsive">
@@ -147,6 +147,7 @@
             </tbody>
           </table>
         </div>
+        {% include "admin/pagination.html" %}
       </section>
 
       <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
