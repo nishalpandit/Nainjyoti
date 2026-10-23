@@ -20,6 +20,7 @@ urlpatterns = [
     path('admin-dashboard/customers/', views.admin_customers, name='admin_customers'),
     path('admin-dashboard/customers/<int:customer_id>/toggle-status/', views.admin_customer_toggle_status, name='admin_customer_toggle_status'),
     path('admin-dashboard/customers/<int:customer_id>/detail/', views.admin_customer_detail, name='admin_customer_detail'),
+    path('admin-dashboard/customers/<int:customer_id>/edit/', views.admin_customer_edit, name='admin_customer_edit'),
     path('admin-dashboard/vendors/', views.admin_vendors, name='admin_vendors'),
     path('admin-dashboard/vendor-approval/', views.admin_vendor_approval, name='admin_vendor_approval'),
     path('admin-dashboard/vendor/<int:vendor_id>/kyc/', views.admin_vendor_kyc_detail, name='admin_vendor_kyc_detail'),
@@ -59,7 +60,15 @@ urlpatterns = [
     path('api/user/login/', api_views.api_user_login, name='api_user_login'),
     path('api/user/status/', api_views.api_user_status, name='api_user_status'),
     path('api/user/profile/', api_views.api_user_profile, name='api_user_profile'),
+    path('api/user/profile/update/', api_views.api_user_profile_update, name='api_user_profile_update'),
+    path('api/user/profile/photo/', api_views.api_user_profile_photo, name='api_user_profile_photo'),
     path('api/user/logout/', api_views.api_user_logout, name='api_user_logout'),
+    path('api/user/address/create/', api_views.api_user_address_create, name='api_user_address_create'),
+    path('api/user/address/list/', api_views.api_user_address_list, name='api_user_address_list'),
+    path('api/user/address/detail/<int:address_id>/', api_views.api_user_address_detail, name='api_user_address_detail'),
+    path('api/user/address/update/<int:address_id>/', api_views.api_user_address_update, name='api_user_address_update'),
+    path('api/user/address/set-default/<int:address_id>/', api_views.api_user_address_set_default, name='api_user_address_set_default'),
+    path('api/user/address/delete/<int:address_id>/', api_views.api_user_address_delete, name='api_user_address_delete'),
 
     # =========================================================================
     # Vendor / Merchant REST APIs

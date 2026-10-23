@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Category, VendorProfile, UserProfile, OTPRecord, Product, StockLog,
+    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -35,6 +35,14 @@ class VendorProfileAdmin(admin.ModelAdmin):
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'phone', 'email', 'gender', 'created_at')
     search_fields = ('first_name', 'last_name', 'phone', 'email')
+
+
+@admin.register(UserAddress)
+class UserAddressAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'user', 'address_type', 'city', 'state', 'pincode', 'is_default', 'created_at')
+    list_filter = ('address_type', 'is_default', 'state', 'country')
+    search_fields = ('full_name', 'phone', 'address_line_1', 'city', 'state', 'pincode', 'user__phone')
+
 
 @admin.register(OTPRecord)
 class OTPRecordAdmin(admin.ModelAdmin):

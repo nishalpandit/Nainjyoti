@@ -7,12 +7,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
+from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
 from .models import (
-    UserProfile, OTPRecord, VendorProfile, Category, Product, StockLog,
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -384,13 +385,96 @@ def api_user_status(request):
     }, status=200)
 
 
+def _handle_profile_update(request, profile):
+    """Internal helper to process profile field updates, email conflicts, and photo updates."""
+    data = _parse_request_data(request)
+
+    if "first_name" in data and str(data["first_name"]).strip():
+        profile.first_name = str(data["first_name"]).strip()
+        profile.user.first_name = profile.first_name
+
+    if "last_name" in data and str(data["last_name"]).strip():
+        profile.last_name = str(data["last_name"]).strip()
+        profile.user.last_name = profile.last_name
+
+    if "email" in data:
+        new_email = str(data["email"]).strip().lower() or None
+        if new_email and new_email != profile.email:
+            if User.objects.filter(email=new_email).exclude(id=profile.user.id).exists():
+                return JsonResponse({
+                    "success": False,
+                    "message": "This email address is already in use by another account."
+                }, status=400)
+        profile.email = new_email
+        profile.user.email = new_email or ""
+
+    if "gender" in data:
+        valid_genders = ['Male', 'Female', 'Other', 'Prefer not to say']
+        gender_val = str(data["gender"]).strip()
+        if gender_val in valid_genders:
+            profile.gender = gender_val
+
+    if "dob" in data and data["dob"]:
+        dob_str = str(data["dob"]).strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                profile.dob = datetime.strptime(dob_str, fmt).date()
+                break
+            except ValueError:
+                continue
+
+    # Photo updates
+    if "profile_photo" in request.FILES:
+        profile.profile_photo = request.FILES["profile_photo"]
+    elif str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
+        profile.profile_photo = None
+    elif "profile_photo_base64" in data and data["profile_photo_base64"]:
+        b64_str = str(data["profile_photo_base64"])
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        try:
+            img_data = base64.b64decode(b64_str)
+            file_name = f"user_{profile.id}_{secrets.token_hex(4)}.png"
+            profile.profile_photo.save(file_name, ContentFile(img_data), save=False)
+        except Exception:
+            pass
+
+    profile.user.save()
+    profile.save()
+
+    res_user = profile.to_dict()
+    res_user["total_orders"] = profile.orders.count()
+    res_user["total_spent"] = float(profile.orders.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0)
+
+    return JsonResponse({
+        "success": True,
+        "message": "Profile updated successfully",
+        "user": res_user
+    }, status=200)
+
+
 @csrf_exempt
 def api_user_profile(request):
     """
-    API: Get or Update Authenticated User Profile
-    Endpoint: GET, PUT/POST /api/user/profile/
+    API: Get Authenticated User Profile
+    Endpoint: GET /api/user/profile/ (or PUT/POST for profile updates)
     Header: Authorization: Bearer <token>
     """
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    token = ''
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            token = parts[1].strip()
+
+    if token:
+        raw_profile = UserProfile.objects.filter(auth_token=token).first()
+        if raw_profile and (not raw_profile.is_active or (raw_profile.user and not raw_profile.user.is_active)):
+            return JsonResponse({
+                "success": False,
+                "message": "Your account has been deactivated by administrator. Please contact support."
+            }, status=403)
+
     profile = _get_authenticated_profile(request)
     if not profile:
         return JsonResponse({
@@ -399,50 +483,437 @@ def api_user_profile(request):
         }, status=401)
 
     if request.method == "GET":
+        data = profile.to_dict()
+        data["total_orders"] = profile.orders.count()
+        data["total_spent"] = float(profile.orders.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0)
         return JsonResponse({
             "success": True,
-            "user": profile.to_dict()
+            "user": data
         }, status=200)
 
     elif request.method in ["POST", "PUT"]:
-        data = _parse_request_data(request)
+        return _handle_profile_update(request, profile)
 
-        if "first_name" in data and data["first_name"].strip():
-            profile.first_name = data["first_name"].strip()
-            profile.user.first_name = profile.first_name
+    return JsonResponse({"success": False, "message": "Method not allowed. Use GET, POST, or PUT."}, status=405)
 
-        if "last_name" in data and data["last_name"].strip():
-            profile.last_name = data["last_name"].strip()
-            profile.user.last_name = profile.last_name
 
-        if "email" in data:
-            profile.email = data["email"].strip().lower() or None
-            profile.user.email = profile.email or ""
+@csrf_exempt
+def api_user_profile_update(request):
+    """
+    API: Dedicated Profile Update Endpoint
+    Endpoint: PUT or POST /api/user/profile/update/
+    Header: Authorization: Bearer <token>
+    """
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    token = ''
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            token = parts[1].strip()
 
-        if "gender" in data:
-            profile.gender = data["gender"]
+    if token:
+        raw_profile = UserProfile.objects.filter(auth_token=token).first()
+        if raw_profile and (not raw_profile.is_active or (raw_profile.user and not raw_profile.user.is_active)):
+            return JsonResponse({
+                "success": False,
+                "message": "Your account has been deactivated by administrator. Please contact support."
+            }, status=403)
 
-        if "dob" in data and data["dob"]:
-            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
-                try:
-                    profile.dob = datetime.strptime(data["dob"].strip(), fmt).date()
-                    break
-                except ValueError:
-                    continue
+    profile = _get_authenticated_profile(request)
+    if not profile:
+        return JsonResponse({
+            "success": False,
+            "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
+        }, status=401)
 
-        if "profile_photo" in request.FILES:
-            profile.profile_photo = request.FILES["profile_photo"]
+    if request.method not in ["POST", "PUT"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
 
-        profile.user.save()
-        profile.save()
+    return _handle_profile_update(request, profile)
 
+
+@csrf_exempt
+def api_user_profile_photo(request):
+    """
+    API: Upload, Update, or Remove User Profile Photo
+    Endpoint: POST /api/user/profile/photo/
+    Header: Authorization: Bearer <token>
+    Content-Type: multipart/form-data (or application/json for base64/remove)
+    Params:
+      - profile_photo: [binary file]
+      - remove_photo: true (optional, to remove profile photo)
+    """
+    auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+    token = ''
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            token = parts[1].strip()
+
+    if token:
+        raw_profile = UserProfile.objects.filter(auth_token=token).first()
+        if raw_profile and (not raw_profile.is_active or (raw_profile.user and not raw_profile.user.is_active)):
+            return JsonResponse({
+                "success": False,
+                "message": "Your account has been deactivated by administrator. Please contact support."
+            }, status=403)
+
+    profile = _get_authenticated_profile(request)
+    if not profile:
+        return JsonResponse({
+            "success": False,
+            "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
+        }, status=401)
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+
+    # 1. Check if user wants to remove photo
+    if str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
+        profile.profile_photo = None
+        profile.save(update_fields=['profile_photo'])
         return JsonResponse({
             "success": True,
-            "message": "Profile updated successfully",
+            "message": "Profile photo removed successfully",
+            "profile_photo": None,
             "user": profile.to_dict()
         }, status=200)
 
-    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+    # 2. Check binary file upload
+    photo_file = request.FILES.get("profile_photo") or request.FILES.get("image") or request.FILES.get("photo")
+    if photo_file:
+        profile.profile_photo = photo_file
+        profile.save(update_fields=['profile_photo'])
+        return JsonResponse({
+            "success": True,
+            "message": "Profile photo uploaded successfully",
+            "profile_photo": profile.photo_url,
+            "user": profile.to_dict()
+        }, status=200)
+
+    # 3. Base64 fallback
+    b64_str = data.get("profile_photo") or data.get("profile_photo_base64")
+    if b64_str and isinstance(b64_str, str) and ("base64," in b64_str or len(b64_str) > 100):
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        try:
+            img_data = base64.b64decode(b64_str)
+            file_name = f"user_{profile.id}_{secrets.token_hex(4)}.png"
+            profile.profile_photo.save(file_name, ContentFile(img_data), save=True)
+            return JsonResponse({
+                "success": True,
+                "message": "Profile photo uploaded successfully",
+                "profile_photo": profile.photo_url,
+                "user": profile.to_dict()
+            }, status=200)
+        except Exception:
+            pass
+
+    return JsonResponse({
+        "success": False,
+        "message": "No profile_photo file or valid image data was provided in the request."
+    }, status=400)
+
+
+def _require_user_auth(request):
+    """Return the authenticated customer or a consistent API error response."""
+    profile = _get_authenticated_profile(request)
+    if not profile:
+        return None, JsonResponse({
+            "success": False,
+            "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
+        }, status=401)
+    return profile, None
+
+
+def _parse_boolean(value):
+    if isinstance(value, bool):
+        return value, True
+    normalized = str(value).strip().lower()
+    if normalized in ['true', '1', 'yes', 'on']:
+        return True, True
+    if normalized in ['false', '0', 'no', 'off']:
+        return False, True
+    return False, False
+
+
+def _clean_address_data(data, profile, partial=False):
+    """Normalize and validate JSON or form-data used by address endpoints."""
+    cleaned = {}
+    errors = {}
+
+    def supplied(*names):
+        return next((name for name in names if name in data), None)
+
+    field_aliases = {
+        'address_line_1': ('address_line_1', 'address_line1', 'address'),
+        'address_line_2': ('address_line_2', 'address_line2'),
+        'pincode': ('pincode', 'postal_code'),
+    }
+
+    defaults = {
+        'full_name': profile.full_name,
+        'phone': profile.phone,
+        'address_type': 'Home',
+        'country': 'India',
+        'address_line_2': '',
+        'landmark': '',
+    }
+
+    for field in [
+        'full_name', 'phone', 'address_type', 'address_line_1', 'address_line_2',
+        'landmark', 'city', 'state', 'pincode', 'country',
+    ]:
+        names = field_aliases.get(field, (field,))
+        source_name = supplied(*names)
+        if source_name is not None:
+            cleaned[field] = str(data.get(source_name, '')).strip()
+        elif not partial and field in defaults:
+            cleaned[field] = defaults[field]
+
+    required_fields = {
+        'full_name': 'Full name is required.',
+        'phone': 'Phone number is required.',
+        'address_line_1': 'Address line 1 is required.',
+        'city': 'City is required.',
+        'state': 'State is required.',
+        'pincode': 'Pincode is required.',
+        'country': 'Country is required.',
+    }
+    for field, message in required_fields.items():
+        if (not partial or field in cleaned) and not cleaned.get(field):
+            errors[field] = message
+
+    if 'address_type' in cleaned:
+        normalized_type = cleaned['address_type'].lower().capitalize()
+        if normalized_type not in ['Home', 'Work', 'Other']:
+            errors['address_type'] = "Address type must be Home, Work, or Other."
+        else:
+            cleaned['address_type'] = normalized_type
+
+    if 'phone' in cleaned and cleaned['phone']:
+        phone = cleaned['phone'].replace(' ', '').replace('-', '')
+        phone_digits = phone[1:] if phone.startswith('+') else phone
+        if not phone_digits.isdigit() or not 10 <= len(phone_digits) <= 15:
+            errors['phone'] = 'Phone number must contain 10 to 15 digits.'
+        else:
+            cleaned['phone'] = phone
+
+    if 'pincode' in cleaned and cleaned['pincode']:
+        pincode = cleaned['pincode'].replace(' ', '')
+        if not pincode.isdigit() or len(pincode) != 6:
+            errors['pincode'] = 'Pincode must be exactly 6 digits.'
+        else:
+            cleaned['pincode'] = pincode
+
+    if 'is_default' in data:
+        is_default, is_valid = _parse_boolean(data['is_default'])
+        if not is_valid:
+            errors['is_default'] = 'is_default must be true or false.'
+        else:
+            cleaned['is_default'] = is_default
+
+    return cleaned, errors
+
+
+def _address_not_found_response():
+    return JsonResponse({
+        "success": False,
+        "message": "Address not found."
+    }, status=404)
+
+
+@csrf_exempt
+def api_user_address_create(request):
+    """Create a saved delivery address for the authenticated user."""
+    if request.method != 'POST':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    cleaned, errors = _clean_address_data(data, profile)
+    if errors:
+        return JsonResponse({
+            "success": False,
+            "message": "Please correct the address details.",
+            "errors": errors,
+        }, status=400)
+
+    requested_default = cleaned.pop('is_default', False)
+    with transaction.atomic():
+        locked_profile = UserProfile.objects.select_for_update().get(pk=profile.pk)
+        make_default = requested_default or not locked_profile.addresses.exists()
+        if make_default:
+            locked_profile.addresses.filter(is_default=True).update(is_default=False)
+        address = UserAddress.objects.create(
+            user=locked_profile,
+            is_default=make_default,
+            **cleaned,
+        )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Address added successfully",
+        "address": address.to_dict(),
+    }, status=201)
+
+
+@csrf_exempt
+def api_user_address_list(request):
+    """List every saved address owned by the authenticated user."""
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    addresses = list(profile.addresses.all())
+    default_address = next((address for address in addresses if address.is_default), None)
+    return JsonResponse({
+        "success": True,
+        "message": "Addresses fetched successfully",
+        "count": len(addresses),
+        "default_address_id": default_address.id if default_address else None,
+        "addresses": [address.to_dict() for address in addresses],
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_address_detail(request, address_id):
+    """Return one saved address owned by the authenticated user."""
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    address = profile.addresses.filter(pk=address_id).first()
+    if not address:
+        return _address_not_found_response()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Address fetched successfully",
+        "address": address.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_address_update(request, address_id):
+    """Partially or fully update an address owned by the authenticated user."""
+    if request.method not in ['POST', 'PUT', 'PATCH']:
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use POST, PUT, or PATCH."
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    address = profile.addresses.filter(pk=address_id).first()
+    if not address:
+        return _address_not_found_response()
+
+    data = _parse_request_data(request)
+    cleaned, errors = _clean_address_data(data, profile, partial=True)
+    if errors:
+        return JsonResponse({
+            "success": False,
+            "message": "Please correct the address details.",
+            "errors": errors,
+        }, status=400)
+    if not cleaned:
+        return JsonResponse({
+            "success": False,
+            "message": "Provide at least one address field to update."
+        }, status=400)
+
+    requested_default = cleaned.pop('is_default', None)
+    with transaction.atomic():
+        address = UserAddress.objects.select_for_update().get(pk=address.pk, user=profile)
+        for field, value in cleaned.items():
+            setattr(address, field, value)
+        if requested_default is True:
+            profile.addresses.exclude(pk=address.pk).filter(is_default=True).update(is_default=False)
+            address.is_default = True
+        address.save()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Address updated successfully",
+        "address": address.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_address_set_default(request, address_id):
+    """Make one of the authenticated user's saved addresses the default."""
+    if request.method != 'POST':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    address = profile.addresses.filter(pk=address_id).first()
+    if not address:
+        return _address_not_found_response()
+
+    with transaction.atomic():
+        address = UserAddress.objects.select_for_update().get(pk=address.pk, user=profile)
+        profile.addresses.exclude(pk=address.pk).filter(is_default=True).update(is_default=False)
+        if not address.is_default:
+            address.is_default = True
+            address.save(update_fields=['is_default', 'updated_at'])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Default address updated successfully",
+        "address": address.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_address_delete(request, address_id):
+    """Delete an address and promote another address when required."""
+    if request.method not in ['DELETE', 'POST']:
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use DELETE or POST."
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    address = profile.addresses.filter(pk=address_id).first()
+    if not address:
+        return _address_not_found_response()
+
+    with transaction.atomic():
+        address = UserAddress.objects.select_for_update().get(pk=address.pk, user=profile)
+        deleted_id = address.id
+        was_default = address.is_default
+        address.delete()
+        if was_default:
+            replacement = profile.addresses.order_by('-created_at').first()
+            if replacement:
+                replacement.is_default = True
+                replacement.save(update_fields=['is_default', 'updated_at'])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Address deleted successfully",
+        "deleted_address_id": deleted_id,
+    }, status=200)
 
 
 @csrf_exempt
@@ -2589,8 +3060,6 @@ def api_vendor_payout_detail(request, payout_id):
         "success": True,
         "payout": payout.to_dict()
     }, status=200)
-
-
 
 
 

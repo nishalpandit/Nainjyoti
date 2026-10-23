@@ -298,3 +298,189 @@ response:
   }
 }
 ```
+
+API for Fetching User Profile
+url: http://192.168.1.52:8000/api/user/profile/
+method: GET
+
+headers:
+Authorization: Bearer <user_token>
+
+params:
+none
+
+response (active authenticated user):
+```json
+{
+  "success": true,
+  "user": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "phone": "9812345678",
+    "email": "dev.sharma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/avatar.jpg",
+    "is_active": true,
+    "created_at": "2026-10-22T12:25:46.398042+00:00",
+    "total_orders": 3,
+    "total_spent": 4999.0
+  }
+}
+```
+
+response (if account was deactivated / blocked by admin):
+```json
+{
+  "success": false,
+  "message": "Your account has been deactivated by administrator. Please contact support."
+}
+```
+
+API for Updating User Profile Details
+url: http://192.168.1.52:8000/api/user/profile/update/
+method: POST (or PUT)
+
+headers:
+Authorization: Bearer <user_token>
+Content-Type: multipart/form-data
+
+params:
+first_name: Dev (optional)
+last_name: Verma (optional)
+email: dev.verma@example.com (optional)
+gender: Male (optional, choices: Male, Female, Other, Prefer not to say)
+dob: 1995-08-15 (optional, YYYY-MM-DD or DD/MM/YYYY)
+profile_photo: [Upload binary image file, e.g. avatar.jpg / png] (optional)
+remove_photo: true (optional, set true to remove profile photo)
+
+response:
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "user": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Verma",
+    "full_name": "Dev Verma",
+    "phone": "9812345678",
+    "email": "dev.verma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/avatar.jpg",
+    "is_active": true,
+    "created_at": "2026-10-22T12:25:46.398042+00:00",
+    "total_orders": 3,
+    "total_spent": 4999.0
+  }
+}
+```
+
+response (if email is already used by another account):
+```json
+{
+  "success": false,
+  "message": "This email address is already in use by another account."
+}
+```
+
+API for Uploading or Updating User Profile Photo
+url: http://192.168.1.52:8000/api/user/profile/photo/
+method: POST
+
+headers:
+Authorization: Bearer <user_token>
+Content-Type: multipart/form-data
+
+params:
+profile_photo: [Upload binary image file, e.g. photo.jpg / png]
+
+response (photo uploaded):
+```json
+{
+  "success": true,
+  "message": "Profile photo uploaded successfully",
+  "profile_photo": "/media/user_profiles/photos/photo.jpg",
+  "user": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Verma",
+    "full_name": "Dev Verma",
+    "phone": "9812345678",
+    "email": "dev.verma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/photo.jpg",
+    "is_active": true,
+    "created_at": "2026-10-22T12:25:46.398042+00:00"
+  }
+}
+```
+
+params (to remove profile photo):
+remove_photo: true
+
+response (photo removed):
+```json
+{
+  "success": true,
+  "message": "Profile photo removed successfully",
+  "profile_photo": null,
+  "user": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Verma",
+    "full_name": "Dev Verma",
+    "phone": "9812345678",
+    "email": "dev.verma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": null,
+    "is_active": true,
+    "created_at": "2026-10-22T12:25:46.398042+00:00"
+  }
+}
+```
+
+API for Admin Dashboard: Edit Customer Profile Details & Status
+url: http://192.168.1.52:8000/admin-dashboard/customers/<customer_id>/edit/
+method: POST
+
+headers:
+Content-Type: multipart/form-data
+X-Requested-With: XMLHttpRequest (optional for JSON response)
+
+params:
+first_name: Dev (optional)
+last_name: Verma (optional)
+phone: 9812345678 (optional)
+email: dev.verma@example.com (optional)
+gender: Male (optional, choices: Male, Female, Other, Prefer not to say)
+dob: 1995-08-15 (optional, YYYY-MM-DD)
+profile_photo: [Upload binary image file, e.g. photo.jpg / png] (optional)
+remove_photo: true (optional)
+is_active: true (optional, boolean: true / false)
+
+response:
+```json
+{
+  "success": true,
+  "message": "Customer 'Dev Verma' updated successfully.",
+  "customer": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Verma",
+    "full_name": "Dev Verma",
+    "phone": "9812345678",
+    "email": "dev.verma@example.com",
+    "gender": "Male",
+    "dob": "1995-08-15",
+    "photo_url": "/media/user_profiles/photos/photo.jpg",
+    "is_active": true
+  }
+}
+```
+

@@ -195,6 +195,64 @@ class UserProfile(models.Model):
         }
 
 
+class UserAddress(models.Model):
+    """Saved delivery address owned by a customer profile."""
+
+    ADDRESS_TYPE_CHOICES = [
+        ('Home', 'Home'),
+        ('Work', 'Work'),
+        ('Other', 'Other'),
+    ]
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='addresses')
+    address_type = models.CharField(max_length=20, choices=ADDRESS_TYPE_CHOICES, default='Home')
+    full_name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20)
+    address_line_1 = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True)
+    landmark = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=10)
+    country = models.CharField(max_length=100, default='India')
+    is_default = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_default', '-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user'],
+                condition=models.Q(is_default=True),
+                name='unique_default_address_per_user',
+            ),
+        ]
+        verbose_name = 'User Address'
+        verbose_name_plural = 'User Addresses'
+
+    def __str__(self):
+        return f"{self.full_name} - {self.city}, {self.state} ({self.pincode})"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'address_type': self.address_type,
+            'full_name': self.full_name,
+            'phone': self.phone,
+            'address_line_1': self.address_line_1,
+            'address_line_2': self.address_line_2,
+            'landmark': self.landmark,
+            'city': self.city,
+            'state': self.state,
+            'pincode': self.pincode,
+            'country': self.country,
+            'is_default': self.is_default,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class OTPRecord(models.Model):
     """
     Stores OTP verification codes for Phone login & registration
@@ -734,7 +792,6 @@ class VendorPayout(models.Model):
             'requested_at': self.requested_at.isoformat() if self.requested_at else None,
             'processed_at': self.processed_at.isoformat() if self.processed_at else None,
         }
-
 
 
 

@@ -6,7 +6,7 @@ from django.db.models import Q, Sum, Count, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 import json
 from django.utils.text import slugify
 from .models import (
@@ -733,6 +733,110 @@ def admin_customer_detail(request, customer_id):
             "recent_orders": recent_orders
         }
     }, status=200)
+
+
+@csrf_exempt
+def admin_customer_edit(request, customer_id):
+    """
+    Admin Control: Edit Customer Profile Details & Status directly from Admin Dashboard
+    Endpoint: POST /admin-dashboard/customers/<customer_id>/edit/
+    Accepts: multipart/form-data or application/json
+    """
+    customer = get_object_or_404(UserProfile, id=customer_id)
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = {}
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            data = {}
+    else:
+        data = request.POST.dict()
+
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    phone = data.get("phone", "").strip().replace(" ", "").replace("-", "")
+    email = data.get("email", "").strip().lower() or None
+    gender = data.get("gender", "").strip()
+    dob_raw = data.get("dob", "").strip()
+
+    if first_name:
+        customer.first_name = first_name
+        if customer.user:
+            customer.user.first_name = first_name
+    if last_name:
+        customer.last_name = last_name
+        if customer.user:
+            customer.user.last_name = last_name
+
+    if phone:
+        if phone != customer.phone and UserProfile.objects.filter(phone=phone).exclude(id=customer.id).exists():
+            return JsonResponse({"success": False, "message": f"Phone number '{phone}' is already registered to another user."}, status=400)
+        customer.phone = phone
+
+    if email:
+        if email != customer.email and User.objects.filter(email=email).exclude(id=customer.user_id).exists():
+            return JsonResponse({"success": False, "message": f"Email address '{email}' is already in use by another account."}, status=400)
+        customer.email = email
+        if customer.user:
+            customer.user.email = email
+    elif "email" in data and not email:
+        customer.email = None
+        if customer.user:
+            customer.user.email = ""
+
+    if gender in ['Male', 'Female', 'Other', 'Prefer not to say']:
+        customer.gender = gender
+
+    if dob_raw:
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                customer.dob = datetime.strptime(dob_raw, fmt).date()
+                break
+            except ValueError:
+                continue
+
+    if "is_active" in data:
+        is_active_val = str(data["is_active"]).lower() in ["true", "1", "yes"]
+        customer.is_active = is_active_val
+        if customer.user:
+            customer.user.is_active = is_active_val
+
+    # Photo handling
+    if request.FILES.get("profile_photo"):
+        customer.profile_photo = request.FILES["profile_photo"]
+    elif str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
+        customer.profile_photo = None
+
+    if customer.user:
+        customer.user.save()
+    customer.save()
+
+    msg = f"Customer '{customer.full_name}' updated successfully."
+    messages.success(request, msg)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in getattr(request, 'content_type', '')
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "customer": {
+                "id": customer.id,
+                "first_name": customer.first_name,
+                "last_name": customer.last_name,
+                "full_name": customer.full_name,
+                "phone": customer.phone,
+                "email": customer.email,
+                "gender": customer.gender,
+                "dob": customer.dob.strftime('%Y-%m-%d') if customer.dob else None,
+                "photo_url": customer.photo_url,
+                "is_active": customer.is_active
+            }
+        }, status=200)
+
+    return redirect("admin_customers")
 
 
 def admin_vendors(request):
