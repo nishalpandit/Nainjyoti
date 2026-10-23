@@ -877,3 +877,174 @@ response:
   ]
 }
 ```
+
+---
+
+API for Product Details
+url: http://192.168.1.52:8000/api/user/products/<product_id>/
+aliases:
+- http://192.168.1.52:8000/api/user/product/detail/<product_id>/
+- http://192.168.1.52:8000/api/products/<product_id>/
+method: GET
+
+headers:
+none (public customer endpoint)
+
+params:
+none (path parameter: product_id)
+
+response (successful product detail):
+```json
+{
+  "success": true,
+  "message": "Product details fetched successfully",
+  "product": {
+    "id": 10,
+    "name": "Wireless Noise Cancelling Headphones",
+    "sku": "PROD-203948",
+    "description": "Premium over-ear wireless headphones with active noise cancellation and 30-hour battery life.",
+    "price": 2999.0,
+    "discount_price": 2499.0,
+    "effective_price": 2499.0,
+    "savings_amount": 500.0,
+    "savings_percentage": 16.7,
+    "stock_quantity": 20,
+    "low_stock_threshold": 5,
+    "unit": "Piece",
+    "image_url": "/media/products/headphones.jpg",
+    "status": "ACTIVE",
+    "in_stock": true,
+    "low_stock_warning": false,
+    "is_approved": true,
+    "category": {
+      "id": 1,
+      "name": "Electronics & Gadgets",
+      "description": "Smartphones, audio, and accessories",
+      "image_url": "/media/categories/images/electronics.jpg"
+    },
+    "vendor": {
+      "id": 2,
+      "vendor_code": "VND-4821",
+      "business_name": "Apex Electronics Hub",
+      "owner_name": "Siddharth Rao",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "store_logo": "/media/vendors/logos/audioworld.png"
+    },
+    "has_variants": true,
+    "total_variants": 2,
+    "available_colors": [
+      "Black",
+      "Silver"
+    ],
+    "available_sizes": [
+      "Standard"
+    ],
+    "available_materials": [
+      "Brushed Aluminum",
+      "Matte Plastic"
+    ],
+    "variants": [
+      {
+        "id": 1,
+        "product_id": 10,
+        "title": "Midnight Black",
+        "color": "Black",
+        "size": "Standard",
+        "material": "Matte Plastic",
+        "sku": "PROD-203948-BLK",
+        "price": 2999.0,
+        "discount_price": 2499.0,
+        "effective_price": 2499.0,
+        "stock_quantity": 12,
+        "in_stock": true,
+        "image_url": "/media/products/headphones-black.jpg",
+        "is_active": true
+      },
+      {
+        "id": 2,
+        "product_id": 10,
+        "title": "Silver Edition",
+        "color": "Silver",
+        "size": "Standard",
+        "material": "Brushed Aluminum",
+        "sku": "PROD-203948-SLV",
+        "price": 3299.0,
+        "discount_price": 2699.0,
+        "effective_price": 2699.0,
+        "stock_quantity": 8,
+        "in_stock": true,
+        "image_url": "/media/products/headphones-silver.jpg",
+        "is_active": true
+      }
+    ],
+    "created_at": "2026-10-20T10:00:00+00:00",
+    "updated_at": "2026-10-22T14:30:00+00:00"
+  },
+  "related_products": [
+    {
+      "id": 14,
+      "name": "Desktop USB DAC & Headphone Amp",
+      "sku": "PROD-819234",
+      "price": 4500.0,
+      "discount_price": 3999.0,
+      "effective_price": 3999.0,
+      "image_url": "/media/products/dac.jpg",
+      "category_id": 1,
+      "category_name": "Electronics & Gadgets",
+      "vendor_name": "Apex Electronics Hub",
+      "stock_quantity": 10,
+      "in_stock": true
+    }
+  ]
+}
+```
+
+response (if product is out of stock):
+```json
+{
+  "success": true,
+  "message": "Product details fetched successfully",
+  "product": {
+    "id": 12,
+    "name": "Studio Reference Monitor Speakers",
+    "sku": "PROD-992144",
+    "description": "High-fidelity balanced studio monitors",
+    "price": 8999.0,
+    "discount_price": 7999.0,
+    "effective_price": 7999.0,
+    "savings_amount": 1000.0,
+    "savings_percentage": 11.1,
+    "stock_quantity": 0,
+    "low_stock_threshold": 5,
+    "unit": "Pair",
+    "image_url": "/media/products/speakers.jpg",
+    "status": "OUT_OF_STOCK",
+    "in_stock": false,
+    "low_stock_warning": false,
+    "is_approved": true,
+    "category": {
+      "id": 1,
+      "name": "Electronics & Gadgets"
+    },
+    "vendor": {
+      "id": 2,
+      "business_name": "Apex Electronics Hub"
+    },
+    "has_variants": false,
+    "total_variants": 0,
+    "variants": [],
+    "created_at": "2026-10-21T09:15:00+00:00",
+    "updated_at": "2026-10-23T08:00:00+00:00"
+  },
+  "related_products": []
+}
+```
+
+response (if product not found, inactive, unapproved, vendor unapproved, or category inactive):
+```json
+{
+  "success": false,
+  "message": "Product with ID '999' was not found or is unavailable."
+}
+```

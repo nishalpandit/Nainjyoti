@@ -78,6 +78,11 @@ urlpatterns = [
     path('api/user/categories/<int:category_id>/products/', api_views.api_user_category_products, name='api_user_category_products'),
     path('api/user/category/products/<int:category_id>/', api_views.api_user_category_products, name='api_user_category_products_alias'),
     path('api/user/products/search/', api_views.api_product_search, name='api_user_product_search'),
+    path('api/user/products/<int:product_id>/', api_views.api_user_product_detail, name='api_user_product_detail'),
+    path('api/user/product/detail/<int:product_id>/', api_views.api_user_product_detail, name='api_user_product_detail_alias'),
+    path('api/user/products/<int:product_id>/variants/', api_views.api_user_product_variants, name='api_user_product_variants'),
+    path('api/user/variants/<int:variant_id>/', api_views.api_user_variant_detail, name='api_user_variant_detail'),
+    path('api/products/<int:product_id>/', api_views.api_user_product_detail, name='api_product_detail_alias'),
     path('api/products/search/', api_views.api_product_search, name='api_product_search_alias'),
 
     # =========================================================================

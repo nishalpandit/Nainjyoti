@@ -442,6 +442,86 @@ class Product(models.Model):
         }
 
 
+class ProductVariant(models.Model):
+    """Purchasable color, size, or material option belonging to a product."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    title = models.CharField(max_length=150)
+    color = models.CharField(max_length=50, blank=True, default='')
+    size = models.CharField(max_length=50, blank=True, default='')
+    material = models.CharField(max_length=100, blank=True, default='')
+    sku = models.CharField(max_length=60, unique=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    stock_quantity = models.IntegerField(default=0)
+    image = models.ImageField(upload_to='products/variants/', blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Product Variant'
+        verbose_name_plural = 'Product Variants'
+
+    def __str__(self):
+        return f"{self.product.name} - {self.title} ({self.sku})"
+
+    def save(self, *args, **kwargs):
+        if not self.sku:
+            base_sku = self.product.sku or f"PRD-{self.product.id}"
+            suffix = f"-{self.size}" if self.size else ""
+            if self.color:
+                suffix += f"-{self.color[:3].upper()}"
+            sku_prefix = f"{base_sku}{suffix}"[:56]
+            generated_sku = f"{sku_prefix}-{random.randint(100, 999)}"
+            while ProductVariant.objects.filter(sku=generated_sku).exists():
+                generated_sku = f"{sku_prefix}-{random.randint(100, 999)}"
+            self.sku = generated_sku
+        super().save(*args, **kwargs)
+
+    @property
+    def image_url(self):
+        if self.image and hasattr(self.image, 'url'):
+            return self.image.url
+        return self.product.image_url
+
+    @property
+    def effective_price(self):
+        if self.discount_price is not None:
+            return float(self.discount_price)
+        if self.price is not None:
+            return float(self.price)
+        product_price = (
+            self.product.discount_price
+            if self.product.discount_price is not None
+            else self.product.price
+        )
+        return float(product_price)
+
+    def to_dict(self):
+        regular_price = float(self.price) if self.price is not None else float(self.product.price)
+        sale_price = float(self.discount_price) if self.discount_price is not None else (
+            float(self.product.discount_price) if self.product.discount_price is not None else None
+        )
+        return {
+            'id': self.id,
+            'product_id': self.product.id,
+            'title': self.title,
+            'color': self.color,
+            'size': self.size,
+            'material': self.material,
+            'sku': self.sku,
+            'price': regular_price,
+            'discount_price': sale_price,
+            'effective_price': self.effective_price,
+            'stock_quantity': self.stock_quantity,
+            'in_stock': self.stock_quantity > 0,
+            'image_url': self.image_url,
+            'is_active': self.is_active,
+        }
+
+
 class StockLog(models.Model):
     """
     Inventory / Stock Audit Ledger.
@@ -807,7 +887,5 @@ class VendorPayout(models.Model):
             'requested_at': self.requested_at.isoformat() if self.requested_at else None,
             'processed_at': self.processed_at.isoformat() if self.processed_at else None,
         }
-
-
 
 

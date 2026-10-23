@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, StockLog,
+    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -17,6 +17,14 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_approved', 'category', 'vendor')
     search_fields = ('name', 'sku', 'vendor__business_name', 'vendor__vendor_code', 'category__name')
     ordering = ('-created_at',)
+
+
+@admin.register(ProductVariant)
+class ProductVariantAdmin(admin.ModelAdmin):
+    list_display = ('title', 'product', 'sku', 'price', 'stock_quantity', 'is_active')
+    list_filter = ('is_active', 'color', 'size')
+    search_fields = ('title', 'sku', 'product__name')
+
 
 @admin.register(StockLog)
 class StockLogAdmin(admin.ModelAdmin):

@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
 from .models import (
-    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, StockLog,
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -1280,6 +1280,208 @@ def api_product_search(request):
         "total_pages": total_pages,
         "has_next": page < total_pages,
         "products": product_data,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_product_detail(request, product_id):
+    """
+    API: Fetch complete single product details for mobile app and customer storefront.
+    Endpoint: GET /api/user/products/<product_id>/ (alias /api/user/product/detail/<product_id>/)
+    """
+    if request.method != 'GET':
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use GET."
+        }, status=405)
+
+    product = Product.objects.select_related('vendor', 'category').prefetch_related('variants').filter(
+        id=product_id,
+        status__in=['ACTIVE', 'OUT_OF_STOCK'],
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).filter(
+        Q(category__isnull=True) | Q(category__status='ACTIVE')
+    ).first()
+
+    if not product:
+        return JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' was not found or is unavailable."
+        }, status=404)
+
+    price = float(product.price)
+    discount_price = float(product.discount_price) if product.discount_price is not None else None
+    effective_price = discount_price if discount_price is not None else price
+    savings_amount = round(price - discount_price, 2) if discount_price is not None and discount_price < price else 0.0
+    savings_percentage = round(((price - discount_price) / price) * 100, 1) if discount_price is not None and discount_price < price and price > 0 else 0.0
+
+    in_stock = product.stock_quantity > 0
+    low_stock_warning = in_stock and (product.stock_quantity <= product.low_stock_threshold)
+
+    category_data = None
+    if product.category:
+        category_data = {
+            "id": product.category.id,
+            "name": product.category.name,
+            "description": product.category.description,
+            "image_url": product.category.image_url,
+        }
+
+    vendor_data = {
+        "id": product.vendor.id,
+        "vendor_code": product.vendor.vendor_code,
+        "business_name": product.vendor.business_name,
+        "owner_name": product.vendor.owner_name,
+        "city": product.vendor.city,
+        "state": product.vendor.state,
+        "store_logo": product.vendor.logo_url,
+    }
+
+    variants = [v.to_dict() for v in product.variants.filter(is_active=True).order_by('id')]
+    has_variants = len(variants) > 0
+    available_colors = sorted({v['color'] for v in variants if v.get('color')})
+    available_sizes = sorted({v['size'] for v in variants if v.get('size')})
+    available_materials = sorted({v['material'] for v in variants if v.get('material')})
+
+    # Related items in same category (or same vendor if uncategorized)
+    related_qs = Product.objects.select_related('vendor', 'category').filter(
+        status__in=['ACTIVE', 'OUT_OF_STOCK'],
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).filter(
+        Q(category__isnull=True) | Q(category__status='ACTIVE')
+    ).exclude(id=product.id)
+
+    if product.category:
+        related_qs = related_qs.filter(category=product.category)
+    else:
+        related_qs = related_qs.filter(vendor=product.vendor)
+
+    related_products = []
+    for rel in related_qs.order_by('-created_at')[:6]:
+        rel_price = float(rel.price)
+        rel_discount = float(rel.discount_price) if rel.discount_price is not None else None
+        related_products.append({
+            "id": rel.id,
+            "name": rel.name,
+            "sku": rel.sku,
+            "price": rel_price,
+            "discount_price": rel_discount,
+            "effective_price": rel_discount if rel_discount is not None else rel_price,
+            "image_url": rel.image_url,
+            "category_id": rel.category_id,
+            "category_name": rel.category.name if rel.category else None,
+            "vendor_name": rel.vendor.business_name if rel.vendor else None,
+            "stock_quantity": rel.stock_quantity,
+            "in_stock": rel.stock_quantity > 0,
+        })
+
+    product_data = {
+        "id": product.id,
+        "name": product.name,
+        "sku": product.sku,
+        "description": product.description,
+        "price": price,
+        "discount_price": discount_price,
+        "effective_price": effective_price,
+        "savings_amount": savings_amount,
+        "savings_percentage": savings_percentage,
+        "stock_quantity": product.stock_quantity,
+        "low_stock_threshold": product.low_stock_threshold,
+        "unit": product.unit,
+        "image_url": product.image_url,
+        "status": product.status,
+        "in_stock": in_stock,
+        "low_stock_warning": low_stock_warning,
+        "is_approved": product.is_approved,
+        "category": category_data,
+        "vendor": vendor_data,
+        "has_variants": has_variants,
+        "total_variants": len(variants),
+        "available_colors": available_colors,
+        "available_sizes": available_sizes,
+        "available_materials": available_materials,
+        "variants": variants,
+        "created_at": product.created_at.isoformat() if product.created_at else None,
+        "updated_at": product.updated_at.isoformat() if product.updated_at else None,
+    }
+
+    return JsonResponse({
+        "success": True,
+        "message": "Product details fetched successfully",
+        "product": product_data,
+        "related_products": related_products,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_product_variants(request, product_id):
+    """Return active variants and option summaries for one customer-visible product."""
+    if request.method != 'GET':
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use GET."
+        }, status=405)
+
+    product = Product.objects.select_related('vendor', 'category').filter(
+        id=product_id,
+        status__in=['ACTIVE', 'OUT_OF_STOCK'],
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).filter(
+        Q(category__isnull=True) | Q(category__status='ACTIVE')
+    ).first()
+    if not product:
+        return JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' was not found or is unavailable."
+        }, status=404)
+
+    variants = list(product.variants.filter(is_active=True).order_by('id'))
+    available_colors = sorted({variant.color for variant in variants if variant.color})
+    available_sizes = sorted({variant.size for variant in variants if variant.size})
+    available_materials = sorted({variant.material for variant in variants if variant.material})
+
+    return JsonResponse({
+        "success": True,
+        "product_id": product.id,
+        "product_name": product.name,
+        "total_variants": len(variants),
+        "available_colors": available_colors,
+        "available_sizes": available_sizes,
+        "available_materials": available_materials,
+        "variants": [variant.to_dict() for variant in variants],
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_variant_detail(request, variant_id):
+    """Return one active variant belonging to a customer-visible product."""
+    if request.method != 'GET':
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use GET."
+        }, status=405)
+
+    variant = ProductVariant.objects.select_related('product', 'product__vendor', 'product__category').filter(
+        id=variant_id,
+        is_active=True,
+        product__status__in=['ACTIVE', 'OUT_OF_STOCK'],
+        product__is_approved=True,
+        product__vendor__status='APPROVED',
+    ).filter(
+        Q(product__category__isnull=True) | Q(product__category__status='ACTIVE')
+    ).first()
+    if not variant:
+        return JsonResponse({
+            "success": False,
+            "message": f"Variant with ID '{variant_id}' was not found or is unavailable."
+        }, status=404)
+
+    return JsonResponse({
+        "success": True,
+        "variant": variant.to_dict(),
     }, status=200)
 
 
@@ -3427,5 +3629,4 @@ def api_vendor_payout_detail(request, payout_id):
         "success": True,
         "payout": payout.to_dict()
     }, status=200)
-
 
