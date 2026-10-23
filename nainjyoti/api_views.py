@@ -2,6 +2,8 @@ import json
 import base64
 import random
 import secrets
+import hashlib
+import hmac
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
 from django.http import JsonResponse
@@ -14,9 +16,11 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
+from django.conf import settings
 from .models import (
-    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, CartItem, WishlistItem, StockLog,
-    Order, PaymentTransaction, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, CartItem, WishlistItem,
+    ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
+    OrderStatusHistory, VendorEarning, VendorPayout
 )
 
 def _parse_request_data(request):
@@ -2112,6 +2116,9 @@ def api_user_payment_verify(request):
     provider = str(data.get('provider', '')).strip() or 'ONLINE'
     provider_payment_id = str(data.get('provider_payment_id', '')).strip()
     provider_order_id = str(data.get('provider_order_id', '')).strip()
+    verification_signature = str(
+        request.headers.get('X-Payment-Signature', '') or data.get('signature', '')
+    ).strip()
 
     if raw_status not in ['PAID', 'SUCCESS', 'FAILED']:
         return JsonResponse({
@@ -2120,6 +2127,32 @@ def api_user_payment_verify(request):
         }, status=400)
 
     status_val = 'PAID' if raw_status in ['PAID', 'SUCCESS'] else 'FAILED'
+
+    verification_secret = getattr(settings, 'PAYMENT_WEBHOOK_SECRET', '')
+    if verification_secret and verification_signature:
+        signed_payload = '|'.join([
+            ref,
+            raw_status,
+            provider,
+            provider_order_id,
+            provider_payment_id,
+        ])
+        expected_signature = hmac.new(
+            verification_secret.encode('utf-8'),
+            signed_payload.encode('utf-8'),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(verification_signature, expected_signature):
+            return JsonResponse({
+                'success': False,
+                'message': 'Payment verification signature is invalid.',
+            }, status=403)
+    elif verification_secret and not getattr(settings, 'DEBUG', True):
+        if not verification_signature:
+            return JsonResponse({
+                'success': False,
+                'message': 'X-Payment-Signature header is required for payment verification.',
+            }, status=403)
 
     payment = None
     if ref:
@@ -2641,6 +2674,312 @@ def api_user_wishlist_remove(request, product_id, variant_id=None):
     }, status=200)
 
 
+def api_user_order_tracking(request, order_id):
+    """Return item-level fulfillment and courier tracking for a customer order."""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use GET.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    order = Order.objects.filter(pk=order_id, customer=profile).first()
+    if not order:
+        return JsonResponse({
+            'success': False,
+            'message': f"Order with ID '{order_id}' was not found for this customer.",
+        }, status=404)
+
+    items = order.items.select_related('product', 'variant', 'vendor')
+    history = order.status_history.order_by('-created_at')
+    return JsonResponse({
+        'success': True,
+        'order_id': order.id,
+        'order_number': order.order_number,
+        'order_status': order.status,
+        'payment_status': order.payment_status,
+        'items': [{
+            'order_item_id': item.id,
+            'product_id': item.product_id,
+            'product_name': item.product_name,
+            'variant_id': item.variant_id,
+            'variant_title': item.variant_title or None,
+            'status': item.status,
+            'courier_name': item.courier_name or None,
+            'tracking_number': item.tracking_number or None,
+            'dispatch_date': item.dispatch_date.isoformat() if item.dispatch_date else None,
+            'delivery_date': item.delivery_date.isoformat() if item.delivery_date else None,
+        } for item in items],
+        'timeline': [entry.to_dict() for entry in history],
+        'last_updated': order.updated_at.isoformat() if order.updated_at else None,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_order_request_create(request, order_id):
+    """Submit a cancellation request or return request for a customer-owned order."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use POST.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    order = Order.objects.filter(pk=order_id, customer=profile).first()
+    if not order:
+        return JsonResponse({
+            'success': False,
+            'message': f"Order with ID '{order_id}' was not found for this customer.",
+        }, status=404)
+
+    data = _parse_request_data(request)
+    request_type = str(data.get('request_type', '')).strip().upper()
+    if request_type not in ['CANCEL', 'RETURN']:
+        return JsonResponse({
+            'success': False,
+            'message': "request_type must be either 'CANCEL' or 'RETURN'.",
+        }, status=400)
+    reason = str(data.get('reason', '')).strip()
+    details = str(data.get('details', '')).strip()
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'reason is required.'}, status=400)
+    if len(reason) > 255:
+        return JsonResponse({'success': False, 'message': 'reason cannot exceed 255 characters.'}, status=400)
+
+    order_item = None
+    raw_order_item_id = data.get('order_item_id')
+    if raw_order_item_id not in (None, ''):
+        try:
+            order_item_id = int(raw_order_item_id)
+            if order_item_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'message': 'order_item_id must be a valid positive integer.',
+            }, status=400)
+        order_item = order.items.filter(pk=order_item_id).first()
+        if not order_item:
+            return JsonResponse({
+                'success': False,
+                'message': f"Order item '{order_item_id}' was not found in this order.",
+            }, status=404)
+
+    target_status = order_item.status if order_item else order.status
+    if request_type == 'CANCEL' and target_status not in ['PENDING', 'CONFIRMED', 'PROCESSING']:
+        return JsonResponse({
+            'success': False,
+            'message': f"Cancellation cannot be requested when the status is '{target_status}'.",
+        }, status=400)
+    if request_type == 'RETURN' and target_status != 'DELIVERED':
+        return JsonResponse({
+            'success': False,
+            'message': 'A return can only be requested after delivery.',
+        }, status=400)
+
+    if OrderRequest.objects.filter(
+        customer=profile,
+        order=order,
+        order_item=order_item,
+        request_type=request_type,
+        status='PENDING',
+    ).exists():
+        return JsonResponse({
+            'success': False,
+            'message': f'A pending {request_type.lower()} request already exists for this selection.',
+        }, status=409)
+
+    order_request = OrderRequest.objects.create(
+        customer=profile,
+        order=order,
+        order_item=order_item,
+        request_type=request_type,
+        reason=reason,
+        details=details,
+    )
+    Notification.objects.create(
+        user=profile,
+        order=order,
+        notification_type='CANCELLATION' if request_type == 'CANCEL' else 'RETURN',
+        title=f'{order_request.get_request_type_display()} request received',
+        message=f'Your request {order_request.request_number} is pending review.',
+        data={
+            'request_id': order_request.id,
+            'request_number': order_request.request_number,
+            'order_item_id': order_item.id if order_item else None,
+        },
+    )
+    return JsonResponse({
+        'success': True,
+        'message': f'{order_request.get_request_type_display()} request submitted successfully.',
+        'request': order_request.to_dict(),
+    }, status=201)
+
+
+def api_user_order_request_list(request):
+    """List cancellation and return requests submitted by the customer."""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use GET.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    requests_query = OrderRequest.objects.filter(customer=profile).select_related('order', 'order_item')
+    request_type = str(request.GET.get('request_type', '')).strip().upper()
+    status_filter = str(request.GET.get('status', '')).strip().upper()
+    if request_type:
+        if request_type not in ['CANCEL', 'RETURN']:
+            return JsonResponse({'success': False, 'message': 'Invalid request_type filter.'}, status=400)
+        requests_query = requests_query.filter(request_type=request_type)
+    if status_filter:
+        valid_statuses = {choice[0] for choice in OrderRequest.STATUS_CHOICES}
+        if status_filter not in valid_statuses:
+            return JsonResponse({'success': False, 'message': 'Invalid status filter.'}, status=400)
+        requests_query = requests_query.filter(status=status_filter)
+    request_list = [order_request.to_dict() for order_request in requests_query]
+    return JsonResponse({
+        'success': True,
+        'total_count': len(request_list),
+        'requests': request_list,
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_reviews(request, product_id):
+    """List approved product reviews or create an authenticated customer review."""
+    product = Product.objects.select_related('vendor', 'category').filter(pk=product_id).first()
+    if not product:
+        return JsonResponse({'success': False, 'message': f"Product '{product_id}' was not found."}, status=404)
+
+    if request.method == 'GET':
+        reviews_query = ProductReview.objects.filter(product=product, is_approved=True).select_related('user', 'variant')
+        reviews = [review.to_dict() for review in reviews_query]
+        average_rating = reviews_query.aggregate(value=Avg('rating'))['value'] or 0
+        return JsonResponse({
+            'success': True,
+            'product_id': product.id,
+            'product_name': product.name,
+            'average_rating': round(float(average_rating), 2),
+            'total_reviews': len(reviews),
+            'rating_distribution': {
+                str(rating): reviews_query.filter(rating=rating).count()
+                for rating in range(5, 0, -1)
+            },
+            'reviews': reviews,
+        }, status=200)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use GET or POST.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+    data = _parse_request_data(request)
+    try:
+        rating = int(data.get('rating', ''))
+        if rating < 1 or rating > 5:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'message': 'rating must be an integer from 1 to 5.'}, status=400)
+    title = str(data.get('title', '')).strip()
+    comment = str(data.get('comment', '')).strip()
+    if len(title) > 150:
+        return JsonResponse({'success': False, 'message': 'title cannot exceed 150 characters.'}, status=400)
+
+    variant = None
+    raw_variant_id = data.get('variant_id')
+    if raw_variant_id not in (None, ''):
+        try:
+            variant_id = int(raw_variant_id)
+        except (TypeError, ValueError):
+            return JsonResponse({'success': False, 'message': 'variant_id must be a valid integer.'}, status=400)
+        variant = ProductVariant.objects.filter(pk=variant_id, product=product).first()
+        if not variant:
+            return JsonResponse({
+                'success': False,
+                'message': f"Variant '{variant_id}' was not found for this product.",
+            }, status=404)
+
+    if ProductReview.objects.filter(user=profile, product=product).exists():
+        return JsonResponse({
+            'success': False,
+            'message': 'You have already reviewed this product. Use the update API to change it.',
+        }, status=409)
+
+    delivered_items = OrderItem.objects.filter(
+        order__customer=profile,
+        product=product,
+        status='DELIVERED',
+    )
+    if variant:
+        delivered_items = delivered_items.filter(variant=variant)
+    review = ProductReview.objects.create(
+        user=profile,
+        product=product,
+        variant=variant,
+        rating=rating,
+        title=title,
+        comment=comment,
+        is_verified_purchase=delivered_items.exists(),
+    )
+    review = ProductReview.objects.select_related('user', 'product', 'variant').get(pk=review.pk)
+    return JsonResponse({
+        'success': True,
+        'message': 'Review submitted successfully.',
+        'review': review.to_dict(),
+    }, status=201)
+
+
+@csrf_exempt
+def api_user_review_update(request, review_id):
+    if request.method not in ['PUT', 'PATCH', 'POST']:
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use PUT, PATCH, or POST.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+    review = ProductReview.objects.select_related('user', 'product', 'variant').filter(
+        pk=review_id,
+        user=profile,
+    ).first()
+    if not review:
+        return JsonResponse({'success': False, 'message': f"Review '{review_id}' was not found."}, status=404)
+    data = _parse_request_data(request)
+    if 'rating' in data:
+        try:
+            rating = int(data.get('rating'))
+            if rating < 1 or rating > 5:
+                raise ValueError
+            review.rating = rating
+        except (TypeError, ValueError):
+            return JsonResponse({'success': False, 'message': 'rating must be an integer from 1 to 5.'}, status=400)
+    if 'title' in data:
+        title = str(data.get('title', '')).strip()
+        if len(title) > 150:
+            return JsonResponse({'success': False, 'message': 'title cannot exceed 150 characters.'}, status=400)
+        review.title = title
+    if 'comment' in data:
+        review.comment = str(data.get('comment', '')).strip()
+    review.save()
+    return JsonResponse({'success': True, 'message': 'Review updated successfully.', 'review': review.to_dict()}, status=200)
+
+
+@csrf_exempt
+def api_user_review_delete(request, review_id):
+    if request.method not in ['DELETE', 'POST']:
+        return JsonResponse({'success': False, 'message': 'Method not allowed. Use DELETE or POST.'}, status=405)
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+    review = ProductReview.objects.filter(pk=review_id, user=profile).first()
+    if not review:
+        return JsonResponse({'success': False, 'message': f"Review '{review_id}' was not found."}, status=404)
+    product_id = review.product_id
+    review.delete()
+    return JsonResponse({
+        'success': True,
+        'message': 'Review deleted successfully.',
+        'deleted_review_id': review_id,
+        'product_id': product_id,
+    }, status=200)
+
+
 def _managed_variant_product(request, product_id, action='manage variants for'):
     product = Product.objects.select_related('vendor', 'category').filter(pk=product_id).first()
     if not product:
@@ -2919,6 +3258,53 @@ def api_product_variant_delete(request, variant_id):
         "deleted_variant_id": deleted_id,
         "deleted_variant_title": deleted_title,
         "product_stock_quantity": product.stock_quantity,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_refresh_token(request):
+    """
+    API: Refresh Customer Bearer Auth Token
+    Endpoint: POST /api/user/refresh-token/
+    Headers: Authorization: Bearer <current_token>
+    Body (optional fallback): {"token": "..."}
+    """
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    data = _parse_request_data(request)
+    body_token = str(data.get("token") or data.get("refresh_token") or "").strip()
+
+    profile = None
+    if body_token:
+        profile = UserProfile.objects.select_related('user').filter(auth_token=body_token).first()
+    else:
+        auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
+            profile = UserProfile.objects.select_related('user').filter(auth_token=parts[1].strip()).first()
+        elif request.user.is_authenticated and hasattr(request.user, 'customer_profile'):
+            profile = request.user.customer_profile
+
+    if not profile:
+        return JsonResponse({
+            "success": False,
+            "message": "Invalid or missing token. Please provide a valid Bearer token."
+        }, status=401)
+
+    if not profile.is_active or (profile.user and not profile.user.is_active):
+        return JsonResponse({
+            "success": False,
+            "message": "Your account has been deactivated by administrator. Please contact support."
+        }, status=403)
+
+    new_token = profile.generate_new_token()
+    return JsonResponse({
+        "success": True,
+        "message": "Token refreshed successfully",
+        "auth_token": new_token,
+        "token": new_token,
+        "user": profile.to_dict()
     }, status=200)
 
 

@@ -771,6 +771,63 @@ class WishlistItem(models.Model):
         }
 
 
+class ProductReview(models.Model):
+    """Customer rating and written review for a product."""
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviews',
+    )
+    rating = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=150, blank=True, default='')
+    comment = models.TextField(blank=True, default='')
+    is_verified_purchase = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Product Review'
+        verbose_name_plural = 'Product Reviews'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                name='unique_customer_review_per_product',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5),
+                name='product_review_rating_between_one_and_five',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.rating}/5 by {self.user.full_name}"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'product_name': self.product.name,
+            'variant_id': self.variant_id,
+            'variant_title': self.variant.title if self.variant else None,
+            'user_id': self.user_id,
+            'user_name': self.user.full_name,
+            'rating': self.rating,
+            'title': self.title,
+            'comment': self.comment,
+            'is_verified_purchase': self.is_verified_purchase,
+            'is_approved': self.is_approved,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
 class StockLog(models.Model):
     """
     Inventory / Stock Audit Ledger.
@@ -1082,6 +1139,135 @@ class OrderItem(models.Model):
             'dispatch_date': self.dispatch_date.isoformat() if self.dispatch_date else None,
             'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class OrderRequest(models.Model):
+    """Customer request to cancel an order or return a delivered item."""
+
+    REQUEST_TYPE_CHOICES = [
+        ('CANCEL', 'Cancellation'),
+        ('RETURN', 'Return'),
+    ]
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Review'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+        ('COMPLETED', 'Completed'),
+    ]
+
+    request_number = models.CharField(max_length=50, unique=True, blank=True, db_index=True)
+    customer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='order_requests')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='customer_requests')
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='customer_requests',
+    )
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPE_CHOICES)
+    reason = models.CharField(max_length=255)
+    details = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    admin_notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Cancellation / Return Request'
+        verbose_name_plural = 'Cancellation / Return Requests'
+
+    def __str__(self):
+        return f"{self.request_number} - {self.request_type} - {self.order.order_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            request_number = f"REQ-{timezone.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
+            while OrderRequest.objects.filter(request_number=request_number).exists():
+                request_number = f"REQ-{timezone.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
+            self.request_number = request_number
+        super().save(*args, **kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'request_number': self.request_number,
+            'request_type': self.request_type,
+            'request_type_display': self.get_request_type_display(),
+            'order_id': self.order_id,
+            'order_number': self.order.order_number,
+            'order_item_id': self.order_item_id,
+            'product_name': self.order_item.product_name if self.order_item else None,
+            'variant_title': self.order_item.variant_title if self.order_item else None,
+            'reason': self.reason,
+            'details': self.details,
+            'status': self.status,
+            'status_display': self.get_status_display(),
+            'admin_notes': self.admin_notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class Notification(models.Model):
+    """Persistent in-app notification for a customer."""
+
+    TYPE_CHOICES = [
+        ('ORDER', 'Order'),
+        ('PAYMENT', 'Payment'),
+        ('CANCELLATION', 'Cancellation'),
+        ('RETURN', 'Return'),
+        ('PROMOTION', 'Promotion'),
+        ('SYSTEM', 'System'),
+    ]
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='notifications')
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications',
+    )
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='SYSTEM')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    data = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Customer Notification'
+        verbose_name_plural = 'Customer Notifications'
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at'], name='notif_user_read_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.full_name} - {self.title}"
+
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'notification_type': self.notification_type,
+            'title': self.title,
+            'message': self.message,
+            'data': self.data,
+            'order_id': self.order_id,
+            'order_number': self.order.order_number if self.order else None,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'read_at': self.read_at.isoformat() if self.read_at else None,
         }
 
 

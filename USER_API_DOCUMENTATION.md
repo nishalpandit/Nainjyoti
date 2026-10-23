@@ -76,6 +76,59 @@ response (successful login for registered user):
 }
 ```
 
+API for Refreshing User Token
+url: http://192.168.1.52:8000/api/user/refresh-token/
+method: POST
+
+headers:
+Authorization: Bearer <current_token>
+
+params (optional fallback if not sending header):
+{
+  "token": "bcc76b37b494632822a16cb7a3fa7a49942a17070f80da7cbceee402b8514197"
+}
+
+response:
+```json
+{
+  "success": true,
+  "message": "Token refreshed successfully",
+  "auth_token": "f920d6a0028713bb93c20054ec5a7a49942a17070f80da7cbceee402b8514197",
+  "token": "f920d6a0028713bb93c20054ec5a7a49942a17070f80da7cbceee402b8514197",
+  "user": {
+    "id": 7,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "phone": "9812345678",
+    "email": "dev.sharma@example.com"
+  }
+}
+```
+
+response (if token is invalid or missing):
+```json
+{
+  "success": false,
+  "message": "Invalid or missing token. Please provide a valid Bearer token."
+}
+```
+
+API for User Logout
+url: http://192.168.1.52:8000/api/user/logout/
+method: POST
+
+headers:
+Authorization: Bearer <current_token>
+
+response:
+```json
+{
+  "success": true,
+  "message": "User successfully logged out"
+}
+```
+
 ---
 
 API for Creating a Saved Address

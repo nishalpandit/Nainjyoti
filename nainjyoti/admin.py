@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
-    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem, StockLog,
-    Order, PaymentTransaction, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
+    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem,
+    ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
+    OrderStatusHistory, VendorEarning, VendorPayout
 )
 
 @admin.register(Category)
@@ -47,6 +48,14 @@ class WishlistItemAdmin(admin.ModelAdmin):
         'product__vendor__business_name',
     )
     readonly_fields = ('created_at',)
+
+
+@admin.register(ProductReview)
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ('product', 'user', 'rating', 'is_verified_purchase', 'is_approved', 'created_at')
+    list_filter = ('rating', 'is_verified_purchase', 'is_approved', 'created_at')
+    search_fields = ('product__name', 'user__first_name', 'user__last_name', 'title', 'comment')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(StockLog)
@@ -114,6 +123,22 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         'provider_order_id', 'provider_payment_id',
     )
     readonly_fields = ('reference', 'created_at', 'updated_at')
+
+
+@admin.register(OrderRequest)
+class OrderRequestAdmin(admin.ModelAdmin):
+    list_display = ('request_number', 'request_type', 'order', 'order_item', 'customer', 'status', 'created_at')
+    list_filter = ('request_type', 'status', 'created_at')
+    search_fields = ('request_number', 'order__order_number', 'customer__phone', 'reason', 'details')
+    readonly_fields = ('request_number', 'created_at', 'updated_at')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'user', 'notification_type', 'order', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read', 'created_at')
+    search_fields = ('title', 'message', 'user__first_name', 'user__last_name', 'user__phone')
+    readonly_fields = ('created_at', 'read_at')
 
 
 @admin.register(OrderStatusHistory)

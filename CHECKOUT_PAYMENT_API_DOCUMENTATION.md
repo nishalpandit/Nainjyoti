@@ -171,6 +171,7 @@ method: POST
 headers:
 Authorization: Bearer <customer_token>
 Content-Type: application/json
+X-Payment-Signature: <gateway/server generated HMAC-SHA256 signature>
 
 params (success):
 {
@@ -180,6 +181,16 @@ params (success):
   "provider_payment_id": "pay_O7s6d5f4g3h2j1",
   "provider_order_id": "order_K8j7h6g5f4d3s2"
 }
+
+Security requirement:
+The verification endpoint does not trust a customer-supplied PAID value by
+itself. Configure PAYMENT_WEBHOOK_SECRET on the server and generate
+X-Payment-Signature as HMAC-SHA256 over:
+
+payment_reference|status|provider|provider_order_id|provider_payment_id
+
+The payment gateway or trusted backend must create this signature. Never put
+PAYMENT_WEBHOOK_SECRET in the mobile app or browser frontend.
 
 response (payment success):
 ```json
