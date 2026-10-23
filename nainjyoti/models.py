@@ -575,6 +575,202 @@ class ProductVariant(models.Model):
         }
 
 
+class CartItem(models.Model):
+    """A customer's persisted cart line for a product or product variant."""
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='cart_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='cart_items')
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='cart_items',
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        verbose_name = 'Cart Item'
+        verbose_name_plural = 'Cart Items'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                condition=models.Q(variant__isnull=True),
+                name='unique_product_cart_item_without_variant',
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'product', 'variant'],
+                condition=models.Q(variant__isnull=False),
+                name='unique_product_variant_cart_item',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1),
+                name='cart_item_quantity_at_least_one',
+            ),
+        ]
+
+    def __str__(self):
+        item_name = self.variant.title if self.variant else self.product.name
+        return f"{self.user.full_name} - {item_name} x {self.quantity}"
+
+    @property
+    def regular_unit_price(self):
+        if self.variant and self.variant.price is not None:
+            return self.variant.price
+        return self.product.price
+
+    @property
+    def effective_unit_price(self):
+        if self.variant:
+            if self.variant.discount_price is not None:
+                return self.variant.discount_price
+            if self.variant.price is not None:
+                return self.variant.price
+        if self.product.discount_price is not None:
+            return self.product.discount_price
+        return self.product.price
+
+    @property
+    def available_stock(self):
+        return self.variant.stock_quantity if self.variant else self.product.stock_quantity
+
+    @property
+    def line_total(self):
+        return self.effective_unit_price * self.quantity
+
+    @property
+    def line_savings(self):
+        return (self.regular_unit_price - self.effective_unit_price) * self.quantity
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'product_name': self.product.name,
+            'product_sku': self.product.sku,
+            'variant_id': self.variant_id,
+            'variant_title': self.variant.title if self.variant else None,
+            'variant_sku': self.variant.sku if self.variant else None,
+            'color': self.variant.color if self.variant else '',
+            'size': self.variant.size if self.variant else '',
+            'material': self.variant.material if self.variant else '',
+            'image_url': self.variant.image_url if self.variant else self.product.image_url,
+            'regular_price': float(self.regular_unit_price),
+            'effective_price': float(self.effective_unit_price),
+            'quantity': self.quantity,
+            'line_total': float(self.line_total),
+            'savings': float(self.line_savings),
+            'available_stock': self.available_stock,
+            'in_stock': self.available_stock > 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class WishlistItem(models.Model):
+    """A product or exact product variant saved by a customer for later."""
+
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='wishlist_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='wishlist_items')
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='wishlist_items',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Wishlist Item'
+        verbose_name_plural = 'Wishlist Items'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                condition=models.Q(variant__isnull=True),
+                name='unique_product_wishlist_item_without_variant',
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'product', 'variant'],
+                condition=models.Q(variant__isnull=False),
+                name='unique_product_variant_wishlist_item',
+            ),
+        ]
+
+    def __str__(self):
+        item_name = self.variant.title if self.variant else self.product.name
+        return f"{self.user.full_name} - {item_name}"
+
+    @property
+    def regular_price(self):
+        if self.variant and self.variant.price is not None:
+            return self.variant.price
+        return self.product.price
+
+    @property
+    def effective_price(self):
+        if self.variant:
+            if self.variant.discount_price is not None:
+                return self.variant.discount_price
+            if self.variant.price is not None:
+                return self.variant.price
+        if self.product.discount_price is not None:
+            return self.product.discount_price
+        return self.product.price
+
+    @property
+    def available_stock(self):
+        return self.variant.stock_quantity if self.variant else self.product.stock_quantity
+
+    @property
+    def is_available(self):
+        product = self.product
+        return (
+            product.status == 'ACTIVE'
+            and product.is_approved
+            and product.vendor.status == 'APPROVED'
+            and (product.category is None or product.category.status == 'ACTIVE')
+            and (self.variant is None or self.variant.is_active)
+        )
+
+    def to_dict(self):
+        product = self.product
+        return {
+            'id': self.id,
+            'product_id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'variant_id': self.variant_id,
+            'variant_title': self.variant.title if self.variant else None,
+            'variant_sku': self.variant.sku if self.variant else None,
+            'color': self.variant.color if self.variant else '',
+            'size': self.variant.size if self.variant else '',
+            'material': self.variant.material if self.variant else '',
+            'description': product.description,
+            'price': float(self.regular_price),
+            'discount_price': (
+                float(self.effective_price)
+                if self.effective_price != self.regular_price else None
+            ),
+            'effective_price': float(self.effective_price),
+            'image_url': self.variant.image_url if self.variant else product.image_url,
+            'category_id': product.category_id,
+            'category_name': product.category.name if product.category else None,
+            'vendor_id': product.vendor_id,
+            'vendor_name': product.vendor.business_name,
+            'stock_quantity': self.available_stock,
+            'in_stock': self.available_stock > 0,
+            'has_variants': product.has_variants,
+            'variant_count': product.active_variant_count,
+            'is_available': self.is_available,
+            'added_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class StockLog(models.Model):
     """
     Inventory / Stock Audit Ledger.

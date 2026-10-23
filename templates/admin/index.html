@@ -40,42 +40,7 @@
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="{% url 'admin_dashboard' %}">
-      <span class="brand-mark"><i class="fa-solid fa-shop"></i></span>
-      <span class="brand-name">bazaar<span>admin</span></span>
-    </a>
-    <div class="nav-label">ADMIN CONSOLE</div>
-    <nav>
-      <a class="active" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></a>
-      <a class="" href="{% url 'admin_customers' %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-      <a class="" href="{% url 'admin_addresses' %}"><i class="fa-solid fa-location-dot"></i><span>Addresses</span></a>
-      <a class="" href="{% url 'admin_vendors' %}"><i class="fa-solid fa-store"></i><span>Vendors</span></a>
-      <a class="" href="{% url 'admin_vendor_approval' %}"><i class="fa-solid fa-user-check"></i><span>Vendor approval</span></a>
-      <a class="" href="{% url 'admin_categories' %}"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
-      <a class="" href="{% url 'admin_products' %}"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
-      <a class="" href="{% url 'admin_products' %}?status=PENDING"><i class="fa-solid fa-clipboard-check"></i><span>Product approval</span></a>
-      <a class="" href="{% url 'admin_orders' %}"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
-      <a class="" href="{% url 'admin_payments' %}"><i class="fa-solid fa-credit-card"></i><span>Payments</span></a>
-      <a class="" href="{% url 'admin_payments' %}"><i class="fa-solid fa-percent"></i><span>Commissions</span></a>
-      <a class="" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-ticket"></i><span>Coupons &amp; offers</span></a>
-      <a class="" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-image"></i><span>Banners</span></a>
-      <a class="" href="{% url 'admin_orders' %}?status=RETURNED"><i class="fa-solid fa-arrow-rotate-left"></i><span>Returns &amp; refunds</span></a>
-      <a class="" href="{% url 'admin_reports' %}"><i class="fa-solid fa-chart-column"></i><span>Reports</span></a>
-      <a class="" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
-      <a class="" href="{% url 'admin_settings' %}"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
-    </nav>
-    <div class="side-bottom">
-      <div class="admin-chip">
-        <div class="avatar">{{ admin_initials|default:"AS" }}</div>
-        <div class="admin-name">
-          <b>{{ admin_name|default:"Admin" }}</b>
-          <small>{{ admin_role|default:"Super administrator" }}</small>
-        </div>
-        <a href="{% url 'logout' %}" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
-      </div>
-    </div>
-  </aside>
+  {% include "admin/sidebar.html" with active_nav="overview" %}
 
   <div class="workspace">
     <header class="topbar">

@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
 from .models import (
-    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, StockLog,
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, CartItem, WishlistItem, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -1516,6 +1516,366 @@ def api_user_variant_detail(request, variant_id):
     return JsonResponse({
         "success": True,
         "variant": variant.to_dict(),
+    }, status=200)
+
+
+def _is_customer_product_available(product):
+    """Apply the shared customer-facing product availability rules."""
+    return (
+        product.status == 'ACTIVE'
+        and product.is_approved
+        and product.vendor.status == 'APPROVED'
+        and (product.category is None or product.category.status == 'ACTIVE')
+    )
+
+
+def _customer_cart_payload(profile):
+    """Serialize a customer's cart with totals calculated from current prices."""
+    cart_items = list(
+        CartItem.objects.filter(user=profile)
+        .select_related('product', 'product__vendor', 'product__category', 'variant')
+        .order_by('-updated_at', '-id')
+    )
+    regular_subtotal = sum(
+        (item.regular_unit_price * item.quantity for item in cart_items),
+        Decimal('0.00'),
+    )
+    total = sum((item.line_total for item in cart_items), Decimal('0.00'))
+    return {
+        'item_count': len(cart_items),
+        'total_quantity': sum(item.quantity for item in cart_items),
+        'regular_subtotal': float(regular_subtotal),
+        'discount': float(regular_subtotal - total),
+        'total': float(total),
+        'items': [item.to_dict() for item in cart_items],
+    }
+
+
+@csrf_exempt
+def api_user_cart_add(request):
+    """
+    Add a purchasable product or variant to the authenticated customer's cart.
+
+    Endpoint: POST /api/user/cart/add/
+    Body: {"product_id": 50, "variant_id": 1, "quantity": 2}
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    try:
+        product_id = int(data.get('product_id', ''))
+        if product_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'success': False,
+            'message': 'product_id must be a valid positive integer.',
+        }, status=400)
+
+    try:
+        quantity = int(data.get('quantity', 1))
+        if quantity <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'success': False,
+            'message': 'quantity must be a valid positive integer.',
+        }, status=400)
+
+    raw_variant_id = data.get('variant_id')
+    variant_id = None
+    if raw_variant_id not in (None, ''):
+        try:
+            variant_id = int(raw_variant_id)
+            if variant_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'message': 'variant_id must be a valid positive integer.',
+            }, status=400)
+
+    with transaction.atomic():
+        product = (
+            Product.objects.select_for_update()
+            .select_related('vendor', 'category')
+            .filter(pk=product_id)
+            .first()
+        )
+        if not product:
+            return JsonResponse({
+                'success': False,
+                'message': f"Product with ID '{product_id}' was not found.",
+            }, status=404)
+
+        if not _is_customer_product_available(product):
+            return JsonResponse({
+                'success': False,
+                'message': 'This product is currently unavailable for purchase.',
+            }, status=400)
+
+        has_variants = ProductVariant.objects.filter(product=product).exists()
+        variant = None
+        if has_variants:
+            if variant_id is None:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'variant_id is required for this product. Please select a product variant.',
+                }, status=400)
+            variant = (
+                ProductVariant.objects.select_for_update()
+                .filter(pk=variant_id, product=product, is_active=True)
+                .first()
+            )
+            if not variant:
+                return JsonResponse({
+                    'success': False,
+                    'message': f"Active variant with ID '{variant_id}' was not found for this product.",
+                }, status=404)
+        elif variant_id is not None:
+            return JsonResponse({
+                'success': False,
+                'message': 'This product does not have variants. Remove variant_id and try again.',
+            }, status=400)
+
+        available_stock = variant.stock_quantity if variant else product.stock_quantity
+        existing_item = (
+            CartItem.objects.select_for_update()
+            .filter(user=profile, product=product, variant=variant)
+            .first()
+        )
+        existing_quantity = existing_item.quantity if existing_item else 0
+        requested_total = existing_quantity + quantity
+
+        if available_stock <= 0:
+            return JsonResponse({
+                'success': False,
+                'message': 'This item is out of stock.',
+                'available_stock': 0,
+            }, status=400)
+        if requested_total > available_stock:
+            return JsonResponse({
+                'success': False,
+                'message': f'Only {available_stock} item(s) are currently available.',
+                'available_stock': available_stock,
+                'quantity_already_in_cart': existing_quantity,
+                'requested_additional_quantity': quantity,
+            }, status=400)
+
+        if existing_item:
+            existing_item.quantity = requested_total
+            existing_item.save(update_fields=['quantity', 'updated_at'])
+            cart_item = existing_item
+            message = 'Cart quantity updated successfully.'
+            response_status = 200
+        else:
+            cart_item = CartItem.objects.create(
+                user=profile,
+                product=product,
+                variant=variant,
+                quantity=quantity,
+            )
+            message = 'Product added to cart successfully.'
+            response_status = 201
+
+        cart_item = CartItem.objects.select_related('product', 'variant').get(pk=cart_item.pk)
+        cart = _customer_cart_payload(profile)
+
+    return JsonResponse({
+        'success': True,
+        'message': message,
+        'cart_item': cart_item.to_dict(),
+        'cart': cart,
+    }, status=response_status)
+
+
+def _customer_wishlist_items(profile):
+    return list(
+        WishlistItem.objects.filter(user=profile)
+        .select_related('product', 'product__vendor', 'product__category', 'variant')
+        .order_by('-created_at', '-id')
+    )
+
+
+@csrf_exempt
+def api_user_wishlist_add(request):
+    """
+    Add a product or exact product variant to the customer's wishlist.
+
+    Endpoint: POST /api/user/wishlist/add/
+    Body: {"product_id": 81, "variant_id": 16}
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    try:
+        product_id = int(data.get('product_id', ''))
+        if product_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'success': False,
+            'message': 'product_id must be a valid positive integer.',
+        }, status=400)
+
+    raw_variant_id = data.get('variant_id')
+    variant_id = None
+    if raw_variant_id not in (None, ''):
+        try:
+            variant_id = int(raw_variant_id)
+            if variant_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse({
+                'success': False,
+                'message': 'variant_id must be a valid positive integer.',
+            }, status=400)
+
+    product = Product.objects.select_related('vendor', 'category').filter(pk=product_id).first()
+    if not product:
+        return JsonResponse({
+            'success': False,
+            'message': f"Product with ID '{product_id}' was not found.",
+        }, status=404)
+    if not _is_customer_product_available(product):
+        return JsonResponse({
+            'success': False,
+            'message': 'This product is currently unavailable and cannot be added to the wishlist.',
+        }, status=400)
+
+    has_variants = ProductVariant.objects.filter(product=product).exists()
+    variant = None
+    if has_variants:
+        if variant_id is None:
+            return JsonResponse({
+                'success': False,
+                'message': 'variant_id is required for this product. Please select a color, size, or material.',
+            }, status=400)
+        variant = ProductVariant.objects.filter(
+            pk=variant_id,
+            product=product,
+            is_active=True,
+        ).first()
+        if not variant:
+            return JsonResponse({
+                'success': False,
+                'message': f"Active variant with ID '{variant_id}' was not found for this product.",
+            }, status=404)
+    elif variant_id is not None:
+        return JsonResponse({
+            'success': False,
+            'message': 'This product does not have variants. Remove variant_id and try again.',
+        }, status=400)
+
+    wishlist_item, created = WishlistItem.objects.get_or_create(
+        user=profile,
+        product=product,
+        variant=variant,
+    )
+    wishlist_item = WishlistItem.objects.select_related(
+        'product', 'product__vendor', 'product__category', 'variant'
+    ).get(pk=wishlist_item.pk)
+
+    return JsonResponse({
+        'success': True,
+        'message': (
+            'Product added to wishlist successfully.'
+            if created else 'Product is already in your wishlist.'
+        ),
+        'already_exists': not created,
+        'wishlist_item': wishlist_item.to_dict(),
+        'total_items': WishlistItem.objects.filter(user=profile).count(),
+    }, status=201 if created else 200)
+
+
+def api_user_wishlist_list(request):
+    """Return every product saved in the authenticated customer's wishlist."""
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    wishlist_items = _customer_wishlist_items(profile)
+    return JsonResponse({
+        'success': True,
+        'total_items': len(wishlist_items),
+        'wishlist': [item.to_dict() for item in wishlist_items],
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_wishlist_remove(request, product_id, variant_id=None):
+    """Remove a product or exact product variant from the customer's wishlist."""
+    if request.method not in ['DELETE', 'POST']:
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use DELETE or POST.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    if variant_id is None:
+        raw_variant_id = request.GET.get('variant_id')
+        if raw_variant_id not in (None, ''):
+            try:
+                variant_id = int(raw_variant_id)
+                if variant_id <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'variant_id must be a valid positive integer.',
+                }, status=400)
+
+    wishlist_query = WishlistItem.objects.filter(user=profile, product_id=product_id)
+    if variant_id is not None:
+        wishlist_query = wishlist_query.filter(variant_id=variant_id)
+    else:
+        wishlist_query = wishlist_query.filter(variant__isnull=True)
+
+    wishlist_item = wishlist_query.first()
+    if not wishlist_item:
+        return JsonResponse({
+            'success': False,
+            'message': (
+                f"Variant with ID '{variant_id}' for product '{product_id}' is not in your wishlist."
+                if variant_id is not None
+                else f"Product with ID '{product_id}' is not in your wishlist."
+            ),
+        }, status=404)
+
+    wishlist_item_id = wishlist_item.id
+    wishlist_item.delete()
+    return JsonResponse({
+        'success': True,
+        'message': 'Product removed from wishlist successfully.',
+        'removed_wishlist_item_id': wishlist_item_id,
+        'product_id': product_id,
+        'variant_id': variant_id,
+        'total_items': WishlistItem.objects.filter(user=profile).count(),
     }, status=200)
 
 

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, StockLog,
+    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem, StockLog,
     Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
@@ -24,6 +24,29 @@ class ProductVariantAdmin(admin.ModelAdmin):
     list_display = ('title', 'product', 'sku', 'price', 'stock_quantity', 'is_active')
     list_filter = ('is_active', 'color', 'size')
     search_fields = ('title', 'sku', 'product__name')
+
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'product', 'variant', 'quantity', 'updated_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = (
+        'user__first_name', 'user__last_name', 'user__phone',
+        'product__name', 'product__sku', 'variant__title', 'variant__sku',
+    )
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(WishlistItem)
+class WishlistItemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'product', 'variant', 'created_at')
+    list_filter = ('created_at', 'product__category')
+    search_fields = (
+        'user__first_name', 'user__last_name', 'user__phone',
+        'product__name', 'product__sku', 'variant__title', 'variant__sku',
+        'product__vendor__business_name',
+    )
+    readonly_fields = ('created_at',)
 
 
 @admin.register(StockLog)

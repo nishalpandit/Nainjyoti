@@ -17,45 +17,14 @@
     <!-- Real-time Toast Notification Container -->
     <div class="admin-toast-container" id="toastContainer"></div>
 
-    <aside class="sidebar">
-        <a class="brand" href="{% url 'admin_dashboard' %}">
-            <span class="brand-mark"><i class="fa-solid fa-shop"></i></span>
-            <span class="brand-name">bazaar<span>admin</span></span>
-        </a>
-        <div class="nav-label">ADMIN CONSOLE</div>
-        <nav>
-            <a class="" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></a>
-            <a class="" href="customers.html"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-            <a class="" href="vendors.html"><i class="fa-solid fa-store"></i><span>Vendors</span></a>
-            <a class="active" href="{% url 'admin_vendor_approval' %}"><i class="fa-solid fa-user-check"></i><span>Vendor approval</span></a>
-            <a class="" href="categories.html"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
-            <a class="" href="products.html"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
-            <a class="" href="product-approval.html"><i class="fa-solid fa-clipboard-check"></i><span>Product approval</span></a>
-            <a class="" href="orders.html"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
-            <a class="" href="payments.html"><i class="fa-solid fa-credit-card"></i><span>Payments</span></a>
-            <a class="" href="commissions.html"><i class="fa-solid fa-percent"></i><span>Commissions</span></a>
-            <a class="" href="coupons.html"><i class="fa-solid fa-ticket"></i><span>Coupons &amp; offers</span></a>
-            <a class="" href="banners.html"><i class="fa-solid fa-image"></i><span>Banners</span></a>
-            <a class="" href="returns.html"><i class="fa-solid fa-arrow-rotate-left"></i><span>Returns &amp; refunds</span></a>
-            <a class="" href="reports.html"><i class="fa-solid fa-chart-column"></i><span>Reports</span></a>
-            <a class="" href="notifications.html"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
-            <a class="" href="settings.html"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
-        </nav>
-        <div class="side-bottom">
-            <div class="admin-chip">
-                <div class="avatar">AS</div>
-                <div class="admin-name"><b>Admin</b><small>Super administrator</small></div>
-                <a href="{% url 'logout' %}" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
-            </div>
-        </div>
-    </aside>
+    {% include "admin/sidebar.html" with active_nav="vendor_approval" %}
 
     <div class="workspace">
         <header class="topbar">
             <div><span class="crumb">Marketplace / </span><strong>Vendor Approval &amp; KYC Verification</strong></div>
             <div class="top-right">
                 <span class="date-label">IST Operations</span>
-                <a class="notification" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
+                <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
                 <div class="avatar">AS</div>
             </div>
         </header>

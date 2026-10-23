@@ -1113,3 +1113,39 @@ def admin_reports(request):
 def admin_settings(request):
     """Admin Settings View."""
     return render(request, "admin/settings.html", {})
+
+
+def admin_legacy_redirect(request, page=""):
+    """
+    Fail-safe redirect for legacy or relative .html requests across admin console.
+    Ensures URLs like /admin-dashboard/vendor-approval/categories.html seamlessly
+    redirect to their canonical dynamic pages.
+    """
+    clean_page = page.lower().replace(".html", "").strip("/")
+    if clean_page == "product-approval":
+        return redirect("/admin-dashboard/products/?status=PENDING")
+    if clean_page == "commissions":
+        return redirect("/admin-dashboard/payments/?view=commissions")
+    if clean_page == "returns":
+        return redirect("/admin-dashboard/orders/?status=RETURNED")
+
+    mapping = {
+        "index": "admin_dashboard",
+        "customers": "admin_customers",
+        "addresses": "admin_addresses",
+        "vendors": "admin_vendors",
+        "vendor-approval": "admin_vendor_approval",
+        "categories": "admin_categories",
+        "category-form": "admin_category_add",
+        "products": "admin_products",
+        "orders": "admin_orders",
+        "payments": "admin_payments",
+        "reports": "admin_reports",
+        "settings": "admin_settings",
+        "login": "login",
+    }
+    target = mapping.get(clean_page)
+    if target:
+        return redirect(target)
+    return redirect("admin_dashboard")
+

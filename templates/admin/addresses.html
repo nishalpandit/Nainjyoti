@@ -18,24 +18,7 @@
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="{% url 'admin_dashboard' %}"><span class="brand-mark"><i class="fa-solid fa-shop"></i></span><span class="brand-name">bazaar<span>admin</span></span></a>
-    <div class="nav-label">ADMIN CONSOLE</div>
-    <nav>
-      <a href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></a>
-      <a href="{% url 'admin_customers' %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-      <a class="active" href="{% url 'admin_addresses' %}"><i class="fa-solid fa-location-dot"></i><span>Addresses</span></a>
-      <a href="{% url 'admin_vendors' %}"><i class="fa-solid fa-store"></i><span>Vendors</span></a>
-      <a href="{% url 'admin_vendor_approval' %}"><i class="fa-solid fa-user-check"></i><span>Vendor approval</span></a>
-      <a href="{% url 'admin_categories' %}"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
-      <a href="{% url 'admin_products' %}"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
-      <a href="{% url 'admin_orders' %}"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
-      <a href="{% url 'admin_payments' %}"><i class="fa-solid fa-credit-card"></i><span>Payments</span></a>
-      <a href="{% url 'admin_reports' %}"><i class="fa-solid fa-chart-column"></i><span>Reports</span></a>
-      <a href="{% url 'admin_settings' %}"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
-    </nav>
-    <div class="side-bottom"><div class="admin-chip"><div class="avatar">AS</div><div class="admin-name"><b>Admin</b><small>Super administrator</small></div><a href="{% url 'logout' %}" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a></div></div>
-  </aside>
+  {% include "admin/sidebar.html" with active_nav="addresses" %}
 
   <div class="workspace">
     <header class="topbar"><div><span class="crumb">Marketplace / </span><strong>Address Management</strong></div><div class="top-right"><span class="date-label">Live database view</span><div class="avatar">AS</div></div></header>

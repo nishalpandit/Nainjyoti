@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from . import views
 from . import api_views
 from . import user_views
@@ -30,10 +30,14 @@ urlpatterns = [
     path('admin-dashboard/categories/<int:category_id>/edit/', views.admin_category_form, name='admin_category_edit'),
     path('admin-dashboard/categories/<int:category_id>/toggle-status/', views.admin_category_toggle_status, name='admin_category_toggle_status'),
     path('admin-dashboard/products/', views.admin_products, name='admin_products'),
+    path('admin-dashboard/product-approval/', views.admin_legacy_redirect, {'page': 'product-approval'}, name='admin_product_approval'),
     path('admin-dashboard/orders/', views.admin_orders, name='admin_orders'),
     path('admin-dashboard/payments/', views.admin_payments, name='admin_payments'),
     path('admin-dashboard/reports/', views.admin_reports, name='admin_reports'),
     path('admin-dashboard/settings/', views.admin_settings, name='admin_settings'),
+
+    # Admin Legacy & Relative .html Fail-safe Redirects
+    re_path(r'^admin-dashboard/(?:.+/)?(?P<page>[a-zA-Z0-9_\-]+)\.html$', views.admin_legacy_redirect, name='admin_legacy_html_redirect'),
 
     # =========================================================================
     # Vendor Web Dashboard (Full Dynamic Portal)
@@ -82,6 +86,11 @@ urlpatterns = [
     path('api/user/product/detail/<int:product_id>/', api_views.api_user_product_detail, name='api_user_product_detail_alias'),
     path('api/user/products/<int:product_id>/variants/', api_views.api_user_product_variants, name='api_user_product_variants'),
     path('api/user/variants/<int:variant_id>/', api_views.api_user_variant_detail, name='api_user_variant_detail'),
+    path('api/user/cart/add/', api_views.api_user_cart_add, name='api_user_cart_add'),
+    path('api/user/wishlist/', api_views.api_user_wishlist_list, name='api_user_wishlist_list'),
+    path('api/user/wishlist/add/', api_views.api_user_wishlist_add, name='api_user_wishlist_add'),
+    path('api/user/wishlist/remove/<int:product_id>/variant/<int:variant_id>/', api_views.api_user_wishlist_remove, name='api_user_wishlist_remove_variant'),
+    path('api/user/wishlist/remove/<int:product_id>/', api_views.api_user_wishlist_remove, name='api_user_wishlist_remove'),
     path('api/products/<int:product_id>/', api_views.api_user_product_detail, name='api_product_detail_alias'),
     path('api/products/search/', api_views.api_product_search, name='api_product_search_alias'),
 

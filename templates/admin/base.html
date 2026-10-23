@@ -7,46 +7,14 @@
 {% endblock %}
 
 {% block layout %}
-    <aside class="sidebar">
-        <a class="brand" href="index.html">
-            <span class="brand-mark"><i class="fa-solid fa-shop"></i></span>
-            <span class="brand-name">bazaar<span>admin</span></span>
-        </a>
-        <div class="nav-label">ADMIN CONSOLE</div>
-        <nav>
-            <a class="{% block nav_overview %}{% endblock %}" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></a>
-            <a class="{% block nav_customers %}{% endblock %}" href="{% url 'admin_customers' %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-            <a class="{% block nav_addresses %}{% endblock %}" href="{% url 'admin_addresses' %}"><i class="fa-solid fa-location-dot"></i><span>Addresses</span></a>
-            <a class="{% block nav_vendors %}{% endblock %}" href="{% url 'admin_vendors' %}"><i class="fa-solid fa-store"></i><span>Vendors</span></a>
-            <a class="{% block nav_vendor_approval %}{% endblock %}" href="{% url 'admin_vendor_approval' %}"><i class="fa-solid fa-user-check"></i><span>Vendor approval</span></a>
-            <a class="{% block nav_categories %}{% endblock %}" href="{% url 'admin_categories' %}"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
-            <a class="{% block nav_products %}{% endblock %}" href="{% url 'admin_products' %}"><i class="fa-solid fa-boxes-stacked"></i><span>Products</span></a>
-            <a class="{% block nav_product_approval %}{% endblock %}" href="{% url 'admin_products' %}?status=PENDING"><i class="fa-solid fa-clipboard-check"></i><span>Product approval</span></a>
-            <a class="{% block nav_orders %}{% endblock %}" href="{% url 'admin_orders' %}"><i class="fa-solid fa-bag-shopping"></i><span>Orders</span></a>
-            <a class="{% block nav_payments %}{% endblock %}" href="{% url 'admin_payments' %}"><i class="fa-solid fa-credit-card"></i><span>Payments</span></a>
-            <a class="{% block nav_commissions %}{% endblock %}" href="{% url 'admin_payments' %}"><i class="fa-solid fa-percent"></i><span>Commissions</span></a>
-            <a class="{% block nav_coupons %}{% endblock %}" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-ticket"></i><span>Coupons &amp; offers</span></a>
-            <a class="{% block nav_banners %}{% endblock %}" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-image"></i><span>Banners</span></a>
-            <a class="{% block nav_returns %}{% endblock %}" href="{% url 'admin_orders' %}?status=RETURNED"><i class="fa-solid fa-arrow-rotate-left"></i><span>Returns &amp; refunds</span></a>
-            <a class="{% block nav_reports %}{% endblock %}" href="{% url 'admin_reports' %}"><i class="fa-solid fa-chart-column"></i><span>Reports</span></a>
-            <a class="{% block nav_notifications %}{% endblock %}" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-bell"></i><span>Notifications</span></a>
-            <a class="{% block nav_settings %}{% endblock %}" href="{% url 'admin_settings' %}"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
-        </nav>
-        <div class="side-bottom">
-            <div class="admin-chip">
-                <div class="avatar">AS</div>
-                <div class="admin-name"><b>Admin</b><small>Super administrator</small></div>
-                <a href="{% url 'logout' %}" title="Sign out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
-            </div>
-        </div>
-    </aside>
+    {% include "admin/sidebar.html" with active_nav=active_nav %}
 
     <div class="workspace">
         <header class="topbar">
             <div><span class="crumb">Marketplace / </span><strong>{% block breadcrumb %}Dashboard{% endblock %}</strong></div>
             <div class="top-right">
                 <span class="date-label">09 Oct 2026 · IST</span>
-                <a class="notification" href="notifications.html" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
+                <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
                 <div class="avatar">AS</div>
             </div>
         </header>
