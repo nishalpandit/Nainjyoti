@@ -141,6 +141,11 @@ urlpatterns = [
     path('api/vendor/product/detail/<int:product_id>/', api_views.api_product_detail, name='api_vendor_product_detail'),
     path('api/vendor/product/update/<int:product_id>/', api_views.api_product_update, name='api_vendor_product_update'),
     path('api/vendor/product/delete/<int:product_id>/', api_views.api_product_delete, name='api_vendor_product_delete'),
+    path('api/vendor/products/<int:product_id>/variants/', api_views.api_product_variant_list, name='api_vendor_product_variant_list'),
+    path('api/vendor/products/<int:product_id>/variants/create/', api_views.api_product_variant_create, name='api_vendor_product_variant_create'),
+    path('api/vendor/variants/<int:variant_id>/', api_views.api_product_variant_detail, name='api_vendor_product_variant_detail'),
+    path('api/vendor/variants/<int:variant_id>/update/', api_views.api_product_variant_update, name='api_vendor_product_variant_update'),
+    path('api/vendor/variants/<int:variant_id>/delete/', api_views.api_product_variant_delete, name='api_vendor_product_variant_delete'),
 
     # =========================================================================
     # Admin Product Management Endpoints (api/admin/product/...)
@@ -150,6 +155,11 @@ urlpatterns = [
     path('api/admin/product/detail/<int:product_id>/', api_views.api_product_detail, name='api_admin_product_detail'),
     path('api/admin/product/update/<int:product_id>/', api_views.api_product_update, name='api_admin_product_update'),
     path('api/admin/product/delete/<int:product_id>/', api_views.api_product_delete, name='api_admin_product_delete'),
+    path('api/admin/products/<int:product_id>/variants/', api_views.api_product_variant_list, name='api_admin_product_variant_list'),
+    path('api/admin/products/<int:product_id>/variants/create/', api_views.api_product_variant_create, name='api_admin_product_variant_create'),
+    path('api/admin/variants/<int:variant_id>/', api_views.api_product_variant_detail, name='api_admin_product_variant_detail'),
+    path('api/admin/variants/<int:variant_id>/update/', api_views.api_product_variant_update, name='api_admin_product_variant_update'),
+    path('api/admin/variants/<int:variant_id>/delete/', api_views.api_product_variant_delete, name='api_admin_product_variant_delete'),
 
     # =========================================================================
     # General / Direct Product Endpoints (api/product/...)

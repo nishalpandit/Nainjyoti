@@ -11,7 +11,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 
 from .models import (
-    VendorProfile, Category, Product, Order, OrderItem,
+    VendorProfile, Category, Product, ProductVariant, Order, OrderItem,
     OrderStatusHistory, VendorEarning, VendorPayout, StockLog
 )
 from .api_views import _get_vendor_balance_summary
@@ -142,7 +142,7 @@ def vendor_products(request):
     if not vendor:
         return redirect("login")
 
-    products = Product.objects.filter(vendor=vendor).select_related('category').order_by('-id')
+    products = Product.objects.filter(vendor=vendor).select_related('category').prefetch_related('variants').order_by('-id')
 
     # Search filter
     search_query = request.GET.get('q', '').strip()
@@ -280,21 +280,24 @@ def vendor_product_edit(request, product_id):
 
         try:
             product.price = Decimal(request.POST.get('price', str(product.price)))
-            old_stock = product.stock_quantity
-            new_stock = int(request.POST.get('stock_quantity', str(product.stock_quantity)))
-            if new_stock != old_stock:
-                diff = new_stock - old_stock
-                product.stock_quantity = new_stock
-                StockLog.objects.create(
-                    product=product,
-                    vendor=vendor,
-                    movement_type='CORRECTION',
-                    quantity_changed=diff,
-                    previous_stock=old_stock,
-                    new_stock=new_stock,
-                    reason="Product edit stock correction",
-                    reference_id=f"EDIT-{product.id}"
-                )
+            if not product.has_variants:
+                old_stock = product.stock_quantity
+                new_stock = int(request.POST.get('stock_quantity', str(product.stock_quantity)))
+                if new_stock != old_stock:
+                    diff = new_stock - old_stock
+                    product.stock_quantity = new_stock
+                    StockLog.objects.create(
+                        product=product,
+                        vendor=vendor,
+                        movement_type='CORRECTION',
+                        quantity_changed=diff,
+                        previous_stock=old_stock,
+                        new_stock=new_stock,
+                        reason="Product edit stock correction",
+                        reference_id=f"EDIT-{product.id}"
+                    )
+            else:
+                product.sync_variant_inventory()
         except Exception:
             pass
 
@@ -507,16 +510,16 @@ def vendor_inventory(request):
     if not vendor:
         return redirect("login")
 
-    products = Product.objects.filter(vendor=vendor).select_related('category').order_by('stock_quantity')
+    products = Product.objects.filter(vendor=vendor).select_related('category').prefetch_related('variants').order_by('stock_quantity')
 
     total_skus = products.count()
     low_stock_count = products.filter(stock_quantity__lte=10, stock_quantity__gt=0).count()
     out_of_stock_count = products.filter(stock_quantity=0).count()
 
-    total_valuation = sum(float(p.price) * p.stock_quantity for p in products)
+    total_valuation = sum(p.stock_valuation for p in products)
 
     # Recent stock logs
-    recent_logs = StockLog.objects.filter(vendor=vendor).select_related('product').order_by('-created_at')[:15]
+    recent_logs = StockLog.objects.filter(vendor=vendor).select_related('product', 'variant').order_by('-created_at')[:15]
 
     context = {
         'vendor': vendor,
@@ -533,6 +536,7 @@ def vendor_inventory(request):
 def vendor_stock_adjust(request, product_id):
     """
     Inline restock or stock adjustment modal handler.
+    Supports adjusting base product or specific variant.
     """
     vendor = _get_dashboard_vendor(request)
     if not vendor:
@@ -543,6 +547,7 @@ def vendor_stock_adjust(request, product_id):
         movement_type = request.POST.get('movement_type', 'RESTOCK').strip().upper()
         qty_change_raw = request.POST.get('quantity', '0').strip()
         reason = request.POST.get('reason', '').strip()
+        variant_id = request.POST.get('variant_id')
 
         try:
             qty_change = int(qty_change_raw)
@@ -550,18 +555,30 @@ def vendor_stock_adjust(request, product_id):
             messages.error(request, "Invalid quantity.")
             return redirect("vendor_inventory")
 
+        variant = None
+        if variant_id and str(variant_id).isdigit():
+            variant = ProductVariant.objects.filter(id=int(variant_id), product=product).first()
+        elif product.has_variants:
+            variant = product.variants.filter(is_active=True).first() or product.variants.first()
+
+        target = variant or product
         if movement_type in ['DAMAGE', 'SALE']:
             actual_change = -abs(qty_change)
         else:
             actual_change = abs(qty_change)
 
-        old_stock = product.stock_quantity
+        old_stock = target.stock_quantity
         new_stock = max(0, old_stock + actual_change)
-        product.stock_quantity = new_stock
-        product.save()
+        target.stock_quantity = new_stock
+        target.save()
+
+        if variant:
+            product.sync_variant_inventory()
+            product.refresh_from_db()
 
         StockLog.objects.create(
             product=product,
+            variant=variant,
             vendor=vendor,
             movement_type=movement_type,
             quantity_changed=actual_change,
@@ -571,7 +588,8 @@ def vendor_stock_adjust(request, product_id):
             reference_id=f"WEB-{timezone.now().strftime('%Y%m%d%H%M')}"
         )
 
-        messages.success(request, f"Stock for '{product.name}' adjusted by {actual_change:+d}. New stock: {new_stock} units.")
+        item_label = f"variant '{variant.title}'" if variant else f"'{product.name}'"
+        messages.success(request, f"Stock for {item_label} adjusted by {actual_change:+d}. New stock: {new_stock} units.")
 
     return redirect("vendor_inventory")
 

@@ -78,7 +78,7 @@
         </div>
 
         <div class="table-responsive">
-          <table class="table">
+          <table class="table" id="adminProductsTable">
             <thead>
               <tr>
                 <th>Product</th>
@@ -86,35 +86,56 @@
                 <th>Category</th>
                 <th>Price</th>
                 <th>Stock</th>
+                <th>Variants</th>
                 <th>Review status</th>
+                <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for product in products %}
-              <tr>
+              <tr id="adminProductRow{{ product.id }}">
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     {% if product.image_url %}
-                      <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;">
+                      <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;">
                     {% else %}
-                      <div style="width:34px;height:34px;background:#eef1eb;border-radius:6px;display:grid;place-items:center;color:#719175;"><i class="fa-solid fa-image"></i></div>
+                      <div style="width:36px;height:36px;background:#eef1eb;border-radius:6px;display:grid;place-items:center;color:#719175;"><i class="fa-solid fa-image"></i></div>
                     {% endif %}
                     <div>
                       <strong>{{ product.name }}</strong>
-                      <br><small class="text-muted">{{ product.sku }}</small>
+                      <br><small class="text-muted font-monospace">{{ product.sku }}</small>
                     </div>
                   </div>
                 </td>
                 <td>{{ product.vendor.business_name }}</td>
                 <td>{{ product.category.name|default:"Uncategorized" }}</td>
-                <td>₹{{ product.price|floatformat:0 }}</td>
-                <td>
-                  {% if product.stock_quantity <= 0 %}
+                <td class="prod-price-cell">
+                  {% if product.has_variants %}
+                    <strong>₹{{ product.customer_effective_price|floatformat:0 }}</strong>
+                    <br><small class="text-muted" style="font-size:10px;">from variants</small>
+                  {% else %}
+                    <strong>₹{{ product.price|floatformat:0 }}</strong>
+                  {% endif %}
+                </td>
+                <td class="prod-stock-cell">
+                  {% if product.has_variants %}
+                    <strong>{{ product.stock_quantity }}</strong> units
+                    <br><small class="text-muted" style="font-size:10px;">across {{ product.active_variant_count }} variant{{ product.active_variant_count|pluralize }}</small>
+                  {% elif product.stock_quantity <= 0 %}
                     <span class="text-danger fw-bold">0</span>
                   {% elif product.stock_quantity <= product.low_stock_threshold %}
                     <span class="text-warning fw-bold">{{ product.stock_quantity }}</span>
                   {% else %}
                     {{ product.stock_quantity }}
+                  {% endif %}
+                </td>
+                <td class="prod-variant-cell">
+                  {% if product.has_variants %}
+                    <span class="pill blue mb-1 d-inline-block">
+                      <i class="fa-solid fa-layer-group me-1"></i>{{ product.active_variant_count }} variant{{ product.active_variant_count|pluralize }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted small">Single item</span>
                   {% endif %}
                 </td>
                 <td>
@@ -126,10 +147,16 @@
                     <span class="pill rose">{{ product.get_status_display }}</span>
                   {% endif %}
                 </td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-primary" 
+                          onclick="openAdminVariantsModal({{ product.id }}, '{{ product.name|escapejs }}', '{{ product.sku|escapejs }}', {{ product.price }})">
+                    <i class="fa-solid fa-sliders me-1"></i>Variants
+                  </button>
+                </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-4 text-muted">No products found matching filter.</td>
+                <td colspan="8" class="text-center py-4 text-muted">No products found matching filter.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -140,6 +167,502 @@
       <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
     </main>
   </div>
+
+  <!-- Admin Product Variants Modal -->
+  <div class="modal fade" id="adminVariantsModal" tabindex="-1" aria-labelledby="adminVariantsModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow border-0" style="border-radius:12px;">
+        <div class="modal-header border-bottom py-3" style="background:#f8faf8;">
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="pill blue"><i class="fa-solid fa-layer-group me-1"></i>Variant Manager</span>
+              <h5 class="modal-title mb-0 fw-bold" id="adminVariantsModalTitle">Product Variants</h5>
+            </div>
+            <div class="text-muted small mt-1" id="adminVariantsModalSubtitle">Loading product info...</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-primary" id="btnAdminShowAddVariant" onclick="showAdminVariantForm('create')">
+              <i class="fa-solid fa-plus me-1"></i>Add Variant
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+        </div>
+
+        <div class="modal-body p-4">
+          <!-- Alert container for error and validation feedback -->
+          <div id="adminVariantAlertContainer" class="d-none"></div>
+
+          <!-- 1. Variants List View -->
+          <div id="adminVariantsListView">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted small" id="adminVariantCountLabel">0 variants configured</span>
+              <button class="btn btn-sm btn-outline-secondary" onclick="reloadAdminVariants()" title="Refresh List">
+                <i class="fa-solid fa-rotate-right me-1"></i>Refresh
+              </button>
+            </div>
+
+            <div class="table-responsive border rounded-3" style="background:#fff;">
+              <table class="table align-middle mb-0">
+                <thead style="background:#f9fafb;">
+                  <tr>
+                    <th style="width:50px;">Photo</th>
+                    <th>Variant Details</th>
+                    <th>SKU</th>
+                    <th>Price</th>
+                    <th>Stock Level</th>
+                    <th>Status</th>
+                    <th>Active</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminVariantsTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">
+                      <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading variants...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 2. Add / Edit Variant Form View -->
+          <div id="adminVariantFormView" class="d-none">
+            <div class="border rounded-3 p-4 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <h6 class="fw-bold mb-0 text-dark" id="adminVariantFormTitle"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Create New Variant</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hideAdminVariantForm()">
+                  <i class="fa-solid fa-arrow-left me-1"></i>Back to Variants List
+                </button>
+              </div>
+
+              <form id="adminVariantForm" onsubmit="handleAdminVariantSubmit(event)" enctype="multipart/form-data">
+                <input type="hidden" id="adminVariantEditId" name="variant_id" value="">
+                
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small" for="admin_var_title">Variant Title <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="admin_var_title" name="title" required placeholder="e.g. Midnight Blue / Large">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small" for="admin_var_sku">Variant SKU <span class="text-muted fw-normal">(Optional)</span></label>
+                    <input type="text" class="form-control font-monospace" id="admin_var_sku" name="sku" placeholder="Leave blank to auto-generate">
+                    <div class="form-text" style="font-size:11px;">Unique SKU identifier for this variant.</div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_color">Color</label>
+                    <input type="text" class="form-control" id="admin_var_color" name="color" placeholder="e.g. Midnight Blue">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_size">Size</label>
+                    <input type="text" class="form-control" id="admin_var_size" name="size" placeholder="e.g. XL, 42, 250ml">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_material">Material / Finish</label>
+                    <input type="text" class="form-control" id="admin_var_material" name="material" placeholder="e.g. Pure Cotton, Aluminum">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_price">Selling Price (₹) <span class="text-muted fw-normal">(Optional)</span></label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="admin_var_price" name="price" placeholder="Defaults to base product price">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_discount_price">Discount / Sale Price (₹) <span class="text-muted fw-normal">(Optional)</span></label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="admin_var_discount_price" name="discount_price" placeholder="Leave blank if no discount">
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small" for="admin_var_stock">Initial Stock Units <span class="text-danger">*</span></label>
+                    <input type="number" step="1" min="0" class="form-control" id="admin_var_stock" name="stock_quantity" required value="0">
+                  </div>
+
+                  <!-- Variant Photo Upload -->
+                  <div class="col-12">
+                    <label class="form-label fw-semibold small">Variant Specific Image <span class="text-muted fw-normal">(Optional)</span></label>
+                    <div class="d-flex align-items-center gap-3">
+                      <div id="adminVariantImagePreviewBox" style="width:54px;height:54px;background:#e2e8f0;border-radius:8px;display:grid;place-items:center;color:#64748b;overflow:hidden;">
+                        <i class="fa-solid fa-image"></i>
+                      </div>
+                      <div class="flex-grow-1">
+                        <input type="file" class="form-control" id="admin_var_image" name="image" accept="image/*" onchange="previewAdminVariantImage(this)">
+                        <div class="form-text" style="font-size:11px;">Upload a dedicated image for this specific color/style. Falls back to product photo if omitted.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="form-check form-switch mt-1">
+                      <input class="form-check-input" type="checkbox" role="switch" id="admin_var_is_active" name="is_active" checked>
+                      <label class="form-check-label fw-semibold small" for="admin_var_is_active">Variant is Active and available for purchase</label>
+                    </div>
+                  </div>
+
+                  <div class="col-12 d-flex gap-2 pt-3 border-top">
+                    <button type="submit" class="btn btn-primary px-4" id="btnAdminSaveVariant">
+                      <i class="fa-solid fa-floppy-disk me-1"></i>Save Variant
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="hideAdminVariantForm()">Cancel</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{% static 'admin/js/admin.js' %}"></script>
+  <script>
+    let currentAdminProductId = null;
+    let currentAdminProductName = '';
+    let currentAdminProductSku = '';
+    let currentAdminProductBasePrice = 0;
+    let adminVariantsModalInstance = null;
+
+    function openAdminVariantsModal(productId, productName, productSku, basePrice) {
+      currentAdminProductId = productId;
+      currentAdminProductName = productName;
+      currentAdminProductSku = productSku;
+      currentAdminProductBasePrice = basePrice;
+
+      document.getElementById('adminVariantsModalTitle').innerText = productName;
+      document.getElementById('adminVariantsModalSubtitle').innerText = 'SKU: ' + productSku + ' · Base Price: ₹' + Number(basePrice).toFixed(0);
+
+      hideAdminVariantForm();
+      clearAdminAlert();
+
+      if (!adminVariantsModalInstance) {
+        adminVariantsModalInstance = new bootstrap.Modal(document.getElementById('adminVariantsModal'));
+      }
+      adminVariantsModalInstance.show();
+
+      reloadAdminVariants();
+    }
+
+    function showAdminAlert(message, type = 'danger') {
+      const container = document.getElementById('adminVariantAlertContainer');
+      container.className = `alert alert-${type} alert-dismissible fade show mb-3 shadow-sm`;
+      container.innerHTML = `
+        <div class="d-flex align-items-center">
+          <i class="fa-solid ${type === 'danger' ? 'fa-triangle-exclamation text-danger' : 'fa-circle-check text-success'} me-2 fs-5"></i>
+          <div>${message}</div>
+          <button type="button" class="btn-close ms-auto" onclick="clearAdminAlert()"></button>
+        </div>
+      `;
+      container.classList.remove('d-none');
+    }
+
+    function clearAdminAlert() {
+      const container = document.getElementById('adminVariantAlertContainer');
+      container.classList.add('d-none');
+      container.innerHTML = '';
+    }
+
+    async function reloadAdminVariants() {
+      const tbody = document.getElementById('adminVariantsTableBody');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="text-center py-4 text-muted">
+            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Loading variants...
+          </td>
+        </tr>
+      `;
+
+      try {
+        const resp = await fetch(`/api/admin/products/${currentAdminProductId}/variants/`);
+        const data = await resp.json();
+
+        if (!data.success) {
+          showAdminAlert(data.message || 'Failed to fetch variants.');
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">${data.message || 'Error'}</td></tr>`;
+          return;
+        }
+
+        renderAdminVariants(data.variants || []);
+      } catch (err) {
+        showAdminAlert('Network or server error while loading variants.');
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">Failed to connect to backend server.</td></tr>`;
+      }
+    }
+
+    function renderAdminVariants(variants) {
+      const tbody = document.getElementById('adminVariantsTableBody');
+      const countLabel = document.getElementById('adminVariantCountLabel');
+      countLabel.innerText = `${variants.length} variant${variants.length === 1 ? '' : 's'} configured`;
+
+      if (variants.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-5 text-muted">
+              <i class="fa-solid fa-box-open d-block fs-3 mb-2 text-secondary"></i>
+              No variants added for this product yet.
+              <div class="mt-2">
+                <button class="btn btn-sm btn-primary" onclick="showAdminVariantForm('create')">
+                  <i class="fa-solid fa-plus me-1"></i>Create First Variant
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      let totalVariantStock = 0;
+      let effectivePrices = [];
+
+      variants.forEach(v => {
+        if (v.is_active) {
+          totalVariantStock += (v.stock_quantity || 0);
+          effectivePrices.push(v.effective_price);
+        }
+
+        const thumbHtml = v.image_url 
+          ? `<img src="${v.image_url}" alt="${v.title}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;">`
+          : `<div style="width:36px;height:36px;background:#f1f5f9;border-radius:6px;display:grid;place-items:center;color:#94a3b8;"><i class="fa-solid fa-tag"></i></div>`;
+
+        const detailsList = [];
+        if (v.color) detailsList.push(`<span class="badge bg-light text-dark border">Color: ${v.color}</span>`);
+        if (v.size) detailsList.push(`<span class="badge bg-light text-dark border">Size: ${v.size}</span>`);
+        if (v.material) detailsList.push(`<span class="badge bg-light text-dark border">Material: ${v.material}</span>`);
+
+        const priceDisplay = v.discount_price 
+          ? `<strong>₹${Number(v.discount_price).toFixed(0)}</strong> <del class="text-muted" style="font-size:10px;">₹${Number(v.price).toFixed(0)}</del>`
+          : `<strong>₹${Number(v.price).toFixed(0)}</strong>`;
+
+        const stockBadge = (v.stock_quantity > 0)
+          ? `<span class="pill green">${v.stock_quantity} in stock</span>`
+          : `<span class="pill rose">Out of Stock (0)</span>`;
+
+        html += `
+          <tr id="adminVariantRow${v.id}">
+            <td>${thumbHtml}</td>
+            <td>
+              <strong class="text-dark">${v.title}</strong>
+              <div class="d-flex flex-wrap gap-1 mt-1">${detailsList.join('')}</div>
+            </td>
+            <td><span class="font-monospace text-muted small">${v.sku || '-'}</span></td>
+            <td>${priceDisplay}</td>
+            <td>${stockBadge}</td>
+            <td>
+              <span class="pill ${v.is_active ? 'green' : 'amber'}">${v.is_active ? 'Active' : 'Inactive'}</span>
+            </td>
+            <td>
+              <div class="form-check form-switch m-0">
+                <input class="form-check-input" type="checkbox" role="switch" ${v.is_active ? 'checked' : ''} 
+                       onchange="toggleAdminVariantActive(${v.id}, this.checked)">
+              </div>
+            </td>
+            <td class="text-end">
+              <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit Variant" onclick="editAdminVariant(${JSON.stringify(v).replace(/"/g, '&quot;')})">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Variant" onclick="deleteAdminVariant(${v.id}, '${v.title.replace(/'/g, "\\'")}')">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      // Update parent table product row dynamically
+      updateParentProductRow(currentAdminProductId, variants.length, totalVariantStock, effectivePrices);
+    }
+
+    function updateParentProductRow(productId, variantCount, totalStock, effectivePrices) {
+      const row = document.getElementById(`adminProductRow${productId}`);
+      if (!row) return;
+
+      const priceCell = row.querySelector('.prod-price-cell');
+      const stockCell = row.querySelector('.prod-stock-cell');
+      const variantCell = row.querySelector('.prod-variant-cell');
+
+      if (variantCount > 0) {
+        const minPrice = effectivePrices.length > 0 ? Math.min(...effectivePrices) : currentAdminProductBasePrice;
+        if (priceCell) {
+          priceCell.innerHTML = `<strong>₹${Number(minPrice).toFixed(0)}</strong><br><small class="text-muted" style="font-size:10px;">from variants</small>`;
+        }
+        if (stockCell) {
+          stockCell.innerHTML = `<strong>${totalStock}</strong> units<br><small class="text-muted" style="font-size:10px;">across ${variantCount} variant${variantCount === 1 ? '' : 's'}</small>`;
+        }
+        if (variantCell) {
+          variantCell.innerHTML = `<span class="pill blue mb-1 d-inline-block"><i class="fa-solid fa-layer-group me-1"></i>${variantCount} variant${variantCount === 1 ? '' : 's'}</span>`;
+        }
+      } else {
+        if (priceCell) {
+          priceCell.innerHTML = `<strong>₹${Number(currentAdminProductBasePrice).toFixed(0)}</strong>`;
+        }
+        if (variantCell) {
+          variantCell.innerHTML = `<span class="text-muted small">Single item</span>`;
+        }
+      }
+    }
+
+    function showAdminVariantForm(mode = 'create', variant = null) {
+      clearAdminAlert();
+      document.getElementById('adminVariantsListView').classList.add('d-none');
+      document.getElementById('btnAdminShowAddVariant').classList.add('d-none');
+      document.getElementById('adminVariantFormView').classList.remove('d-none');
+
+      const form = document.getElementById('adminVariantForm');
+      form.reset();
+      document.getElementById('adminVariantImagePreviewBox').innerHTML = '<i class="fa-solid fa-image"></i>';
+
+      if (mode === 'edit' && variant) {
+        document.getElementById('adminVariantFormTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-primary me-2"></i>Edit Variant: ${variant.title}`;
+        document.getElementById('adminVariantEditId').value = variant.id;
+        document.getElementById('admin_var_title').value = variant.title || '';
+        document.getElementById('admin_var_sku').value = variant.sku || '';
+        document.getElementById('admin_var_color').value = variant.color || '';
+        document.getElementById('admin_var_size').value = variant.size || '';
+        document.getElementById('admin_var_material').value = variant.material || '';
+        document.getElementById('admin_var_price').value = variant.price !== null ? variant.price : '';
+        document.getElementById('admin_var_discount_price').value = variant.discount_price !== null ? variant.discount_price : '';
+        document.getElementById('admin_var_stock').value = variant.stock_quantity || 0;
+        document.getElementById('admin_var_is_active').checked = !!variant.is_active;
+
+        if (variant.image_url) {
+          document.getElementById('adminVariantImagePreviewBox').innerHTML = `<img src="${variant.image_url}" style="width:100%;height:100%;object-fit:cover;">`;
+        }
+      } else {
+        document.getElementById('adminVariantFormTitle').innerHTML = `<i class="fa-solid fa-plus-circle text-primary me-2"></i>Add Variant to ${currentAdminProductName}`;
+        document.getElementById('adminVariantEditId').value = '';
+        document.getElementById('admin_var_price').placeholder = `Defaults to ₹${Number(currentAdminProductBasePrice).toFixed(0)}`;
+        document.getElementById('admin_var_is_active').checked = true;
+      }
+    }
+
+    function hideAdminVariantForm() {
+      document.getElementById('adminVariantFormView').classList.add('d-none');
+      document.getElementById('adminVariantsListView').classList.remove('d-none');
+      document.getElementById('btnAdminShowAddVariant').classList.remove('d-none');
+    }
+
+    function editAdminVariant(variant) {
+      showAdminVariantForm('edit', variant);
+    }
+
+    function previewAdminVariantImage(input) {
+      const box = document.getElementById('adminVariantImagePreviewBox');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          box.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+      } else {
+        box.innerHTML = '<i class="fa-solid fa-image"></i>';
+      }
+    }
+
+    async function handleAdminVariantSubmit(e) {
+      e.preventDefault();
+      clearAdminAlert();
+
+      const btnSave = document.getElementById('btnAdminSaveVariant');
+      const originalText = btnSave.innerHTML;
+      btnSave.disabled = true;
+      btnSave.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Saving...`;
+
+      const variantId = document.getElementById('adminVariantEditId').value;
+      const isEdit = !!variantId;
+
+      const form = document.getElementById('adminVariantForm');
+      const formData = new FormData(form);
+
+      // Ensure boolean is_active is explicit
+      formData.set('is_active', document.getElementById('admin_var_is_active').checked ? 'true' : 'false');
+
+      const url = isEdit 
+        ? `/api/admin/variants/${variantId}/update/`
+        : `/api/admin/products/${currentAdminProductId}/variants/create/`;
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (!data.success) {
+          showAdminAlert(data.message || 'Failed to save variant.');
+          btnSave.disabled = false;
+          btnSave.innerHTML = originalText;
+          return;
+        }
+
+        hideAdminVariantForm();
+        showAdminAlert(data.message || (isEdit ? 'Variant updated!' : 'Variant created!'), 'success');
+        await reloadAdminVariants();
+      } catch (err) {
+        showAdminAlert('Network or server error while submitting variant.');
+      } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalText;
+      }
+    }
+
+    async function toggleAdminVariantActive(variantId, isActive) {
+      clearAdminAlert();
+      const formData = new FormData();
+      formData.append('is_active', isActive ? 'true' : 'false');
+
+      try {
+        const resp = await fetch(`/api/admin/variants/${variantId}/update/`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await resp.json();
+        if (!data.success) {
+          showAdminAlert(data.message || 'Failed to update variant status.');
+          await reloadAdminVariants();
+          return;
+        }
+        await reloadAdminVariants();
+      } catch (err) {
+        showAdminAlert('Network error toggling variant status.');
+        await reloadAdminVariants();
+      }
+    }
+
+    async function deleteAdminVariant(variantId, variantTitle) {
+      if (!confirm(`Are you sure you want to permanently delete variant "${variantTitle}"?`)) {
+        return;
+      }
+
+      clearAdminAlert();
+
+      try {
+        const resp = await fetch(`/api/admin/variants/${variantId}/delete/`, {
+          method: 'DELETE'
+        });
+        const data = await resp.json();
+        if (!data.success) {
+          showAdminAlert(data.message || 'Failed to delete variant.');
+          return;
+        }
+
+        showAdminAlert(data.message || 'Variant deleted successfully.', 'success');
+        await reloadAdminVariants();
+      } catch (err) {
+        showAdminAlert('Network error while deleting variant.');
+      }
+    }
+  </script>
 </body>
 </html>

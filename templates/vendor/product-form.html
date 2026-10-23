@@ -20,6 +20,25 @@
         <div class="card-body p-4">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                {% if product and product.has_variants %}
+                    <div class="col-12">
+                        <div class="alert alert-primary border d-flex align-items-center justify-content-between p-3 rounded-3 mb-2 shadow-sm">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="rounded-circle bg-white text-primary p-2 d-flex align-items-center justify-content-center shadow-sm" style="width:40px;height:40px;">
+                                    <i class="fa-solid fa-layer-group fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">This product has {{ product.active_variant_count }} configured variant{{ product.active_variant_count|pluralize }}.</div>
+                                    <div class="text-secondary small">Combined stock is calculated dynamically from active variants (Total: <strong>{{ product.stock_quantity }} units</strong>). Stock and option prices must be managed at the variant level.</div>
+                                </div>
+                            </div>
+                            <a href="{% url 'vendor_products' %}?open_variants={{ product.id }}" class="btn btn-sm btn-primary text-nowrap">
+                                <i class="fa-solid fa-sliders me-1"></i>Manage Variants
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+
                 <div class="row g-3">
                     <div class="col-md-8">
                         <label class="form-label fw-semibold" for="name">Product Name <span class="text-danger">*</span></label>
@@ -52,12 +71,25 @@
                         <label class="form-label fw-semibold" for="price">Selling Price (₹) <span class="text-danger">*</span></label>
                         <input class="form-control" id="price" name="price" type="number" min="0" step="0.01" required
                                placeholder="0.00" value="{{ product.price|default:'' }}">
+                        {% if product and product.has_variants %}
+                            <div class="form-text text-secondary" style="font-size:11px;">
+                                Base catalog price. Effective storefront price: <strong>₹{{ product.customer_effective_price|floatformat:2 }}</strong>
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div class="col-md-3">
                         <label class="form-label fw-semibold" for="stock">Available Stock Units <span class="text-danger">*</span></label>
-                        <input class="form-control" id="stock" name="stock_quantity" type="number" min="0" step="1" required
-                               placeholder="0" value="{{ product.stock_quantity|default:'0' }}">
+                        {% if product and product.has_variants %}
+                            <input class="form-control bg-light text-muted" id="stock" name="stock_quantity" type="number" readonly
+                                   value="{{ product.stock_quantity }}">
+                            <div class="form-text text-primary" style="font-size:11px;">
+                                <i class="fa-solid fa-lock me-1"></i>Locked: managed via variants ({{ product.active_variant_count }} active).
+                            </div>
+                        {% else %}
+                            <input class="form-control" id="stock" name="stock_quantity" type="number" min="0" step="1" required
+                                   placeholder="0" value="{{ product.stock_quantity|default:'0' }}">
+                        {% endif %}
                     </div>
 
                     <div class="col-md-6">

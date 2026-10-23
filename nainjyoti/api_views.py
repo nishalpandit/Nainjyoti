@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout, authenticate
 from django.db import transaction
-from django.db.models import Q, Sum, Count, Avg, DecimalField
+from django.db.models import Q, Sum, Count, Avg, Min, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.text import slugify
@@ -998,8 +998,21 @@ def api_user_category_products(request, category_id):
         vendor__status='APPROVED',
     ).annotate(
         effective_price=Coalesce(
-            'discount_price',
-            'price',
+            Min(
+                Coalesce(
+                    'variants__discount_price',
+                    'variants__price',
+                    'discount_price',
+                    'price',
+                    output_field=DecimalField(max_digits=10, decimal_places=2),
+                ),
+                filter=Q(variants__is_active=True),
+            ),
+            Coalesce(
+                'discount_price',
+                'price',
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
             output_field=DecimalField(max_digits=10, decimal_places=2),
         )
     )
@@ -1080,12 +1093,15 @@ def api_user_category_products(request, category_id):
             "sku": product.sku,
             "price": float(product.price),
             "discount_price": float(product.discount_price) if product.discount_price is not None else None,
+            "effective_price": float(product.effective_price),
             "image_url": product.image_url,
             "category_id": category.id,
             "category_name": category.name,
             "vendor_name": product.vendor.business_name if product.vendor else None,
             "stock_quantity": product.stock_quantity,
             "in_stock": product.stock_quantity > 0,
+            "has_variants": product.has_variants,
+            "variant_count": product.active_variant_count,
         })
 
     return JsonResponse({
@@ -1225,8 +1241,21 @@ def api_product_search(request):
         Q(category__isnull=True) | Q(category__status='ACTIVE')
     ).annotate(
         effective_price=Coalesce(
-            'discount_price',
-            'price',
+            Min(
+                Coalesce(
+                    'variants__discount_price',
+                    'variants__price',
+                    'discount_price',
+                    'price',
+                    output_field=DecimalField(max_digits=10, decimal_places=2),
+                ),
+                filter=Q(variants__is_active=True),
+            ),
+            Coalesce(
+                'discount_price',
+                'price',
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            ),
             output_field=DecimalField(max_digits=10, decimal_places=2),
         )
     )
@@ -1264,12 +1293,15 @@ def api_product_search(request):
         'discount_price': (
             float(product.discount_price) if product.discount_price is not None else None
         ),
+        'effective_price': float(product.effective_price),
         'image_url': product.image_url,
         'category_id': product.category_id,
         'category_name': product.category.name if product.category else None,
         'vendor_name': product.vendor.business_name,
         'stock_quantity': product.stock_quantity,
         'in_stock': product.stock_quantity > 0,
+        'has_variants': product.has_variants,
+        'variant_count': product.active_variant_count,
     } for product in page_products]
 
     return JsonResponse({
@@ -1312,9 +1344,9 @@ def api_user_product_detail(request, product_id):
 
     price = float(product.price)
     discount_price = float(product.discount_price) if product.discount_price is not None else None
-    effective_price = discount_price if discount_price is not None else price
-    savings_amount = round(price - discount_price, 2) if discount_price is not None and discount_price < price else 0.0
-    savings_percentage = round(((price - discount_price) / price) * 100, 1) if discount_price is not None and discount_price < price and price > 0 else 0.0
+    effective_price = product.customer_effective_price
+    savings_amount = round(price - effective_price, 2) if effective_price < price else 0.0
+    savings_percentage = round(((price - effective_price) / price) * 100, 1) if effective_price < price and price > 0 else 0.0
 
     in_stock = product.stock_quantity > 0
     low_stock_warning = in_stock and (product.stock_quantity <= product.low_stock_threshold)
@@ -1368,13 +1400,15 @@ def api_user_product_detail(request, product_id):
             "sku": rel.sku,
             "price": rel_price,
             "discount_price": rel_discount,
-            "effective_price": rel_discount if rel_discount is not None else rel_price,
+            "effective_price": rel.customer_effective_price,
             "image_url": rel.image_url,
             "category_id": rel.category_id,
             "category_name": rel.category.name if rel.category else None,
             "vendor_name": rel.vendor.business_name if rel.vendor else None,
             "stock_quantity": rel.stock_quantity,
             "in_stock": rel.stock_quantity > 0,
+            "has_variants": rel.has_variants,
+            "variant_count": rel.active_variant_count,
         })
 
     product_data = {
@@ -1482,6 +1516,287 @@ def api_user_variant_detail(request, variant_id):
     return JsonResponse({
         "success": True,
         "variant": variant.to_dict(),
+    }, status=200)
+
+
+def _managed_variant_product(request, product_id, action='manage variants for'):
+    product = Product.objects.select_related('vendor', 'category').filter(pk=product_id).first()
+    if not product:
+        return None, None, JsonResponse({
+            "success": False,
+            "message": f"Product with ID '{product_id}' not found."
+        }, status=404)
+
+    vendor = None
+    if request.path.startswith('/api/vendor/'):
+        vendor, auth_error = _require_vendor_auth(request)
+        if auth_error:
+            return None, None, auth_error
+        ownership_error = _check_vendor_ownership(vendor, product, action_name=action)
+        if ownership_error:
+            return None, None, ownership_error
+    return product, vendor, None
+
+
+def _managed_variant(request, variant_id, action='manage'):
+    variant = ProductVariant.objects.select_related('product', 'product__vendor').filter(pk=variant_id).first()
+    if not variant:
+        return None, None, JsonResponse({
+            "success": False,
+            "message": f"Variant with ID '{variant_id}' not found."
+        }, status=404)
+
+    vendor = None
+    if request.path.startswith('/api/vendor/'):
+        vendor, auth_error = _require_vendor_auth(request)
+        if auth_error:
+            return None, None, auth_error
+        ownership_error = _check_vendor_ownership(vendor, variant.product, action_name=action)
+        if ownership_error:
+            return None, None, ownership_error
+    return variant, vendor, None
+
+
+def _variant_image_from_request(request, data, variant):
+    image_file = request.FILES.get('image') or request.FILES.get('variant_image')
+    if image_file:
+        variant.image = image_file
+        return
+
+    image_value = data.get('image') or data.get('image_url')
+    if not image_value or not isinstance(image_value, str):
+        return
+    image_value = image_value.strip()
+    if image_value.startswith('data:image') and ';base64,' in image_value:
+        try:
+            image_format, image_data = image_value.split(';base64,', 1)
+            extension = image_format.split('/')[-1].split('+')[0]
+            file_name = f"variant_{slugify(variant.title)}_{random.randint(1000, 9999)}.{extension}"
+            variant.image = ContentFile(base64.b64decode(image_data), name=file_name)
+        except Exception:
+            pass
+    elif image_value:
+        variant.image = image_value
+
+
+def _parse_variant_number(data, field, required=False, integer=False):
+    raw_value = data.get(field)
+    if raw_value in [None, '']:
+        if required:
+            return None, f"Field '{field}' is required."
+        return None, None
+    try:
+        value = int(raw_value) if integer else Decimal(str(raw_value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None, f"Field '{field}' must be a valid {'integer' if integer else 'number'}."
+    if not integer and not value.is_finite():
+        return None, f"Field '{field}' must be a finite number."
+    if value < 0:
+        return None, f"Field '{field}' cannot be negative."
+    return value, None
+
+
+@csrf_exempt
+def api_product_variant_list(request, product_id):
+    """List all variants for a vendor-owned or admin-selected product."""
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    product, vendor, error = _managed_variant_product(request, product_id, action='view variants for')
+    if error:
+        return error
+    variants = list(product.variants.all().order_by('id'))
+    return JsonResponse({
+        "success": True,
+        "product_id": product.id,
+        "product_name": product.name,
+        "total_variants": len(variants),
+        "variants": [variant.to_dict() for variant in variants],
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_variant_create(request, product_id):
+    """Create a product variant as the owning vendor or an administrator."""
+    if request.method != 'POST':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
+
+    product, vendor, error = _managed_variant_product(request, product_id, action='add variants to')
+    if error:
+        return error
+    data = _parse_request_data(request)
+    title = str(data.get('title', '')).strip()
+    if not title:
+        return JsonResponse({"success": False, "message": "Field 'title' is required."}, status=400)
+
+    sku = str(data.get('sku', '')).strip()
+    if sku and ProductVariant.objects.filter(sku__iexact=sku).exists():
+        return JsonResponse({
+            "success": False,
+            "message": f"A variant with SKU '{sku}' already exists."
+        }, status=400)
+
+    price, error_message = _parse_variant_number(data, 'price')
+    if error_message:
+        return JsonResponse({"success": False, "message": error_message}, status=400)
+    discount_price, error_message = _parse_variant_number(data, 'discount_price')
+    if error_message:
+        return JsonResponse({"success": False, "message": error_message}, status=400)
+    stock_quantity, error_message = _parse_variant_number(data, 'stock_quantity', integer=True)
+    if error_message:
+        return JsonResponse({"success": False, "message": error_message}, status=400)
+
+    is_active = True
+    if 'is_active' in data:
+        is_active, is_valid = _parse_boolean(data['is_active'])
+        if not is_valid:
+            return JsonResponse({"success": False, "message": "Field 'is_active' must be true or false."}, status=400)
+
+    with transaction.atomic():
+        variant = ProductVariant(
+            product=product,
+            title=title,
+            color=str(data.get('color', '')).strip(),
+            size=str(data.get('size', '')).strip(),
+            material=str(data.get('material', '')).strip(),
+            sku=sku,
+            price=price,
+            discount_price=discount_price,
+            stock_quantity=stock_quantity or 0,
+            is_active=is_active,
+        )
+        _variant_image_from_request(request, data, variant)
+        variant.save()
+        if variant.stock_quantity > 0:
+            StockLog.objects.create(
+                product=product,
+                variant=variant,
+                vendor=product.vendor,
+                movement_type='RESTOCK',
+                quantity_changed=variant.stock_quantity,
+                previous_stock=0,
+                new_stock=variant.stock_quantity,
+                reason='Initial stock upon variant creation',
+            )
+
+    product.refresh_from_db()
+    return JsonResponse({
+        "success": True,
+        "message": "Product variant created successfully",
+        "variant": variant.to_dict(),
+        "product_stock_quantity": product.stock_quantity,
+    }, status=201)
+
+
+@csrf_exempt
+def api_product_variant_detail(request, variant_id):
+    """Return one variant to its owning vendor or an administrator."""
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+    variant, vendor, error = _managed_variant(request, variant_id, action='view this variant for')
+    if error:
+        return error
+    return JsonResponse({"success": True, "variant": variant.to_dict()}, status=200)
+
+
+@csrf_exempt
+def api_product_variant_update(request, variant_id):
+    """Update variant attributes, price, image, activity, or stock."""
+    if request.method not in ['POST', 'PUT', 'PATCH']:
+        return JsonResponse({
+            "success": False,
+            "message": "Method not allowed. Use POST, PUT, or PATCH."
+        }, status=405)
+    variant, vendor, error = _managed_variant(request, variant_id, action='update this variant for')
+    if error:
+        return error
+    data = _parse_request_data(request)
+
+    if 'title' in data:
+        title = str(data['title']).strip()
+        if not title:
+            return JsonResponse({"success": False, "message": "Field 'title' cannot be empty."}, status=400)
+        variant.title = title
+    for field in ['color', 'size', 'material']:
+        if field in data:
+            setattr(variant, field, str(data[field]).strip())
+    if 'sku' in data:
+        sku = str(data['sku']).strip()
+        if not sku:
+            return JsonResponse({"success": False, "message": "Field 'sku' cannot be empty."}, status=400)
+        if ProductVariant.objects.filter(sku__iexact=sku).exclude(pk=variant.pk).exists():
+            return JsonResponse({"success": False, "message": f"A variant with SKU '{sku}' already exists."}, status=400)
+        variant.sku = sku
+
+    for field in ['price', 'discount_price']:
+        if field in data:
+            raw_value = data[field]
+            if raw_value in [None, '', 'null']:
+                setattr(variant, field, None)
+            else:
+                value, error_message = _parse_variant_number(data, field)
+                if error_message:
+                    return JsonResponse({"success": False, "message": error_message}, status=400)
+                setattr(variant, field, value)
+
+    previous_stock = variant.stock_quantity
+    if 'stock_quantity' in data:
+        stock_quantity, error_message = _parse_variant_number(data, 'stock_quantity', integer=True)
+        if error_message:
+            return JsonResponse({"success": False, "message": error_message}, status=400)
+        variant.stock_quantity = stock_quantity
+    if 'is_active' in data:
+        is_active, is_valid = _parse_boolean(data['is_active'])
+        if not is_valid:
+            return JsonResponse({"success": False, "message": "Field 'is_active' must be true or false."}, status=400)
+        variant.is_active = is_active
+    if str(data.get('remove_image', '')).strip().lower() in ['true', '1', 'yes']:
+        variant.image = None
+    else:
+        _variant_image_from_request(request, data, variant)
+
+    with transaction.atomic():
+        variant.save()
+        if variant.stock_quantity != previous_stock:
+            StockLog.objects.create(
+                product=variant.product,
+                variant=variant,
+                vendor=variant.product.vendor,
+                movement_type='CORRECTION',
+                quantity_changed=variant.stock_quantity - previous_stock,
+                previous_stock=previous_stock,
+                new_stock=variant.stock_quantity,
+                reason='Stock updated through variant management API',
+            )
+
+    variant.product.refresh_from_db()
+    return JsonResponse({
+        "success": True,
+        "message": "Product variant updated successfully",
+        "variant": variant.to_dict(),
+        "product_stock_quantity": variant.product.stock_quantity,
+    }, status=200)
+
+
+@csrf_exempt
+def api_product_variant_delete(request, variant_id):
+    """Delete a variant as the owning vendor or an administrator."""
+    if request.method not in ['DELETE', 'POST']:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use DELETE or POST."}, status=405)
+    variant, vendor, error = _managed_variant(request, variant_id, action='delete this variant for')
+    if error:
+        return error
+    product = variant.product
+    deleted_id = variant.id
+    deleted_title = variant.title
+    variant.delete()
+    product.refresh_from_db()
+    return JsonResponse({
+        "success": True,
+        "message": "Product variant deleted successfully",
+        "deleted_variant_id": deleted_id,
+        "deleted_variant_title": deleted_title,
+        "product_stock_quantity": product.stock_quantity,
     }, status=200)
 
 
@@ -2537,9 +2852,24 @@ def api_product_detail(request, product_id):
         if perm_err:
             return perm_err
 
+    include_inactive_variants = (
+        request.path.startswith('/api/vendor/') or request.path.startswith('/api/admin/')
+    )
+    variants = product.variants.all()
+    if not include_inactive_variants:
+        variants = variants.filter(is_active=True)
+    variants = list(variants.order_by('id'))
+    product_data = product.to_dict()
+    product_data.update({
+        'available_colors': sorted({variant.color for variant in variants if variant.color}),
+        'available_sizes': sorted({variant.size for variant in variants if variant.size}),
+        'available_materials': sorted({variant.material for variant in variants if variant.material}),
+        'variants': [variant.to_dict() for variant in variants],
+    })
+
     return JsonResponse({
         "success": True,
-        "product": product.to_dict()
+        "product": product_data
     }, status=200)
 
 
@@ -2602,6 +2932,11 @@ def api_product_update(request, product_id):
 
     # Update stock quantity (with audit log)
     if "stock_quantity" in data and data["stock_quantity"] not in [None, ""]:
+        if product.has_variants:
+            return JsonResponse({
+                "success": False,
+                "message": "This product uses variants. Update stock on the individual variant instead."
+            }, status=400)
         try:
             val = int(data["stock_quantity"])
             if val < 0:
@@ -2779,7 +3114,7 @@ def api_stock_summary(request):
             if vendor_code:
                 qs = qs.filter(vendor__vendor_code__iexact=vendor_code.strip())
 
-    total_skus = qs.count()
+    total_skus = 0
     total_units = 0
     healthy_count = 0
     low_stock_count = 0
@@ -2787,6 +3122,7 @@ def api_stock_summary(request):
     total_valuation = 0.0
 
     for prod in qs:
+        total_skus += prod.active_variant_count if prod.has_variants else 1
         qty = max(prod.stock_quantity, 0)
         total_units += qty
         total_valuation += float(prod.price) * qty
@@ -2853,7 +3189,12 @@ def api_stock_list(request):
 
     search = request.GET.get("search", "").strip()
     if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+        qs = qs.filter(
+            Q(name__icontains=search) |
+            Q(sku__icontains=search) |
+            Q(variants__title__icontains=search) |
+            Q(variants__sku__icontains=search)
+        ).distinct()
 
     level = request.GET.get("level", "").strip().lower()
     ordering = request.GET.get("ordering", "-created_at")
@@ -2881,6 +3222,9 @@ def api_stock_list(request):
             "vendor_name": prod.vendor.business_name if prod.vendor else None,
             "price": float(prod.price),
             "stock_quantity": prod.stock_quantity,
+            "has_variants": prod.has_variants,
+            "variant_count": prod.active_variant_count,
+            "variants": [variant.to_dict() for variant in prod.variants.all().order_by('id')],
             "low_stock_threshold": prod.low_stock_threshold,
             "stock_status": st_status,
             "stock_valuation": prod.stock_valuation,
@@ -2902,6 +3246,7 @@ def api_stock_update(request, product_id):
     API: Adjust Inventory Stock (with Audit Logging)
     Method: POST or PUT
     Params:
+      - variant_id: integer (required when the product has variants)
       - action: 'ADD' (Restock), 'SUBTRACT' (Damage/Deduction), or 'SET' (Physical recount)
       - quantity: integer (units to add/subtract or target quantity)
       - movement_type: 'RESTOCK', 'SALE', 'RETURN', 'DAMAGE', 'CORRECTION' (optional)
@@ -2926,6 +3271,25 @@ def api_stock_update(request, product_id):
 
     data = _parse_request_data(request)
 
+    variant = None
+    raw_variant_id = data.get('variant_id')
+    if raw_variant_id not in [None, '']:
+        try:
+            variant_id = int(raw_variant_id)
+        except (TypeError, ValueError):
+            return JsonResponse({"success": False, "message": "Field 'variant_id' must be a valid integer."}, status=400)
+        variant = ProductVariant.objects.filter(pk=variant_id, product=product).first()
+        if not variant:
+            return JsonResponse({
+                "success": False,
+                "message": f"Variant with ID '{variant_id}' was not found for this product."
+            }, status=404)
+    elif product.has_variants:
+        return JsonResponse({
+            "success": False,
+            "message": "This product uses variants. Field 'variant_id' is required for stock adjustment."
+        }, status=400)
+
     action = str(data.get("action", "ADD")).strip().upper()
     if action not in ["ADD", "SUBTRACT", "SET"]:
         return JsonResponse({"success": False, "message": "Invalid action. Use 'ADD', 'SUBTRACT', or 'SET'."}, status=400)
@@ -2943,7 +3307,8 @@ def api_stock_update(request, product_id):
     except (ValueError, TypeError):
         return JsonResponse({"success": False, "message": "Quantity must be a valid integer."}, status=400)
 
-    prev_stock = product.stock_quantity
+    stock_target = variant or product
+    prev_stock = stock_target.stock_quantity
 
     if action == "ADD":
         new_stock = prev_stock + qty
@@ -2979,14 +3344,17 @@ def api_stock_update(request, product_id):
             val_th = int(raw_thresh)
             if val_th >= 0:
                 product.low_stock_threshold = val_th
+                Product.objects.filter(pk=product.pk).update(low_stock_threshold=val_th)
         except (ValueError, TypeError):
             pass
 
-    product.stock_quantity = new_stock
-    product.save()
+    stock_target.stock_quantity = new_stock
+    stock_target.save()
+    product.refresh_from_db()
 
     stock_log = StockLog.objects.create(
         product=product,
+        variant=variant,
         vendor=product.vendor,
         movement_type=movement_type,
         quantity_changed=qty_changed,
@@ -2998,8 +3366,13 @@ def api_stock_update(request, product_id):
 
     return JsonResponse({
         "success": True,
-        "message": f"Stock for '{product.name}' adjusted from {prev_stock} to {new_stock} units.",
+        "message": (
+            f"Stock for variant '{variant.title}' adjusted from {prev_stock} to {new_stock} units."
+            if variant else
+            f"Stock for '{product.name}' adjusted from {prev_stock} to {new_stock} units."
+        ),
         "product": product.to_dict(),
+        "variant": variant.to_dict() if variant else None,
         "log": stock_log.to_dict()
     }, status=200)
 
@@ -3017,7 +3390,7 @@ def api_stock_logs(request, product_id=None):
     if request.method != "GET":
         return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
 
-    qs = StockLog.objects.all().select_related('product', 'vendor')
+    qs = StockLog.objects.all().select_related('product', 'variant', 'vendor')
 
     prod_id = product_id or request.GET.get("product_id")
 
@@ -3054,6 +3427,16 @@ def api_stock_logs(request, product_id=None):
     movement_type = request.GET.get("movement_type", "").strip().upper()
     if movement_type:
         qs = qs.filter(movement_type=movement_type)
+
+    variant_id = request.GET.get('variant_id')
+    if variant_id:
+        try:
+            qs = qs.filter(variant_id=int(variant_id))
+        except (TypeError, ValueError):
+            return JsonResponse({
+                "success": False,
+                "message": "Query parameter 'variant_id' must be a valid integer."
+            }, status=400)
 
     limit = 50
     if request.GET.get("limit"):
@@ -3284,6 +3667,7 @@ def api_vendor_order_status_update(request, order_id):
 
     old_status = order.status
     now = timezone.now()
+    previous_item_statuses = {item.id: item.status for item in vendor_items}
 
     for item in vendor_items:
         item.status = raw_status
@@ -3332,7 +3716,24 @@ def api_vendor_order_status_update(request, order_id):
 
     elif raw_status == 'CANCELLED':
         for item in vendor_items:
-            if item.product:
+            if previous_item_statuses.get(item.id) == 'CANCELLED':
+                continue
+            if item.variant:
+                prev_st = item.variant.stock_quantity
+                item.variant.stock_quantity = prev_st + item.quantity
+                item.variant.save()
+                StockLog.objects.create(
+                    product=item.product,
+                    variant=item.variant,
+                    vendor=vendor,
+                    movement_type='RETURN',
+                    quantity_changed=item.quantity,
+                    previous_stock=prev_st,
+                    new_stock=item.variant.stock_quantity,
+                    reason=f"Order {order.order_number} cancelled; {item.quantity} variant units returned to inventory",
+                    reference_id=order.order_number
+                )
+            elif item.product:
                 prev_st = item.product.stock_quantity
                 item.product.stock_quantity = prev_st + item.quantity
                 item.product.save()
@@ -3629,4 +4030,3 @@ def api_vendor_payout_detail(request, payout_id):
         "success": True,
         "payout": payout.to_dict()
     }, status=200)
-

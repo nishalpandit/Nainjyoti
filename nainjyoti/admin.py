@@ -28,7 +28,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
 
 @admin.register(StockLog)
 class StockLogAdmin(admin.ModelAdmin):
-    list_display = ('product', 'vendor', 'movement_type', 'quantity_changed', 'previous_stock', 'new_stock', 'reason', 'created_at')
+    list_display = ('product', 'variant', 'vendor', 'movement_type', 'quantity_changed', 'previous_stock', 'new_stock', 'reason', 'created_at')
     list_filter = ('movement_type', 'created_at', 'vendor')
     search_fields = ('product__name', 'product__sku', 'vendor__business_name', 'reason', 'reference_id')
     ordering = ('-created_at',)
@@ -76,9 +76,9 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order', 'vendor', 'product_name', 'price', 'quantity', 'total_price', 'status', 'courier_name', 'tracking_number')
+    list_display = ('id', 'order', 'vendor', 'product_name', 'variant_title', 'price', 'quantity', 'total_price', 'status', 'courier_name', 'tracking_number')
     list_filter = ('status', 'vendor', 'created_at')
-    search_fields = ('order__order_number', 'product_name', 'product_sku', 'vendor__business_name', 'tracking_number')
+    search_fields = ('order__order_number', 'product_name', 'product_sku', 'variant_title', 'variant__sku', 'vendor__business_name', 'tracking_number')
     ordering = ('-created_at',)
 
 

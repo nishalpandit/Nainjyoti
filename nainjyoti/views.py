@@ -980,7 +980,7 @@ def admin_products(request):
     search_query = request.GET.get("q", "").strip()
     status_filter = request.GET.get("status", "ALL").upper()
 
-    products_qs = Product.objects.all().select_related('vendor', 'category').order_by('-created_at')
+    products_qs = Product.objects.all().select_related('vendor', 'category').prefetch_related('variants').order_by('-created_at')
     if search_query:
         products_qs = products_qs.filter(
             Q(name__icontains=search_query) |

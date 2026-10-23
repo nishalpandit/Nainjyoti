@@ -72,7 +72,14 @@
                     {% for p in products %}
                         <tr>
                             <td><span class="badge bg-light text-dark border font-monospace">{{ p.sku }}</span></td>
-                            <td class="fw-semibold text-dark">{{ p.name }}</td>
+                            <td>
+                                <div class="fw-semibold text-dark">{{ p.name }}</div>
+                                {% if p.has_variants %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle mt-1" style="font-size:10px;">
+                                        <i class="fa-solid fa-layer-group me-1"></i>{{ p.active_variant_count }} variants
+                                    </span>
+                                {% endif %}
+                            </td>
                             <td class="text-secondary small">{{ p.category.name|default:"General" }}</td>
                             <td>
                                 <div class="d-flex align-items-center gap-2">
@@ -87,8 +94,18 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                                {% if p.has_variants %}
+                                    <small class="text-secondary d-block" style="font-size:10px;">combined across variants</small>
+                                {% endif %}
                             </td>
-                            <td>₹{{ p.price|floatformat:2 }}</td>
+                            <td>
+                                {% if p.has_variants %}
+                                    ₹{{ p.customer_effective_price|floatformat:2 }}
+                                    <small class="text-secondary d-block" style="font-size:10px;">min price</small>
+                                {% else %}
+                                    ₹{{ p.price|floatformat:2 }}
+                                {% endif %}
+                            </td>
                             <td class="fw-bold text-dark">₹{{ p.stock_valuation|floatformat:2 }}</td>
                             <td>
                                 {% if p.stock_quantity == 0 %}
@@ -116,8 +133,25 @@
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="alert alert-light border small mb-3">
-                                                        Current Stock: <strong>{{ p.stock_quantity }} units</strong> (SKU: {{ p.sku }})
+                                                        Total Product Stock: <strong>{{ p.stock_quantity }} units</strong> (SKU: {{ p.sku }})
                                                     </div>
+
+                                                    {% if p.has_variants %}
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold">Target Product Variant <span class="text-danger">*</span></label>
+                                                            <select class="form-select" name="variant_id" required>
+                                                                {% for var in p.variants.all %}
+                                                                    <option value="{{ var.id }}">
+                                                                        {{ var.title }} (Current Stock: {{ var.stock_quantity }}) · SKU: {{ var.sku }}
+                                                                    </option>
+                                                                {% endfor %}
+                                                            </select>
+                                                            <div class="form-text text-primary" style="font-size:11px;">
+                                                                <i class="fa-solid fa-circle-info me-1"></i>This product uses variants; stock is updated at the individual variant level.
+                                                            </div>
+                                                        </div>
+                                                    {% endif %}
+
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Adjustment Type</label>
                                                         <select class="form-select" name="movement_type" required>
@@ -174,7 +208,10 @@
                             <td class="text-secondary">{{ log.created_at|date:"d M Y, h:i A" }}</td>
                             <td>
                                 <strong class="text-dark">{{ log.product.name }}</strong>
-                                <div class="text-secondary font-monospace">{{ log.sku }}</div>
+                                {% if log.variant %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size:10px;">{{ log.variant.title }}</span>
+                                {% endif %}
+                                <div class="text-secondary font-monospace">{% if log.variant %}{{ log.variant.sku }}{% else %}{{ log.product.sku }}{% endif %}</div>
                             </td>
                             <td>
                                 {% if log.movement_type == 'RESTOCK' %}

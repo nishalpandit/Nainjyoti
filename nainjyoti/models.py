@@ -413,8 +413,51 @@ class Product(models.Model):
         return 'HEALTHY'
 
     @property
+    def has_variants(self):
+        return self.variants.exists()
+
+    @property
+    def active_variant_count(self):
+        return self.variants.filter(is_active=True).count()
+
+    @property
+    def variant_count(self):
+        return self.active_variant_count
+
+    @property
+    def customer_effective_price(self):
+        variants = list(self.variants.filter(is_active=True))
+        if variants:
+            return min(variant.effective_price for variant in variants)
+        return float(self.discount_price if self.discount_price is not None else self.price)
+
+    def sync_variant_inventory(self, force=False):
+        """Keep legacy product stock/status fields aligned with variant inventory."""
+        if not self.pk:
+            return
+        variants = self.variants.filter(is_active=True)
+        if not force and not self.variants.exists():
+            return
+        total_stock = sum(max(variant.stock_quantity, 0) for variant in variants)
+        status = self.status
+        if total_stock <= 0 and status != 'INACTIVE':
+            status = 'OUT_OF_STOCK'
+        elif total_stock > 0 and status == 'OUT_OF_STOCK':
+            status = 'ACTIVE'
+        Product.objects.filter(pk=self.pk).update(
+            stock_quantity=total_stock,
+            status=status,
+            updated_at=timezone.now(),
+        )
+        self.stock_quantity = total_stock
+        self.status = status
+
+    @property
     def stock_valuation(self):
-        return round(float(self.price) * max(self.stock_quantity, 0), 2)
+        variants = list(self.variants.filter(is_active=True))
+        if variants:
+            return round(sum(variant.effective_price * max(variant.stock_quantity, 0) for variant in variants), 2)
+        return round(self.customer_effective_price * max(self.stock_quantity, 0), 2)
 
     def to_dict(self):
         return {
@@ -429,6 +472,7 @@ class Product(models.Model):
             'description': self.description,
             'price': float(self.price) if self.price is not None else 0.0,
             'discount_price': float(self.discount_price) if self.discount_price is not None else None,
+            'effective_price': self.customer_effective_price,
             'stock_quantity': self.stock_quantity,
             'low_stock_threshold': self.low_stock_threshold,
             'stock_status': self.stock_status,
@@ -437,6 +481,8 @@ class Product(models.Model):
             'image': self.image_url,
             'status': self.status,
             'is_approved': self.is_approved,
+            'has_variants': self.has_variants,
+            'variant_count': self.active_variant_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -479,6 +525,13 @@ class ProductVariant(models.Model):
                 generated_sku = f"{sku_prefix}-{random.randint(100, 999)}"
             self.sku = generated_sku
         super().save(*args, **kwargs)
+        self.product.sync_variant_inventory()
+
+    def delete(self, *args, **kwargs):
+        product = self.product
+        result = super().delete(*args, **kwargs)
+        product.sync_variant_inventory(force=True)
+        return result
 
     @property
     def image_url(self):
@@ -536,6 +589,13 @@ class StockLog(models.Model):
     ]
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='stock_logs')
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='stock_logs',
+    )
     vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='stock_logs')
     movement_type = models.CharField(max_length=20, choices=MOVEMENT_CHOICES, default='RESTOCK')
     quantity_changed = models.IntegerField()  # Positive for addition, negative for deduction
@@ -560,6 +620,9 @@ class StockLog(models.Model):
             'product_id': self.product_id,
             'product_name': self.product.name if self.product else '',
             'sku': self.product.sku if self.product else '',
+            'variant_id': self.variant_id,
+            'variant_title': self.variant.title if self.variant else None,
+            'variant_sku': self.variant.sku if self.variant else None,
             'vendor_id': self.vendor_id,
             'movement_type': self.movement_type,
             'movement_type_display': self.get_movement_type_display(),
@@ -645,7 +708,7 @@ class Order(models.Model):
         """
         Serializes order data. If vendor is provided, filters items strictly to that vendor.
         """
-        items_qs = self.items.all().select_related('product', 'vendor')
+        items_qs = self.items.all().select_related('product', 'variant', 'vendor')
         if vendor:
             items_qs = items_qs.filter(vendor=vendor)
 
@@ -684,8 +747,16 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='order_items', db_index=True)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items')
+    variant = models.ForeignKey(
+        ProductVariant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_items',
+    )
     product_name = models.CharField(max_length=200)
-    product_sku = models.CharField(max_length=50, blank=True)
+    product_sku = models.CharField(max_length=60, blank=True)
+    variant_title = models.CharField(max_length=150, blank=True, default='')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -723,6 +794,9 @@ class OrderItem(models.Model):
             'product_id': self.product_id,
             'product_name': self.product_name,
             'product_sku': self.product_sku,
+            'variant_id': self.variant_id,
+            'variant_title': self.variant_title,
+            'variant': self.variant.to_dict() if self.variant else None,
             'price': float(self.price),
             'quantity': self.quantity,
             'total_price': float(self.total_price),
@@ -887,5 +961,3 @@ class VendorPayout(models.Model):
             'requested_at': self.requested_at.isoformat() if self.requested_at else None,
             'processed_at': self.processed_at.isoformat() if self.processed_at else None,
         }
-
-
