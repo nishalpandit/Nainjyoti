@@ -2031,6 +2031,24 @@ def api_user_checkout(request):
 
         CartItem.objects.filter(id__in=[item.id for item in cart_items]).delete()
 
+        Notification.objects.create(
+            user=profile,
+            notification_type='ORDER',
+            title='Order placed successfully',
+            message=(
+                f'Your order {order.order_number} has been placed. Pay cash when it is delivered.'
+                if payment_method == 'COD'
+                else f'Your order {order.order_number} has been created. Complete the online payment to continue.'
+            ),
+            order=order,
+            data={
+                'order_number': order.order_number,
+                'payment_method': payment_method,
+                'payment_reference': payment.reference,
+                'total_amount': float(total_amount),
+            },
+        )
+
         order = Order.objects.prefetch_related('items').get(pk=order.pk)
         order_data = order.to_dict()
         payment_data = payment.to_dict()
@@ -2118,6 +2136,7 @@ def api_user_payment_verify(request):
         }, status=404)
 
     order = payment.order
+    previous_payment_status = payment.status
     with transaction.atomic():
         payment.status = status_val
         payment.provider = provider
@@ -2149,6 +2168,24 @@ def api_user_payment_verify(request):
             msg = 'Payment recorded as failed.'
 
         payment.save()
+
+        if previous_payment_status != status_val:
+            Notification.objects.create(
+                user=profile,
+                notification_type='PAYMENT',
+                title='Payment successful' if status_val == 'PAID' else 'Payment failed',
+                message=(
+                    f'Payment for order {order.order_number} was completed successfully.'
+                    if status_val == 'PAID'
+                    else f'Payment for order {order.order_number} failed. Please try again.'
+                ),
+                order=order,
+                data={
+                    'order_number': order.order_number,
+                    'payment_reference': payment.reference,
+                    'payment_status': status_val,
+                },
+            )
 
     return JsonResponse({
         'success': True,
@@ -2273,6 +2310,151 @@ def api_user_order_detail(request, order_id):
     return JsonResponse({
         'success': True,
         'order': order_dict,
+    }, status=200)
+
+
+def _parse_notification_pagination(request):
+    try:
+        page = int(request.GET.get('page', 1))
+        limit = int(request.GET.get('limit', 20))
+        if page < 1 or limit < 1:
+            raise ValueError
+        return page, min(limit, 100), None
+    except (TypeError, ValueError):
+        return None, None, JsonResponse({
+            'success': False,
+            'message': 'page and limit must be positive integers.',
+        }, status=400)
+
+
+def api_user_notifications_list(request):
+    """List customer notifications with status/type filters and pagination."""
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    page, limit, pagination_error = _parse_notification_pagination(request)
+    if pagination_error:
+        return pagination_error
+
+    status_filter = request.GET.get('status', 'all').strip().lower()
+    if status_filter not in ['all', 'read', 'unread']:
+        return JsonResponse({
+            'success': False,
+            'message': "status must be 'all', 'read', or 'unread'.",
+        }, status=400)
+
+    type_filter = request.GET.get('type', '').strip().upper()
+    valid_types = {choice[0] for choice in Notification.TYPE_CHOICES}
+    if type_filter and type_filter not in valid_types:
+        return JsonResponse({
+            'success': False,
+            'message': f"type must be one of: {', '.join(sorted(valid_types))}.",
+        }, status=400)
+
+    notifications = Notification.objects.filter(user=profile).select_related('order')
+    if status_filter == 'read':
+        notifications = notifications.filter(is_read=True)
+    elif status_filter == 'unread':
+        notifications = notifications.filter(is_read=False)
+    if type_filter:
+        notifications = notifications.filter(notification_type=type_filter)
+
+    total_count = notifications.count()
+    total_pages = (total_count + limit - 1) // limit if total_count else 0
+    offset = (page - 1) * limit
+    page_items = list(notifications[offset:offset + limit])
+
+    return JsonResponse({
+        'success': True,
+        'total_count': total_count,
+        'unread_count': Notification.objects.filter(user=profile, is_read=False).count(),
+        'page': page,
+        'limit': limit,
+        'total_pages': total_pages,
+        'has_next': page < total_pages,
+        'notifications': [notification.to_dict() for notification in page_items],
+    }, status=200)
+
+
+def api_user_notifications_unread_count(request):
+    """Return a lightweight unread badge count for the customer app."""
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    return JsonResponse({
+        'success': True,
+        'unread_count': Notification.objects.filter(user=profile, is_read=False).count(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_notification_mark_read(request, notification_id):
+    """Mark one customer-owned notification as read."""
+    if request.method not in ['POST', 'PATCH']:
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST or PATCH.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    notification = Notification.objects.select_related('order').filter(
+        pk=notification_id,
+        user=profile,
+    ).first()
+    if not notification:
+        return JsonResponse({
+            'success': False,
+            'message': f"Notification with ID '{notification_id}' was not found.",
+        }, status=404)
+
+    notification.mark_as_read()
+    return JsonResponse({
+        'success': True,
+        'message': 'Notification marked as read.',
+        'notification': notification.to_dict(),
+        'unread_count': Notification.objects.filter(user=profile, is_read=False).count(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_notifications_mark_all_read(request):
+    """Mark all unread notifications owned by the customer as read."""
+    if request.method not in ['POST', 'PATCH']:
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST or PATCH.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    updated_count = Notification.objects.filter(user=profile, is_read=False).update(
+        is_read=True,
+        read_at=timezone.now(),
+    )
+    return JsonResponse({
+        'success': True,
+        'message': 'All notifications marked as read.',
+        'updated_count': updated_count,
+        'unread_count': 0,
     }, status=200)
 
 
