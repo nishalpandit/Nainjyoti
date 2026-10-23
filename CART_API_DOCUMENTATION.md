@@ -107,3 +107,9 @@ the requested quantity is added to the quantity already in the cart.
 - `404`: Product or selected active variant does not exist.
 - `400`: Invalid IDs or quantity, unavailable product, missing variant selection,
   out-of-stock item, or requested quantity exceeds available stock.
+
+---
+
+## Next Step: Checkout & Payment
+For converting the cart into an order and completing payment via COD or Online payment, refer to [CHECKOUT_PAYMENT_API_DOCUMENTATION.md](file:///c:/Users/PC/Desktop/Nainjyoti/CHECKOUT_PAYMENT_API_DOCUMENTATION.md).
+

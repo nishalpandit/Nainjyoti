@@ -16,7 +16,7 @@ from django.utils.text import slugify
 from django.core.files.base import ContentFile
 from .models import (
     UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, CartItem, WishlistItem, StockLog,
-    Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
+    Order, PaymentTransaction, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
 def _parse_request_data(request):
@@ -1695,6 +1695,586 @@ def api_user_cart_add(request):
         'cart_item': cart_item.to_dict(),
         'cart': cart,
     }, status=response_status)
+
+
+@csrf_exempt
+def api_user_cart_list(request):
+    """
+    Get all items in the customer's cart with subtotal, discount, and total.
+
+    Endpoint: GET /api/user/cart/
+    Headers: Authorization: Bearer <customer_token>
+    """
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    cart = _customer_cart_payload(profile)
+    return JsonResponse({
+        'success': True,
+        'cart': cart,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_cart_remove(request):
+    """
+    Remove an item from the customer's cart.
+
+    Endpoint: POST /api/user/cart/remove/
+    Headers: Authorization: Bearer <customer_token>
+    Body: {"cart_item_id": 1} OR {"product_id": 81, "variant_id": 16}
+    """
+    if request.method not in ['POST', 'DELETE']:
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST or DELETE.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    cart_item_id = data.get('cart_item_id')
+    product_id = data.get('product_id')
+    variant_id = data.get('variant_id')
+
+    qs = CartItem.objects.filter(user=profile)
+    if cart_item_id:
+        try:
+            cart_item_id = int(cart_item_id)
+            qs = qs.filter(id=cart_item_id)
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'message': 'cart_item_id must be a valid integer.'}, status=400)
+    elif product_id:
+        try:
+            product_id = int(product_id)
+            qs = qs.filter(product_id=product_id)
+            if variant_id:
+                qs = qs.filter(variant_id=int(variant_id))
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'message': 'product_id and variant_id must be valid integers.'}, status=400)
+    else:
+        return JsonResponse({
+            'success': False,
+            'message': 'cart_item_id or product_id is required.',
+        }, status=400)
+
+    deleted_count, _ = qs.delete()
+    if deleted_count == 0:
+        return JsonResponse({
+            'success': False,
+            'message': 'Cart item not found.',
+        }, status=404)
+
+    cart = _customer_cart_payload(profile)
+    return JsonResponse({
+        'success': True,
+        'message': 'Item removed from cart successfully.',
+        'cart': cart,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_cart_clear(request):
+    """
+    Clear all items from the customer's cart.
+
+    Endpoint: POST /api/user/cart/clear/
+    Headers: Authorization: Bearer <customer_token>
+    """
+    if request.method not in ['POST', 'DELETE']:
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST or DELETE.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    CartItem.objects.filter(user=profile).delete()
+    cart = _customer_cart_payload(profile)
+    return JsonResponse({
+        'success': True,
+        'message': 'Cart cleared successfully.',
+        'cart': cart,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_checkout(request):
+    """
+    Convert the authenticated customer's cart into an order.
+
+    Endpoint: POST /api/user/checkout/
+    Body: {"address_id": 1, "payment_method": "COD"}
+          {"address_id": 1, "payment_method": "ONLINE"}
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    try:
+        address_id = int(data.get('address_id', ''))
+        if address_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({
+            'success': False,
+            'message': 'address_id must be a valid positive integer.',
+        }, status=400)
+
+    raw_payment_method = str(data.get('payment_method', '')).strip().upper().replace(' ', '_')
+    payment_aliases = {
+        'COD': 'COD',
+        'CASH_ON_DELIVERY': 'COD',
+        'ONLINE': 'ONLINE',
+        'ONLINE_PAYMENT': 'ONLINE',
+        'PREPAID': 'ONLINE',
+    }
+    payment_method = payment_aliases.get(raw_payment_method)
+    if not payment_method:
+        return JsonResponse({
+            'success': False,
+            'message': "payment_method must be either 'COD' or 'ONLINE'.",
+        }, status=400)
+
+    with transaction.atomic():
+        address = UserAddress.objects.select_for_update().filter(
+            pk=address_id,
+            user=profile,
+        ).first()
+        if not address:
+            return JsonResponse({
+                'success': False,
+                'message': f"Address with ID '{address_id}' was not found for this customer.",
+            }, status=404)
+
+        cart_items = list(
+            CartItem.objects.select_for_update()
+            .filter(user=profile)
+            .order_by('id')
+        )
+        if not cart_items:
+            return JsonResponse({
+                'success': False,
+                'message': 'Your cart is empty. Add at least one item before checkout.',
+            }, status=400)
+
+        product_ids = {item.product_id for item in cart_items}
+        variant_ids = {item.variant_id for item in cart_items if item.variant_id}
+        products = {
+            product.id: product
+            for product in Product.objects.select_for_update()
+            .select_related('vendor', 'category')
+            .filter(id__in=product_ids)
+        }
+        variants = {
+            variant.id: variant
+            for variant in ProductVariant.objects.select_for_update()
+            .select_related('product')
+            .filter(id__in=variant_ids)
+        }
+
+        checkout_lines = []
+        total_amount = Decimal('0.00')
+        for cart_item in cart_items:
+            product = products.get(cart_item.product_id)
+            if not product or not _is_customer_product_available(product):
+                return JsonResponse({
+                    'success': False,
+                    'message': f"'{getattr(product, 'name', 'A cart product')}' is no longer available.",
+                    'cart_item_id': cart_item.id,
+                }, status=400)
+
+            product_has_variants = ProductVariant.objects.filter(product=product).exists()
+            variant = variants.get(cart_item.variant_id) if cart_item.variant_id else None
+            if product_has_variants and not variant:
+                return JsonResponse({
+                    'success': False,
+                    'message': f"Please select an active variant for '{product.name}'.",
+                    'cart_item_id': cart_item.id,
+                }, status=400)
+            if variant and (variant.product_id != product.id or not variant.is_active):
+                return JsonResponse({
+                    'success': False,
+                    'message': f"The selected variant for '{product.name}' is no longer available.",
+                    'cart_item_id': cart_item.id,
+                }, status=400)
+
+            stock_target = variant or product
+            if cart_item.quantity > stock_target.stock_quantity:
+                return JsonResponse({
+                    'success': False,
+                    'message': f"Only {stock_target.stock_quantity} item(s) of '{product.name}' are available.",
+                    'cart_item_id': cart_item.id,
+                    'available_stock': stock_target.stock_quantity,
+                    'requested_quantity': cart_item.quantity,
+                }, status=400)
+
+            if variant and variant.discount_price is not None:
+                unit_price = variant.discount_price
+            elif variant and variant.price is not None:
+                unit_price = variant.price
+            elif product.discount_price is not None:
+                unit_price = product.discount_price
+            else:
+                unit_price = product.price
+
+            line_total = unit_price * cart_item.quantity
+            total_amount += line_total
+            checkout_lines.append({
+                'cart_item': cart_item,
+                'product': product,
+                'variant': variant,
+                'stock_target': stock_target,
+                'unit_price': unit_price,
+                'line_total': line_total,
+            })
+
+        address_parts = [
+            address.address_line_1,
+            address.address_line_2,
+            address.landmark,
+            address.country,
+        ]
+        shipping_address = ', '.join(part for part in address_parts if part)
+        order = Order.objects.create(
+            customer=profile,
+            customer_name=address.full_name or profile.full_name,
+            customer_phone=address.phone or profile.phone,
+            customer_email=profile.email or '',
+            shipping_address=shipping_address,
+            shipping_city=address.city,
+            shipping_state=address.state,
+            shipping_pincode=address.pincode,
+            total_amount=total_amount,
+            payment_method=payment_method,
+            payment_status='PENDING',
+            status='PENDING',
+        )
+
+        provider_name = str(data.get('provider', '')).strip()
+        if not provider_name:
+            provider_name = '' if payment_method == 'ONLINE' else 'COD'
+
+        payment = PaymentTransaction.objects.create(
+            order=order,
+            customer=profile,
+            method=payment_method,
+            amount=total_amount,
+            currency='INR',
+            status='INITIATED' if payment_method == 'ONLINE' else 'PENDING',
+            provider=provider_name,
+        )
+
+        for line in checkout_lines:
+            product = line['product']
+            variant = line['variant']
+            cart_item = line['cart_item']
+            stock_target = line['stock_target']
+            previous_stock = stock_target.stock_quantity
+            new_stock = previous_stock - cart_item.quantity
+
+            order_item = OrderItem.objects.create(
+                order=order,
+                vendor=product.vendor,
+                product=product,
+                variant=variant,
+                product_name=product.name,
+                product_sku=variant.sku if variant else product.sku,
+                variant_title=variant.title if variant else '',
+                price=line['unit_price'],
+                quantity=cart_item.quantity,
+                total_price=line['line_total'],
+                status='PENDING',
+            )
+
+            stock_target.stock_quantity = new_stock
+            stock_target.save()
+            product.refresh_from_db()
+
+            StockLog.objects.create(
+                product=product,
+                variant=variant,
+                vendor=product.vendor,
+                movement_type='SALE',
+                quantity_changed=-cart_item.quantity,
+                previous_stock=previous_stock,
+                new_stock=new_stock,
+                reason=f"Checkout created order {order.order_number}",
+                reference_id=order.order_number,
+            )
+            OrderStatusHistory.objects.create(
+                order=order,
+                order_item=order_item,
+                vendor=product.vendor,
+                old_status='',
+                new_status='PENDING',
+                notes='Order item created from customer checkout.',
+            )
+
+        CartItem.objects.filter(id__in=[item.id for item in cart_items]).delete()
+
+        order = Order.objects.prefetch_related('items').get(pk=order.pk)
+        order_data = order.to_dict()
+        payment_data = payment.to_dict()
+
+    if payment_method == 'COD':
+        message = 'Order placed successfully. Payment will be collected on delivery.'
+    else:
+        message = 'Order created successfully. Online payment is required to complete payment.'
+
+    return JsonResponse({
+        'success': True,
+        'message': message,
+        'order': order_data,
+        'payment': payment_data,
+        'payment_instructions': {
+            'action_required': (payment_method == 'ONLINE'),
+            'type': payment_method,
+            'message': (
+                'Please complete online payment with your preferred gateway using the payment reference.'
+                if payment_method == 'ONLINE' else
+                'Cash on delivery: pay upon parcel arrival.'
+            ),
+            'verify_url': '/api/user/payment/verify/' if payment_method == 'ONLINE' else None,
+        },
+        'delivery_address': address.to_dict(),
+        'cart_cleared': True,
+    }, status=201)
+
+
+@csrf_exempt
+def api_user_payment_verify(request):
+    """
+    Verify or record payment status for an online order.
+
+    Endpoint: POST /api/user/payment/verify/
+    Headers: Authorization: Bearer <customer_token>
+    Body:
+        {
+            "payment_reference": "PAY-20261023-ABCDEF1234",
+            "status": "PAID",
+            "provider": "RAZORPAY",
+            "provider_payment_id": "pay_xyz123",
+            "provider_order_id": "order_xyz123"
+        }
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use POST.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    data = _parse_request_data(request)
+    ref = str(data.get('payment_reference', '')).strip()
+    order_id = data.get('order_id')
+    order_number = str(data.get('order_number', '')).strip()
+    raw_status = str(data.get('status', 'PAID')).strip().upper()
+    provider = str(data.get('provider', '')).strip() or 'ONLINE'
+    provider_payment_id = str(data.get('provider_payment_id', '')).strip()
+    provider_order_id = str(data.get('provider_order_id', '')).strip()
+
+    if raw_status not in ['PAID', 'SUCCESS', 'FAILED']:
+        return JsonResponse({
+            'success': False,
+            'message': "status must be 'PAID', 'SUCCESS', or 'FAILED'.",
+        }, status=400)
+
+    status_val = 'PAID' if raw_status in ['PAID', 'SUCCESS'] else 'FAILED'
+
+    payment = None
+    if ref:
+        payment = PaymentTransaction.objects.filter(reference=ref, customer=profile).select_related('order').first()
+    elif order_id:
+        payment = PaymentTransaction.objects.filter(order_id=order_id, customer=profile).select_related('order').first()
+    elif order_number:
+        payment = PaymentTransaction.objects.filter(order__order_number=order_number, customer=profile).select_related('order').first()
+
+    if not payment:
+        return JsonResponse({
+            'success': False,
+            'message': 'Payment transaction not found for this customer.',
+        }, status=404)
+
+    order = payment.order
+    with transaction.atomic():
+        payment.status = status_val
+        payment.provider = provider
+        if provider_payment_id:
+            payment.provider_payment_id = provider_payment_id
+        if provider_order_id:
+            payment.provider_order_id = provider_order_id
+
+        if status_val == 'PAID':
+            payment.paid_at = timezone.now()
+            order.payment_status = 'PAID'
+            order.save(update_fields=['payment_status', 'updated_at'])
+            OrderStatusHistory.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                notes=f"Online payment verified successfully via {provider} ({provider_payment_id or payment.reference}).",
+            )
+            msg = 'Payment verified successfully. Order confirmed.'
+        else:
+            order.payment_status = 'FAILED'
+            order.save(update_fields=['payment_status', 'updated_at'])
+            OrderStatusHistory.objects.create(
+                order=order,
+                old_status=order.status,
+                new_status=order.status,
+                notes=f"Online payment recorded as failed via {provider}.",
+            )
+            msg = 'Payment recorded as failed.'
+
+        payment.save()
+
+    return JsonResponse({
+        'success': True,
+        'message': msg,
+        'payment': payment.to_dict(),
+        'order': order.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_payment_status(request, reference=None):
+    """
+    Get payment and order status by payment reference or order number.
+
+    Endpoint: GET /api/user/payment/status/<reference>/
+    Headers: Authorization: Bearer <customer_token>
+    """
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    ref = (reference or request.GET.get('reference', '')).strip()
+    if not ref:
+        return JsonResponse({
+            'success': False,
+            'message': 'Payment reference or order number is required.',
+        }, status=400)
+
+    payment = PaymentTransaction.objects.filter(
+        Q(reference=ref) | Q(order__order_number=ref),
+        customer=profile,
+    ).select_related('order').first()
+
+    if not payment:
+        return JsonResponse({
+            'success': False,
+            'message': f"Payment record '{ref}' was not found for this customer.",
+        }, status=404)
+
+    return JsonResponse({
+        'success': True,
+        'payment': payment.to_dict(),
+        'order': payment.order.to_dict(),
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_orders_list(request):
+    """
+    List all orders placed by the authenticated customer.
+
+    Endpoint: GET /api/user/orders/
+    Headers: Authorization: Bearer <customer_token>
+    """
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    status_filter = request.GET.get('status', '').strip().upper()
+    orders_qs = Order.objects.filter(customer=profile).prefetch_related('items', 'payment_transaction').order_by('-created_at')
+    if status_filter and status_filter != 'ALL':
+        orders_qs = orders_qs.filter(status=status_filter)
+
+    orders_data = [ord_obj.to_dict() for ord_obj in orders_qs]
+    return JsonResponse({
+        'success': True,
+        'count': len(orders_data),
+        'orders': orders_data,
+    }, status=200)
+
+
+@csrf_exempt
+def api_user_order_detail(request, order_id):
+    """
+    Get detailed breakdown of a single order owned by the authenticated customer.
+
+    Endpoint: GET /api/user/orders/<int:order_id>/
+    Headers: Authorization: Bearer <customer_token>
+    """
+    if request.method != 'GET':
+        return JsonResponse({
+            'success': False,
+            'message': 'Method not allowed. Use GET.',
+        }, status=405)
+
+    profile, auth_error = _require_user_auth(request)
+    if auth_error:
+        return auth_error
+
+    order = Order.objects.filter(pk=order_id, customer=profile).prefetch_related('items', 'payment_transaction').first()
+    if not order:
+        return JsonResponse({
+            'success': False,
+            'message': f"Order with ID '{order_id}' was not found for this customer.",
+        }, status=404)
+
+    history = [
+        {
+            'old_status': h.old_status,
+            'new_status': h.new_status,
+            'notes': h.notes,
+            'created_at': h.created_at.isoformat(),
+        }
+        for h in OrderStatusHistory.objects.filter(order=order).order_by('-created_at')
+    ]
+
+    order_dict = order.to_dict()
+    order_dict['timeline'] = history
+
+    return JsonResponse({
+        'success': True,
+        'order': order_dict,
+    }, status=200)
+
 
 
 def _customer_wishlist_items(profile):

@@ -848,6 +848,7 @@ class Order(models.Model):
 
     PAYMENT_METHOD_CHOICES = [
         ('COD', 'Cash on Delivery'),
+        ('ONLINE', 'Online Payment'),
         ('PREPAID', 'Prepaid Online'),
         ('UPI', 'UPI Payment'),
         ('CARD', 'Credit / Debit Card'),
@@ -910,6 +911,7 @@ class Order(models.Model):
 
         items_list = [item.to_dict() for item in items_qs]
         vendor_subtotal = sum(item['total_price'] for item in items_list) if vendor else float(self.total_amount)
+        payment_transaction = getattr(self, 'payment_transaction', None)
 
         return {
             'id': self.id,
@@ -925,10 +927,87 @@ class Order(models.Model):
             'vendor_subtotal': round(vendor_subtotal, 2) if vendor else float(self.total_amount),
             'payment_method': self.payment_method,
             'payment_status': self.payment_status,
+            'payment': payment_transaction.to_dict() if payment_transaction else None,
             'status': self.status,
             'status_display': self.get_status_display(),
             'item_count': len(items_list),
             'items': items_list,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class PaymentTransaction(models.Model):
+    """Gateway-neutral payment record created for every customer checkout."""
+
+    STATUS_CHOICES = [
+        ('INITIATED', 'Initiated'),
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled'),
+        ('REFUNDED', 'Refunded'),
+    ]
+
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='payment_transaction',
+    )
+    customer = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payment_transactions',
+    )
+    reference = models.CharField(max_length=64, unique=True, db_index=True, blank=True)
+    method = models.CharField(max_length=20, choices=[('COD', 'Cash on Delivery'), ('ONLINE', 'Online Payment')])
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=10, default='INR')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    provider = models.CharField(max_length=50, blank=True, default='')
+    provider_order_id = models.CharField(max_length=120, blank=True, default='')
+    provider_payment_id = models.CharField(max_length=120, blank=True, default='')
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Payment Transaction'
+        verbose_name_plural = 'Payment Transactions'
+
+    def __str__(self):
+        return f"{self.reference} - {self.order.order_number} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            reference = f"PAY-{timezone.now().strftime('%Y%m%d')}-{secrets.token_hex(5).upper()}"
+            while PaymentTransaction.objects.filter(reference=reference).exists():
+                reference = f"PAY-{timezone.now().strftime('%Y%m%d')}-{secrets.token_hex(5).upper()}"
+            self.reference = reference
+        super().save(*args, **kwargs)
+
+    @property
+    def requires_online_payment(self):
+        return self.method == 'ONLINE' and self.status not in ['PAID', 'REFUNDED']
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'reference': self.reference,
+            'order_id': self.order_id,
+            'order_number': self.order.order_number if self.order else None,
+            'method': self.method,
+            'amount': float(self.amount),
+            'currency': self.currency,
+            'status': self.status,
+            'requires_online_payment': self.requires_online_payment,
+            'provider': self.provider or None,
+            'provider_order_id': self.provider_order_id or None,
+            'provider_payment_id': self.provider_payment_id or None,
+            'paid_at': self.paid_at.isoformat() if self.paid_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

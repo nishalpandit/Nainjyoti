@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem, StockLog,
-    Order, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
+    Order, PaymentTransaction, OrderItem, OrderStatusHistory, VendorEarning, VendorPayout
 )
 
 @admin.register(Category)
@@ -103,6 +103,17 @@ class OrderItemAdmin(admin.ModelAdmin):
     list_filter = ('status', 'vendor', 'created_at')
     search_fields = ('order__order_number', 'product_name', 'product_sku', 'variant_title', 'variant__sku', 'vendor__business_name', 'tracking_number')
     ordering = ('-created_at',)
+
+
+@admin.register(PaymentTransaction)
+class PaymentTransactionAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'order', 'customer', 'method', 'amount', 'currency', 'status', 'created_at')
+    list_filter = ('method', 'status', 'currency', 'created_at')
+    search_fields = (
+        'reference', 'order__order_number', 'customer__phone',
+        'provider_order_id', 'provider_payment_id',
+    )
+    readonly_fields = ('reference', 'created_at', 'updated_at')
 
 
 @admin.register(OrderStatusHistory)
