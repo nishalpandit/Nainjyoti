@@ -70,37 +70,55 @@ def admin_api_required(view_func):
 def _populate_multipart_request(request):
     """
     Ensure request._post and request._files are properly populated for PUT/PATCH,
-    or requests where Content-Type was application/json but payload is multipart form-data.
+    or requests where Content-Type was overridden in headers (e.g. application/json in Postman),
+    or where Django did not populate request.POST and request.FILES.
     """
     content_type = request.content_type or request.META.get('CONTENT_TYPE', '') or ''
-    is_multipart = 'multipart/form-data' in content_type
     raw_body = b''
     try:
         raw_body = request.body
     except Exception:
         pass
 
+    is_multipart = 'multipart/form-data' in content_type
     looks_like_multipart = bool(raw_body and raw_body.startswith(b'--'))
 
     if is_multipart or looks_like_multipart:
         curr_files = getattr(request, '_files', None)
         curr_post = getattr(request, '_post', None)
         if (curr_files and len(curr_files) > 0) or (curr_post and len(curr_post) > 0):
-            return
+            if is_multipart and not looks_like_multipart:
+                return
+            if not looks_like_multipart:
+                return
 
         try:
             from io import BytesIO
             from django.http.multipartparser import MultiPartParser
             meta = request.META.copy()
+            meta['CONTENT_LENGTH'] = str(len(raw_body))
+
             if not is_multipart and looks_like_multipart:
                 first_line = raw_body.split(b'\r\n')[0]
-                boundary = first_line.strip(b'- \r\n').decode('latin1', errors='ignore')
-                meta["CONTENT_TYPE"] = f"multipart/form-data; boundary={boundary}"
+                if first_line.startswith(b'--'):
+                    boundary_val = first_line[2:].rstrip(b'\r\n- ').decode('latin1', errors='ignore')
+                else:
+                    boundary_val = first_line.rstrip(b'\r\n- ').decode('latin1', errors='ignore')
+                meta['CONTENT_TYPE'] = f"multipart/form-data; boundary={boundary_val}"
+            elif is_multipart and 'boundary=' not in content_type and looks_like_multipart:
+                first_line = raw_body.split(b'\r\n')[0]
+                if first_line.startswith(b'--'):
+                    boundary_val = first_line[2:].rstrip(b'\r\n- ').decode('latin1', errors='ignore')
+                else:
+                    boundary_val = first_line.rstrip(b'\r\n- ').decode('latin1', errors='ignore')
+                meta['CONTENT_TYPE'] = f"multipart/form-data; boundary={boundary_val}"
+
             stream = BytesIO(raw_body)
             parser = MultiPartParser(meta, stream, request.upload_handlers, request.encoding)
             post_data, files_data = parser.parse()
-            request._post = post_data
-            request._files = files_data
+            if post_data or files_data:
+                request._post = post_data
+                request._files = files_data
         except Exception:
             pass
 
@@ -116,7 +134,11 @@ def _parse_request_data(request):
         raw_body = b''
 
     if ('multipart/form-data' in content_type) or (raw_body and raw_body.startswith(b'--')):
-        return request.POST.dict()
+        if hasattr(request, 'POST') and request.POST:
+            return request.POST.dict()
+        if getattr(request, '_post', None):
+            return request._post.dict()
+        return {}
 
     if 'application/json' in content_type:
         try:
