@@ -1,3 +1,12 @@
+# Nainjyoti User & Customer API Documentation
+
+> **Bearer Token Authentication Policy**:
+> - **Bearer Token Expiry**: **Never Expires (Permanent)**
+> - The Bearer token issued upon sign-in or registration (`Authorization: Bearer <token>`) has **NO expiry time** and **never expires automatically**.
+> - The token remains active indefinitely until explicit logout (`/api/user/logout/`) or optional manual rotation (`/api/user/refresh-token/`).
+
+---
+
 API for Requesting OTP for User Login or Registration
 url: http://192.168.1.52:8000/api/user/send-otp/
 method: POST
@@ -16,8 +25,7 @@ response:
   "phone": "9812345678",
   "is_registered": false,
   "action": "REGISTER",
-  "otp_debug": "802881",
-  "expires_in_minutes": 10
+  "otp_debug": "802881"
 }
 ```
 
@@ -29,8 +37,7 @@ response (for existing registered user):
   "phone": "9812345678",
   "is_registered": true,
   "action": "LOGIN",
-  "otp_debug": "942730",
-  "expires_in_minutes": 10
+  "otp_debug": "942730"
 }
 ```
 
@@ -69,14 +76,15 @@ response (successful login for registered user):
     "email": "dev.sharma@example.com",
     "dob": "1995-08-15",
     "gender": "Male",
-    "profile_photo": null,
+    "profile_photo": "/media/user_profiles/photos/default_avatar.png",
     "is_active": true,
     "created_at": "2026-10-22T12:25:46.398042+00:00"
   }
 }
 ```
 
-API for Refreshing User Token
+API for Refreshing User Token (Optional Manual Rotation)
+*Note: Bearer tokens never expire automatically. This endpoint is strictly optional if a client application wishes to manually rotate an active Bearer token.*
 url: http://192.168.1.52:8000/api/user/refresh-token/
 method: POST
 
@@ -126,6 +134,76 @@ response:
 {
   "success": true,
   "message": "User successfully logged out"
+}
+```
+
+---
+
+API for Update Customer Profile
+url: http://192.168.1.52:8000/api/user/profile/update/
+method: POST (or PUT)
+
+headers:
+Authorization: Bearer <user_token>
+Content-Type: multipart/form-data (when attaching photo file) or application/json
+
+params (form-data or json):
+first_name: Dev
+last_name: Sharma
+email: dev.sharma@example.com
+dob: 1995-08-15
+gender: Male
+profile_photo: [Attach image file, or base64 data, or filename]
+
+response:
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "user": {
+    "id": 9,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "phone": "1234567890",
+    "email": "dev.sharma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/user_9_ab12cd34.png",
+    "is_active": true,
+    "created_at": "2026-10-23T05:35:40.995425+00:00",
+    "total_orders": 0,
+    "total_spent": 0.0
+  }
+}
+```
+
+---
+
+API for Dedicated Profile Photo Upload
+url: http://192.168.1.52:8000/api/user/profile/photo/
+method: POST
+
+headers:
+Authorization: Bearer <user_token>
+Content-Type: multipart/form-data
+
+params:
+profile_photo: [binary image file]
+
+response:
+```json
+{
+  "success": true,
+  "message": "Profile photo uploaded successfully",
+  "profile_photo": "/media/user_profiles/photos/user_9_ab12cd34.png",
+  "user": {
+    "id": 9,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "profile_photo": "/media/user_profiles/photos/user_9_ab12cd34.png"
+  }
 }
 ```
 
@@ -930,6 +1008,52 @@ response:
   ]
 }
 ```
+
+---
+
+API for Random Public Products
+url: http://192.168.1.52:8000/api/user/products/random/
+alias: http://192.168.1.52:8000/api/products/random/
+method: GET
+
+headers:
+none (public endpoint; no Authorization token required)
+
+params (query parameters):
+limit: 20 (optional, default: 20, minimum: 1, maximum: 100)
+category_id: 1 (optional; must reference an active category)
+
+response:
+```json
+{
+  "success": true,
+  "message": "Random products fetched successfully",
+  "randomized": true,
+  "total_available": 27,
+  "returned_count": 20,
+  "products": [
+    {
+      "id": 10,
+      "name": "Cotton Casual Denim Shirt",
+      "sku": "SKU-SHIRT-01",
+      "price": 1200.0,
+      "discount_price": 999.0,
+      "effective_price": 999.0,
+      "image_url": "/media/products/shirt.jpg",
+      "category_id": 1,
+      "category_name": "Clothing & Apparel",
+      "vendor_id": 3,
+      "vendor_name": "Apex Fashion Hub",
+      "stock_quantity": 15,
+      "in_stock": true,
+      "has_variants": true,
+      "variant_count": 4
+    }
+  ]
+}
+```
+
+Only active, approved, in-stock products belonging to approved vendors are returned. Products assigned to inactive categories are excluded. The response is sent with no-cache headers and the database randomizes its order for every request.
 
 ---
 

@@ -1,3 +1,12 @@
+# Nainjyoti Vendor & Merchant API Documentation
+
+> **Bearer Token Authentication Policy**:
+> - **Bearer Token Expiry**: **Never Expires (Permanent)**
+> - The Vendor Bearer token (`Authorization: Bearer <vendor_token>`) has **NO expiry time** and **never expires automatically**.
+> - The token remains active indefinitely unless password is reset or rotated.
+
+---
+
 API for Vendor Registration
 url: http://192.168.1.52:8000/api/vendor/register/
 method: POST

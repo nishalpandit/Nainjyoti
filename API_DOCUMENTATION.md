@@ -1,3 +1,12 @@
+# Nainjyoti Core API Documentation
+
+> **Bearer Token Authentication Policy**:
+> - **Bearer Token Expiry**: **Never Expires (Permanent)**
+> - The Bearer token issued upon sign-in or registration (`Authorization: Bearer <token>`) has **NO expiry time** and **never expires automatically**.
+> - The token remains active indefinitely until explicit logout (`/api/user/logout/`).
+
+---
+
 API for Send OTP (Customer)
 url: http://192.168.1.52:8000/api/user/send-otp/
 method: POST
@@ -12,8 +21,7 @@ response:
   "phone": "9876543211",
   "is_registered": true,
   "action": "LOGIN",
-  "otp_debug": "598906",
-  "expires_in_minutes": 10
+  "otp_debug": "598906"
 }
 
 API for Verify OTP Login (Customer)
@@ -101,11 +109,12 @@ response:
 }
 
 API for Update Customer Profile
-url: http://192.168.1.52:8000/api/user/profile/
-method: POST
+url: http://192.168.1.52:8000/api/user/profile/update/ (or /api/user/profile/)
+method: POST (or PUT)
 
 headers:
-Authorization: Bearer b1e4ac004e78dc09cf5d6d88e0002161cd087e547519fae28de0da1f59511b0e
+Authorization: Bearer <customer_token>
+Content-Type: multipart/form-data (when uploading photo) or application/json
 
 params:
 first_name: Ananya
@@ -113,6 +122,7 @@ last_name: Iyer
 email: ananya.updated@example.com
 dob: 1999-04-12
 gender: Female
+profile_photo: [Upload binary image file or base64 or filename]
 
 response:
 {

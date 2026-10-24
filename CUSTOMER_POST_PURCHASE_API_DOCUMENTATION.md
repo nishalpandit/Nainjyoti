@@ -5,6 +5,7 @@ Authenticated endpoints require:
 ```text
 Authorization: Bearer <customer_token>
 ```
+*(Note: Bearer tokens are permanent and never expire).*
 
 ## Order tracking
 
