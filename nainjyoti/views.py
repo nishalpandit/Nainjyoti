@@ -1,13 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.utils import timezone
 from datetime import timedelta, datetime
+from decimal import Decimal, InvalidOperation
 import json
 from django.utils.text import slugify
 from .models import (
@@ -21,7 +25,17 @@ from .models import (
     UserProfile,
     UserAddress,
     StockLog,
+    OrderRequest,
+    Notification,
 )
+
+
+def _is_marketplace_admin(user):
+    """Only active Django staff/superusers may use the custom admin console."""
+    return user.is_authenticated and user.is_active and (user.is_staff or user.is_superuser)
+
+
+admin_required = user_passes_test(_is_marketplace_admin, login_url='login')
 
 def login_view(request):
     """
@@ -35,6 +49,19 @@ def login_view(request):
 
         # Lookup user by username or email
         user_obj = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
+
+        if (
+            user_obj
+            and user_obj.check_password(password)
+            and hasattr(user_obj, 'vendor_profile')
+            and user_obj.vendor_profile.status == 'BLOCKED'
+        ):
+            messages.error(
+                request,
+                f"Seller access for '{user_obj.vendor_profile.business_name}' has been blocked by the administrator. "
+                "Please contact marketplace support before trying again.",
+            )
+            return render(request, "login.html")
         
         user = None
         if user_obj:
@@ -67,6 +94,13 @@ def login_view(request):
                         request,
                         f"Application Declined: Your store registration was not approved. "
                         f"Reason: {profile.rejection_reason or 'Submitted documents could not be verified.'}"
+                    )
+                    return render(request, "login.html")
+                elif profile.status == "BLOCKED":
+                    messages.error(
+                        request,
+                        f"Seller access for '{profile.business_name}' has been blocked by the administrator. "
+                        "Please contact marketplace support before trying again."
                     )
                     return render(request, "login.html")
 
@@ -269,6 +303,7 @@ def paginate_queryset(request, queryset, default_page_size=10):
     }
 
 
+@admin_required
 def admin_dashboard(request):
     """
     Marketplace Admin Overview Dashboard with full real-time metrics,
@@ -474,6 +509,7 @@ def admin_dashboard(request):
     })
 
 
+@admin_required
 def admin_categories(request):
     """Admin Categories Management View"""
     search_query = request.GET.get("q", "").strip()
@@ -496,6 +532,7 @@ def admin_categories(request):
     })
 
 
+@admin_required
 def admin_category_form(request, category_id=None):
     """Admin Category Create/Edit Form View with Image Upload & Description"""
     category = None
@@ -533,6 +570,7 @@ def admin_category_form(request, category_id=None):
     })
 
 
+@admin_required
 @csrf_exempt
 def admin_category_toggle_status(request, category_id):
     """
@@ -561,7 +599,24 @@ def admin_category_toggle_status(request, category_id):
     return redirect("admin_categories")
 
 
+@admin_required
+@require_POST
+def admin_category_delete(request, category_id):
+    """Permanently delete a category; existing products become uncategorized."""
+    category = get_object_or_404(Category, id=category_id)
+    category_name = category.name
+    affected_products = category.products.count()
+    category.delete()
+    messages.success(
+        request,
+        f"Category '{category_name}' permanently deleted. "
+        f"{affected_products} linked product(s) were kept as uncategorized.",
+    )
+    return redirect("admin_categories")
 
+
+
+@admin_required
 @csrf_exempt
 def admin_vendor_approval(request):
     """
@@ -591,6 +646,9 @@ def admin_vendor_approval(request):
             if not vendor.auth_token:
                 vendor.generate_new_token()
             vendor.save()
+            if vendor.user_id and not vendor.user.is_active:
+                vendor.user.is_active = True
+                vendor.user.save(update_fields=['is_active'])
             msg = f"Store '{vendor.business_name}' ({vendor.vendor_code}) APPROVED! KYC accepted and seller access activated."
             if not is_ajax:
                 messages.success(request, msg)
@@ -600,6 +658,9 @@ def admin_vendor_approval(request):
             vendor.status = "REJECTED"
             vendor.rejection_reason = reason
             vendor.save()
+            if vendor.user_id and not vendor.user.is_active:
+                vendor.user.is_active = True
+                vendor.user.save(update_fields=['is_active'])
             msg = f"Store application '{vendor.business_name}' declined. Reason: {reason}"
             if not is_ajax:
                 messages.warning(request, msg)
@@ -608,6 +669,9 @@ def admin_vendor_approval(request):
             vendor.status = "PENDING"
             vendor.rejection_reason = ""
             vendor.save()
+            if vendor.user_id and not vendor.user.is_active:
+                vendor.user.is_active = True
+                vendor.user.save(update_fields=['is_active'])
             msg = f"Store '{vendor.business_name}' reset back to PENDING review."
             if not is_ajax:
                 messages.info(request, msg)
@@ -619,6 +683,7 @@ def admin_vendor_approval(request):
             pending_count = VendorProfile.objects.filter(status="PENDING").count()
             approved_count = VendorProfile.objects.filter(status="APPROVED").count()
             rejected_count = VendorProfile.objects.filter(status="REJECTED").count()
+            blocked_count = VendorProfile.objects.filter(status="BLOCKED").count()
             total_count = VendorProfile.objects.count()
 
             return JsonResponse({
@@ -634,6 +699,7 @@ def admin_vendor_approval(request):
                 "pending_count": pending_count,
                 "approved_count": approved_count,
                 "rejected_count": rejected_count,
+                "blocked_count": blocked_count,
                 "total_count": total_count,
             }, status=200)
 
@@ -649,6 +715,8 @@ def admin_vendor_approval(request):
         vendors = vendors.filter(status="APPROVED")
     elif filter_status == "REJECTED":
         vendors = vendors.filter(status="REJECTED")
+    elif filter_status == "BLOCKED":
+        vendors = vendors.filter(status="BLOCKED")
 
     if search_query:
         vendors = vendors.filter(
@@ -663,6 +731,7 @@ def admin_vendor_approval(request):
     pending_count = VendorProfile.objects.filter(status="PENDING").count()
     approved_count = VendorProfile.objects.filter(status="APPROVED").count()
     rejected_count = VendorProfile.objects.filter(status="REJECTED").count()
+    blocked_count = VendorProfile.objects.filter(status="BLOCKED").count()
     total_count = VendorProfile.objects.count()
 
     p_data = paginate_queryset(request, vendors, default_page_size=10)
@@ -677,12 +746,14 @@ def admin_vendor_approval(request):
         "pending_count": pending_count,
         "approved_count": approved_count,
         "rejected_count": rejected_count,
+        "blocked_count": blocked_count,
         "total_count": total_count,
         "current_status": filter_status,
         "search_query": search_query
     })
 
 
+@admin_required
 def admin_vendor_kyc_detail(request, vendor_id):
     """
     API endpoint: Fetch full KYC dossier for a single vendor as JSON.
@@ -712,6 +783,7 @@ def logout_view(request):
     return redirect("login")
 
 
+@admin_required
 def admin_customers(request):
     """Admin Customers Directory & Account Management."""
     search_query = request.GET.get("q", "").strip()
@@ -779,6 +851,7 @@ def admin_customers(request):
     })
 
 
+@admin_required
 def admin_addresses(request):
     """Dynamic admin directory for customer delivery addresses."""
     search_query = request.GET.get("q", "").strip()
@@ -825,6 +898,7 @@ def admin_addresses(request):
     })
 
 
+@admin_required
 @csrf_exempt
 def admin_customer_toggle_status(request, customer_id):
     """
@@ -859,6 +933,7 @@ def admin_customer_toggle_status(request, customer_id):
     return redirect("admin_customers")
 
 
+@admin_required
 def admin_customer_detail(request, customer_id):
     """
     Admin Control: Fetch full dossier for a single customer
@@ -904,6 +979,7 @@ def admin_customer_detail(request, customer_id):
     }, status=200)
 
 
+@admin_required
 @csrf_exempt
 def admin_customer_edit(request, customer_id):
     """
@@ -1008,6 +1084,44 @@ def admin_customer_edit(request, customer_id):
     return redirect("admin_customers")
 
 
+@admin_required
+@require_POST
+def admin_customer_delete(request, customer_id):
+    """Permanently remove a customer account and customer-owned records."""
+    customer = get_object_or_404(UserProfile.objects.select_related('user'), id=customer_id)
+    customer_name = customer.full_name
+    customer_phone = customer.phone
+    django_user = customer.user
+    if django_user:
+        django_user.delete()
+    else:
+        customer.delete()
+    messages.success(
+        request,
+        f"Customer '{customer_name}' ({customer_phone}) and their account data were permanently deleted.",
+    )
+    return redirect("admin_customers")
+
+
+@admin_required
+@require_POST
+def admin_address_delete(request, address_id):
+    """Permanently delete an address and preserve a default when possible."""
+    address = get_object_or_404(UserAddress.objects.select_related('user'), id=address_id)
+    owner = address.user
+    label = f"{address.full_name}, {address.city}"
+    was_default = address.is_default
+    address.delete()
+    if was_default:
+        replacement = owner.addresses.order_by('-created_at').first()
+        if replacement:
+            replacement.is_default = True
+            replacement.save(update_fields=['is_default', 'updated_at'])
+    messages.success(request, f"Address '{label}' was permanently deleted.")
+    return redirect("admin_addresses")
+
+
+@admin_required
 def admin_vendors(request):
     """Admin Vendors Directory."""
     search_query = request.GET.get("q", "").strip()
@@ -1022,7 +1136,7 @@ def admin_vendors(request):
             Q(city__icontains=search_query) |
             Q(state__icontains=search_query)
         )
-    if status_filter in ["APPROVED", "PENDING", "REJECTED"]:
+    if status_filter in ["APPROVED", "PENDING", "REJECTED", "BLOCKED"]:
         vendors_qs = vendors_qs.filter(status=status_filter)
 
     p_data = paginate_queryset(request, vendors_qs, default_page_size=10)
@@ -1059,6 +1173,276 @@ def admin_vendors(request):
     })
 
 
+@admin_required
+def admin_vendor_form(request, vendor_id=None):
+    """Create or edit a vendor and its linked login from the marketplace dashboard."""
+    vendor = None
+    if vendor_id:
+        vendor = get_object_or_404(VendorProfile.objects.select_related('user'), id=vendor_id)
+
+    if request.method == 'POST':
+        business_name = request.POST.get('business_name', '').strip()
+        owner_name = request.POST.get('owner_name', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        phone = request.POST.get('phone', '').strip()
+        status = request.POST.get('status', 'PENDING').strip().upper()
+        password = request.POST.get('password', '')
+
+        errors = []
+        if not business_name:
+            errors.append('Business name is required.')
+        if not owner_name:
+            errors.append('Owner name is required.')
+        if not email:
+            errors.append('Login email is required.')
+        if not phone:
+            errors.append('Phone number is required.')
+        if status not in dict(VendorProfile.STATUS_CHOICES):
+            errors.append('Select a valid vendor status.')
+        if not vendor and len(password) < 6:
+            errors.append('A password of at least 6 characters is required for a new vendor.')
+
+        existing_user = User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email))
+        if vendor:
+            existing_user = existing_user.exclude(pk=vendor.user_id)
+        if email and existing_user.exists():
+            errors.append('Another account already uses this email address.')
+        phone_match = VendorProfile.objects.filter(phone=phone)
+        if vendor:
+            phone_match = phone_match.exclude(pk=vendor.pk)
+        if phone and phone_match.exists():
+            errors.append('Another vendor already uses this phone number.')
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'admin/vendor-form.html', {
+                'vendor': vendor,
+                'is_edit': vendor is not None,
+                'form_data': request.POST,
+                'vendor_status_choices': VendorProfile.STATUS_CHOICES,
+                'active_nav': 'vendors',
+            })
+
+        if vendor:
+            user = vendor.user
+        else:
+            user = User(username=email, email=email, is_staff=False, is_superuser=False)
+            vendor = VendorProfile(user=user)
+
+        user.username = email
+        user.email = email
+        user.first_name = owner_name.split()[0] if owner_name else ''
+        user.last_name = ' '.join(owner_name.split()[1:])
+        user.is_active = status != 'BLOCKED'
+        if password:
+            user.set_password(password)
+        user.save()
+
+        vendor.business_name = business_name
+        vendor.owner_name = owner_name
+        vendor.phone = phone
+        vendor.business_type = request.POST.get('business_type', 'Retailer').strip() or 'Retailer'
+        vendor.category = request.POST.get('category', 'General Merchandise').strip() or 'General Merchandise'
+        vendor.gst_number = request.POST.get('gst_number', '').strip().upper()
+        vendor.pan_number = request.POST.get('pan_number', '').strip().upper()
+        vendor.bank_name = request.POST.get('bank_name', '').strip()
+        vendor.account_number = request.POST.get('account_number', '').strip()
+        vendor.ifsc_code = request.POST.get('ifsc_code', '').strip().upper()
+        vendor.address = request.POST.get('address', '').strip()
+        vendor.city = request.POST.get('city', '').strip()
+        vendor.state = request.POST.get('state', '').strip()
+        vendor.pincode = request.POST.get('pincode', '').strip()
+        vendor.support_email = request.POST.get('support_email', '').strip().lower() or None
+        vendor.store_description = request.POST.get('store_description', '').strip()
+        vendor.status = status
+        vendor.rejection_reason = request.POST.get('rejection_reason', '').strip() if status == 'REJECTED' else ''
+
+        for field_name in ('gst_document', 'pan_document', 'id_proof', 'store_logo', 'store_banner'):
+            uploaded_file = request.FILES.get(field_name)
+            if uploaded_file:
+                setattr(vendor, field_name, uploaded_file)
+
+        vendor.save()
+        if status == 'APPROVED' and not vendor.auth_token:
+            vendor.generate_new_token()
+        action = 'updated' if vendor_id else 'created'
+        messages.success(request, f"Vendor '{vendor.business_name}' ({vendor.vendor_code}) {action} successfully.")
+        return redirect('admin_vendors')
+
+    return render(request, 'admin/vendor-form.html', {
+        'vendor': vendor,
+        'is_edit': vendor is not None,
+        'vendor_status_choices': VendorProfile.STATUS_CHOICES,
+        'active_nav': 'vendors',
+    })
+
+
+@admin_required
+@require_POST
+def admin_vendor_toggle_block(request, vendor_id):
+    """Block or restore vendor access and synchronize the Django login state."""
+    vendor = get_object_or_404(VendorProfile.objects.select_related('user'), id=vendor_id)
+    blocking = vendor.status != 'BLOCKED'
+    vendor.status = 'BLOCKED' if blocking else 'APPROVED'
+    vendor.rejection_reason = 'Blocked by marketplace administrator.' if blocking else ''
+    vendor.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+    vendor.user.is_active = not blocking
+    vendor.user.save(update_fields=['is_active'])
+    if not blocking and not vendor.auth_token:
+        vendor.generate_new_token()
+    messages.success(
+        request,
+        f"Vendor '{vendor.business_name}' has been {'blocked' if blocking else 'unblocked and approved'}.",
+    )
+    next_url = request.POST.get('next')
+    if next_url not in {'admin_vendors', 'admin_vendor_approval'}:
+        next_url = 'admin_vendors'
+    return redirect(next_url)
+
+
+@admin_required
+@require_POST
+def admin_vendor_delete(request, vendor_id):
+    """Permanently delete a vendor login and all vendor-owned catalogue data."""
+    vendor = get_object_or_404(VendorProfile.objects.select_related('user'), id=vendor_id)
+    business_name = vendor.business_name
+    vendor_code = vendor.vendor_code
+    product_count = vendor.products.count()
+    django_user = vendor.user
+    if django_user:
+        django_user.delete()
+    else:
+        vendor.delete()
+    messages.success(
+        request,
+        f"Vendor '{business_name}' ({vendor_code}) permanently deleted with "
+        f"{product_count} owned product(s) and related vendor records.",
+    )
+    return redirect("admin_vendors")
+
+
+def _admin_product_form_context(product=None, form_data=None):
+    return {
+        'product': product,
+        'is_edit': product is not None,
+        'vendors': VendorProfile.objects.select_related('user').order_by('business_name'),
+        'categories': Category.objects.order_by('name'),
+        'product_status_choices': Product.STATUS_CHOICES,
+        'form_data': form_data,
+        'active_nav': 'products',
+    }
+
+
+@admin_required
+def admin_product_form(request, product_id=None):
+    """Create or edit a product explicitly on behalf of a selected vendor."""
+    product = None
+    if product_id:
+        product = get_object_or_404(Product.objects.select_related('vendor', 'category'), id=product_id)
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        sku = request.POST.get('sku', '').strip()
+        vendor_id = request.POST.get('vendor_id', '').strip()
+        category_id = request.POST.get('category_id', '').strip()
+        status = request.POST.get('status', 'ACTIVE').strip().upper()
+        is_approved = request.POST.get('is_approved') in ['1', 'true', 'on', 'yes']
+        errors = []
+
+        vendor = VendorProfile.objects.filter(pk=vendor_id).first() if vendor_id.isdigit() else None
+        category = Category.objects.filter(pk=category_id).first() if category_id.isdigit() else None
+        if not vendor:
+            errors.append('Select the vendor on whose behalf this product is being added.')
+        if not name:
+            errors.append('Product name is required.')
+        if status not in dict(Product.STATUS_CHOICES):
+            errors.append('Select a valid product status.')
+        if sku:
+            sku_match = Product.objects.filter(sku__iexact=sku)
+            if product:
+                sku_match = sku_match.exclude(pk=product.pk)
+            if sku_match.exists():
+                errors.append(f"SKU '{sku}' is already in use.")
+
+        def parse_decimal(field_name, required=False):
+            raw = request.POST.get(field_name, '').strip()
+            if not raw and not required:
+                return None
+            try:
+                value = Decimal(raw)
+                if value < 0:
+                    raise InvalidOperation
+                return value
+            except (InvalidOperation, ValueError):
+                errors.append(f"{field_name.replace('_', ' ').title()} must be a valid non-negative number.")
+                return None
+
+        price = parse_decimal('price', required=True)
+        discount_price = parse_decimal('discount_price')
+        try:
+            stock_quantity = int(request.POST.get('stock_quantity', '0'))
+            low_stock_threshold = int(request.POST.get('low_stock_threshold', '10'))
+            if stock_quantity < 0 or low_stock_threshold < 0:
+                raise ValueError
+        except ValueError:
+            stock_quantity = 0
+            low_stock_threshold = 10
+            errors.append('Stock quantities must be non-negative whole numbers.')
+        if price is not None and discount_price is not None and discount_price > price:
+            errors.append('Discount price cannot be greater than the regular price.')
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'admin/product-form.html', _admin_product_form_context(product, request.POST))
+
+        old_stock = product.stock_quantity if product else 0
+        if not product:
+            product = Product()
+        product.vendor = vendor
+        product.category = category
+        product.name = name
+        product.sku = sku
+        product.price = price
+        product.discount_price = discount_price
+        if not product.pk or not product.has_variants:
+            product.stock_quantity = stock_quantity
+        product.low_stock_threshold = low_stock_threshold
+        product.unit = request.POST.get('unit', 'Piece').strip() or 'Piece'
+        product.description = request.POST.get('description', '').strip()
+        product.status = status
+        product.is_approved = is_approved
+        if request.FILES.get('image'):
+            product.image = request.FILES['image']
+        elif request.POST.get('remove_image') in ['1', 'true', 'on']:
+            product.image = None
+        elif request.POST.get('image_url', '').strip():
+            product.image = request.POST.get('image_url').strip()
+        product.save()
+
+        if not product.has_variants and product.stock_quantity != old_stock:
+            StockLog.objects.create(
+                product=product,
+                vendor=product.vendor,
+                movement_type='RESTOCK' if product.stock_quantity > old_stock else 'CORRECTION',
+                quantity_changed=product.stock_quantity - old_stock,
+                previous_stock=old_stock,
+                new_stock=product.stock_quantity,
+                reason='Admin product creation' if not product_id else 'Admin product edit',
+                reference_id=f"ADMIN-{product.id}",
+            )
+        action = 'updated' if product_id else 'created'
+        messages.success(
+            request,
+            f"Product '{product.name}' ({product.sku}) {action} on behalf of {product.vendor.business_name}.",
+        )
+        return redirect('admin_products')
+
+    return render(request, 'admin/product-form.html', _admin_product_form_context(product))
+
+
+@admin_required
 def admin_products(request):
     """Admin Product Catalogue."""
     search_query = request.GET.get("q", "").strip()
@@ -1097,6 +1481,7 @@ def admin_products(request):
     })
 
 
+@admin_required
 @csrf_exempt
 def admin_product_approval(request):
     """
@@ -1216,6 +1601,7 @@ def admin_product_approval(request):
     })
 
 
+@admin_required
 @csrf_exempt
 def admin_product_approve(request, product_id):
     """Direct approve endpoint for a product."""
@@ -1248,6 +1634,7 @@ def admin_product_approve(request, product_id):
     return redirect(next_url)
 
 
+@admin_required
 @csrf_exempt
 def admin_product_reject(request, product_id):
     """Direct reject endpoint for a product."""
@@ -1278,6 +1665,7 @@ def admin_product_reject(request, product_id):
     return redirect(next_url)
 
 
+@admin_required
 def admin_product_detail_json(request, product_id):
     """API endpoint: Fetch full product dossier for inspection modal."""
     product = get_object_or_404(
@@ -1332,6 +1720,22 @@ def admin_product_detail_json(request, product_id):
     })
 
 
+@admin_required
+@require_POST
+def admin_product_delete(request, product_id):
+    """Permanently delete a product and its live catalogue relationships."""
+    product = get_object_or_404(Product, id=product_id)
+    product_name = product.name
+    product_sku = product.sku
+    product.delete()
+    messages.success(
+        request,
+        f"Product '{product_name}' ({product_sku}) was permanently deleted.",
+    )
+    return redirect("admin_products")
+
+
+@admin_required
 def admin_orders(request):
     """Admin Orders Management."""
     search_query = request.GET.get("q", "").strip()
@@ -1366,6 +1770,7 @@ def admin_orders(request):
             pill = 'rose'
 
         orders_list.append({
+            'id': o.id,
             'order_number': o.order_number,
             'created_at': o.created_at,
             'customer_name': o.customer_name,
@@ -1388,6 +1793,18 @@ def admin_orders(request):
     })
 
 
+@admin_required
+@require_POST
+def admin_order_delete(request, order_id):
+    """Permanently delete an order and its dependent payment/audit records."""
+    order = get_object_or_404(Order, id=order_id)
+    order_number = order.order_number
+    order.delete()
+    messages.success(request, f"Order '{order_number}' and its related records were permanently deleted.")
+    return redirect("admin_orders")
+
+
+@admin_required
 def admin_payments(request):
     """Admin Payments & Settlements Directory."""
     search_query = request.GET.get("q", "").strip()
@@ -1416,6 +1833,7 @@ def admin_payments(request):
             pill = 'rose'
 
         payouts_list.append({
+            'id': p.id,
             'payout_number': p.payout_number,
             'vendor_name': p.vendor.business_name if p.vendor else 'Vendor',
             'bank_info': f"{p.bank_name} ({p.account_number[-4:] if p.account_number else '****'})",
@@ -1439,6 +1857,225 @@ def admin_payments(request):
     })
 
 
+@admin_required
+@require_POST
+def admin_payout_delete(request, payout_id):
+    """Permanently delete a vendor payout record."""
+    payout = get_object_or_404(VendorPayout, id=payout_id)
+    payout_number = payout.payout_number
+    payout.delete()
+    messages.success(request, f"Payout '{payout_number}' was permanently deleted.")
+    return redirect("admin_payments")
+
+
+@admin_required
+def admin_commissions(request):
+    """Database-backed commission ledger generated from vendor earnings."""
+    search_query = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', 'ALL').upper()
+    earnings = VendorEarning.objects.select_related('vendor', 'order').order_by('-created_at')
+    if search_query:
+        earnings = earnings.filter(
+            Q(vendor__business_name__icontains=search_query)
+            | Q(vendor__vendor_code__icontains=search_query)
+            | Q(order__order_number__icontains=search_query)
+        )
+    if status_filter in dict(VendorEarning.STATUS_CHOICES):
+        earnings = earnings.filter(status=status_filter)
+    totals = earnings.aggregate(
+        gross=Sum('gross_amount'),
+        commission=Sum('commission_amount'),
+        net=Sum('net_amount'),
+    )
+    p_data = paginate_queryset(request, earnings, default_page_size=10)
+    return render(request, 'admin/commissions.html', {
+        'earnings': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'total_count': p_data['total_count'],
+        'totals': totals,
+        'search_query': search_query,
+        'status_filter': status_filter,
+    })
+
+
+@admin_required
+def admin_order_requests(request):
+    """Review actual cancellation and return requests submitted by customers."""
+    search_query = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', 'ALL').upper()
+    request_type = request.GET.get('type', 'ALL').upper()
+    requests_qs = OrderRequest.objects.select_related('customer', 'order', 'order_item')
+    if search_query:
+        requests_qs = requests_qs.filter(
+            Q(request_number__icontains=search_query)
+            | Q(order__order_number__icontains=search_query)
+            | Q(customer__first_name__icontains=search_query)
+            | Q(customer__last_name__icontains=search_query)
+            | Q(reason__icontains=search_query)
+        )
+    if status_filter in dict(OrderRequest.STATUS_CHOICES):
+        requests_qs = requests_qs.filter(status=status_filter)
+    if request_type in dict(OrderRequest.REQUEST_TYPE_CHOICES):
+        requests_qs = requests_qs.filter(request_type=request_type)
+    p_data = paginate_queryset(request, requests_qs, default_page_size=10)
+    return render(request, 'admin/returns.html', {
+        'order_requests': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'total_count': p_data['total_count'],
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'type_filter': request_type,
+        'status_choices': OrderRequest.STATUS_CHOICES,
+    })
+
+
+@admin_required
+@require_POST
+def admin_order_request_update(request, request_id):
+    new_status = request.POST.get('status', '').upper()
+    if new_status not in dict(OrderRequest.STATUS_CHOICES):
+        messages.error(request, 'Select a valid request status.')
+        return redirect('admin_order_requests')
+    with transaction.atomic():
+        order_request = get_object_or_404(
+            OrderRequest.objects.select_for_update().select_related('customer', 'order'),
+            id=request_id,
+        )
+        order_request.status = new_status
+        order_request.admin_notes = request.POST.get('admin_notes', '').strip()
+        order_request.save(update_fields=['status', 'admin_notes', 'updated_at'])
+
+        if new_status == 'COMPLETED':
+            if order_request.order_item_id:
+                affected_items = order_request.order.items.filter(pk=order_request.order_item_id)
+            else:
+                affected_items = order_request.order.items.all()
+
+            if order_request.request_type == 'CANCEL':
+                for order_item in affected_items.select_related('product', 'variant', 'vendor'):
+                    reference_id = f"CANCEL-{order_request.request_number}-{order_item.id}"
+                    if order_item.product_id and not StockLog.objects.filter(reference_id=reference_id).exists():
+                        inventory = order_item.variant if order_item.variant_id else order_item.product
+                        previous_stock = inventory.stock_quantity
+                        inventory.stock_quantity = previous_stock + order_item.quantity
+                        update_fields = ['stock_quantity', 'updated_at']
+                        if isinstance(inventory, Product):
+                            update_fields.append('status')
+                        inventory.save(update_fields=update_fields)
+                        StockLog.objects.create(
+                            product=order_item.product,
+                            variant=order_item.variant,
+                            vendor=order_item.vendor,
+                            movement_type='RETURN',
+                            quantity_changed=order_item.quantity,
+                            previous_stock=previous_stock,
+                            new_stock=inventory.stock_quantity,
+                            reason='Stock restored after completed cancellation request',
+                            reference_id=reference_id,
+                        )
+                    order_item.status = 'CANCELLED'
+                    order_item.save(update_fields=['status', 'updated_at'])
+                if order_request.order_item_id is None or not order_request.order.items.exclude(status='CANCELLED').exists():
+                    order_request.order.status = 'CANCELLED'
+                    order_request.order.save(update_fields=['status', 'updated_at'])
+            elif order_request.order_item_id is None:
+                order_request.order.status = 'RETURNED'
+                order_request.order.save(update_fields=['status', 'updated_at'])
+
+        Notification.objects.create(
+            user=order_request.customer,
+            order=order_request.order,
+            notification_type='CANCELLATION' if order_request.request_type == 'CANCEL' else 'RETURN',
+            title=f"{order_request.get_request_type_display()} request {order_request.get_status_display()}",
+            message=order_request.admin_notes or f"Your request {order_request.request_number} is now {order_request.get_status_display().lower()}.",
+            data={'request_id': order_request.id, 'request_number': order_request.request_number},
+        )
+    messages.success(request, f"Request {order_request.request_number} updated and the customer was notified.")
+    return redirect('admin_order_requests')
+
+
+@admin_required
+def admin_notifications(request):
+    search_query = request.GET.get('q', '').strip()
+    notifications = Notification.objects.select_related('user', 'order')
+    if search_query:
+        notifications = notifications.filter(
+            Q(title__icontains=search_query)
+            | Q(message__icontains=search_query)
+            | Q(user__first_name__icontains=search_query)
+            | Q(user__last_name__icontains=search_query)
+        )
+    p_data = paginate_queryset(request, notifications, default_page_size=10)
+    return render(request, 'admin/notifications.html', {
+        'notifications': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'total_count': p_data['total_count'],
+        'search_query': search_query,
+    })
+
+
+@admin_required
+def admin_notification_form(request):
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        message_text = request.POST.get('message', '').strip()
+        notification_type = request.POST.get('notification_type', 'SYSTEM').upper()
+        audience = request.POST.get('audience', 'ALL')
+        selected_customer = request.POST.get('customer_id', '')
+        errors = []
+        if not title:
+            errors.append('Title is required.')
+        if not message_text:
+            errors.append('Message is required.')
+        if notification_type not in dict(Notification.TYPE_CHOICES):
+            errors.append('Select a valid notification type.')
+        recipients = UserProfile.objects.filter(is_active=True)
+        if audience == 'ONE':
+            recipients = recipients.filter(pk=selected_customer)
+            if not recipients.exists():
+                errors.append('Select a valid customer.')
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        else:
+            created = 0
+            for customer in recipients.iterator():
+                Notification.objects.create(
+                    user=customer,
+                    notification_type=notification_type,
+                    title=title,
+                    message=message_text,
+                    data={'sent_by_admin_id': request.user.id},
+                )
+                created += 1
+            messages.success(request, f"Notification sent to {created} customer(s).")
+            return redirect('admin_notifications')
+    return render(request, 'admin/notification-form.html', {
+        'customers': UserProfile.objects.filter(is_active=True).order_by('first_name', 'last_name'),
+        'notification_type_choices': Notification.TYPE_CHOICES,
+        'form_data': request.POST if request.method == 'POST' else None,
+    })
+
+
+@admin_required
+@require_POST
+def admin_notification_delete(request, notification_id):
+    notification = get_object_or_404(Notification, id=notification_id)
+    notification.delete()
+    messages.success(request, 'Notification permanently deleted.')
+    return redirect('admin_notifications')
+
+
+@admin_required
 def admin_reports(request):
     """Admin Reports View."""
     total_gmv = Order.objects.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0
@@ -1453,11 +2090,13 @@ def admin_reports(request):
     })
 
 
+@admin_required
 def admin_settings(request):
     """Admin Settings View."""
     return render(request, "admin/settings.html", {})
 
 
+@admin_required
 def admin_legacy_redirect(request, page=""):
     """
     Fail-safe redirect for legacy or relative .html requests across admin console.
@@ -1468,9 +2107,11 @@ def admin_legacy_redirect(request, page=""):
     if clean_page == "product-approval":
         return redirect("admin_product_approval")
     if clean_page == "commissions":
-        return redirect("/admin-dashboard/payments/?view=commissions")
+        return redirect("admin_commissions")
     if clean_page == "returns":
-        return redirect("/admin-dashboard/orders/?status=RETURNED")
+        return redirect("admin_order_requests")
+    if clean_page in ["notifications", "notification-form", "notifications-form"]:
+        return redirect("admin_notifications" if clean_page == "notifications" else "admin_notification_add")
 
     mapping = {
         "index": "admin_dashboard",
@@ -1492,4 +2133,3 @@ def admin_legacy_redirect(request, page=""):
     if target:
         return redirect(target)
     return redirect("admin_dashboard")
-

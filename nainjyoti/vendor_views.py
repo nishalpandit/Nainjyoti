@@ -10,6 +10,8 @@ from django.utils import timezone
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+
 from .models import (
     VendorProfile, Category, Product, ProductVariant, Order, OrderItem,
     OrderStatusHistory, VendorEarning, VendorPayout, StockLog
@@ -17,21 +19,62 @@ from .models import (
 from .api_views import _get_vendor_balance_summary
 
 
+def _paginate_queryset(request, queryset, default_page_size=10):
+    """
+    Standard pagination helper for Vendor Dashboard tables.
+    Preserves all active filters and URL parameters across page navigation.
+    """
+    try:
+        page_size = int(request.GET.get('page_size', default_page_size))
+        if page_size not in [5, 10, 15, 20, 25, 50, 100]:
+            page_size = default_page_size
+    except (ValueError, TypeError):
+        page_size = default_page_size
+
+    paginator = Paginator(queryset, page_size)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages if paginator.num_pages > 0 else 1)
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        query_params.pop('page')
+    if 'page_size' in query_params:
+        query_params.pop('page_size')
+    querystring = query_params.urlencode()
+    if querystring:
+        querystring = f"&{querystring}"
+
+    raw_elided = paginator.get_elided_page_range(number=page_obj.number, on_each_side=1, on_ends=1)
+    elided_page_range = [num if isinstance(num, int) else '...' for num in raw_elided]
+
+    return {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'page_items': page_obj.object_list,
+        'querystring': querystring,
+        'elided_page_range': elided_page_range,
+        'total_count': paginator.count,
+        'page_size': page_size,
+    }
+
+
 def _get_dashboard_vendor(request):
     """
     Retrieves the authenticated vendor.
-    If authenticated via user.vendor_profile, uses it.
-    If in session or for seamless vendor access, falls back to approved merchant (merchant@crafts.in).
+    Returns only the approved vendor attached to the authenticated session.
+    Never falls back to another merchant, which would violate tenant isolation.
     """
-    if hasattr(request, "user") and request.user.is_authenticated and hasattr(request.user, "vendor_profile"):
-        if request.user.vendor_profile.status == "APPROVED":
-            return request.user.vendor_profile
-
-    # Fallback to the primary approved vendor merchant@crafts.in
-    target = VendorProfile.objects.filter(user__username='merchant@crafts.in').first()
-    if target:
-        return target
-    return VendorProfile.objects.filter(status="APPROVED").first()
+    if not hasattr(request, "user") or not request.user.is_authenticated:
+        return None
+    if not request.user.is_active or not hasattr(request.user, "vendor_profile"):
+        return None
+    vendor = request.user.vendor_profile
+    return vendor if vendor.status == "APPROVED" else None
 
 
 # =============================================================================
@@ -170,9 +213,18 @@ def vendor_products(request):
     low_stock_count = Product.objects.filter(vendor=vendor, stock_quantity__lte=10, stock_quantity__gt=0).count()
     out_of_stock_count = Product.objects.filter(vendor=vendor, stock_quantity=0).count()
 
+    # Paginate products
+    p_data = _paginate_queryset(request, products, default_page_size=10)
+
     context = {
         'vendor': vendor,
-        'products': products,
+        'products': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'page_size': p_data['page_size'],
+        'filtered_count': p_data['total_count'],
         'categories': categories,
         'total_count': total_count,
         'in_stock_count': in_stock_count,
@@ -390,8 +442,10 @@ def vendor_orders(request):
     if status_filter and status_filter != 'ALL':
         orders_qs = orders_qs.filter(status=status_filter)
 
+    p_data = _paginate_queryset(request, orders_qs, default_page_size=10)
+
     orders_data = []
-    for ord_obj in orders_qs:
+    for ord_obj in p_data['page_items']:
         items = ord_obj.items.filter(vendor=vendor)
         subtotal = sum(float(it.total_price) for it in items)
         orders_data.append({
@@ -404,6 +458,11 @@ def vendor_orders(request):
     context = {
         'vendor': vendor,
         'orders_data': orders_data,
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'page_size': p_data['page_size'],
         'counts': counts,
         'current_status': status_filter or 'ALL',
         'search_query': search_q,
@@ -510,25 +569,41 @@ def vendor_inventory(request):
     if not vendor:
         return redirect("login")
 
-    products = Product.objects.filter(vendor=vendor).select_related('category').prefetch_related('variants').order_by('stock_quantity')
+    all_products = Product.objects.filter(vendor=vendor).select_related('category').prefetch_related('variants').order_by('stock_quantity')
 
-    total_skus = products.count()
-    low_stock_count = products.filter(stock_quantity__lte=10, stock_quantity__gt=0).count()
-    out_of_stock_count = products.filter(stock_quantity=0).count()
+    total_skus = all_products.count()
+    low_stock_count = all_products.filter(stock_quantity__lte=10, stock_quantity__gt=0).count()
+    out_of_stock_count = all_products.filter(stock_quantity=0).count()
+    total_valuation = sum(p.stock_valuation for p in all_products)
 
-    total_valuation = sum(p.stock_valuation for p in products)
+    # Search filter if provided
+    search_q = request.GET.get('q', '').strip()
+    products_qs = all_products
+    if search_q:
+        products_qs = products_qs.filter(
+            Q(name__icontains=search_q) |
+            Q(sku__icontains=search_q)
+        )
+
+    p_data = _paginate_queryset(request, products_qs, default_page_size=10)
 
     # Recent stock logs
     recent_logs = StockLog.objects.filter(vendor=vendor).select_related('product', 'variant').order_by('-created_at')[:15]
 
     context = {
         'vendor': vendor,
-        'products': products,
+        'products': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'page_size': p_data['page_size'],
         'total_skus': total_skus,
         'low_stock_count': low_stock_count,
         'out_of_stock_count': out_of_stock_count,
         'total_valuation': total_valuation,
         'recent_logs': recent_logs,
+        'search_query': search_q,
     }
     return render(request, "vendor/inventory.html", context)
 
@@ -607,12 +682,18 @@ def vendor_earnings(request):
         return redirect("login")
 
     bal_summary = _get_vendor_balance_summary(vendor)
-    earnings_records = VendorEarning.objects.filter(vendor=vendor).select_related('order').order_by('-created_at')
+    earnings_qs = VendorEarning.objects.filter(vendor=vendor).select_related('order').order_by('-created_at')
+    p_data = _paginate_queryset(request, earnings_qs, default_page_size=10)
 
     context = {
         'vendor': vendor,
         'bal_summary': bal_summary,
-        'earnings_records': earnings_records,
+        'earnings_records': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'page_size': p_data['page_size'],
     }
     return render(request, "vendor/earnings.html", context)
 
@@ -630,12 +711,18 @@ def vendor_withdrawals(request):
         return redirect("login")
 
     bal_summary = _get_vendor_balance_summary(vendor)
-    payouts = VendorPayout.objects.filter(vendor=vendor).order_by('-requested_at')
+    payouts_qs = VendorPayout.objects.filter(vendor=vendor).order_by('-requested_at')
+    p_data = _paginate_queryset(request, payouts_qs, default_page_size=10)
 
     context = {
         'vendor': vendor,
         'bal_summary': bal_summary,
-        'payouts': payouts,
+        'payouts': p_data['page_items'],
+        'page_obj': p_data['page_obj'],
+        'paginator': p_data['paginator'],
+        'querystring': p_data['querystring'],
+        'elided_page_range': p_data['elided_page_range'],
+        'page_size': p_data['page_size'],
     }
     return render(request, "vendor/withdrawals.html", context)
 

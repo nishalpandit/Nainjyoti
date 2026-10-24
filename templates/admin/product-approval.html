@@ -24,20 +24,12 @@
       <div><span class="crumb">Marketplace / </span><strong>Product approval</strong></div>
       <div class="top-right">
         <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
         <div class="avatar">{{ admin_initials|default:"AS" }}</div>
       </div>
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>Product Approval &amp; Curation</h1>
-          <p>Review new vendor catalog submissions, verify pricing &amp; inventory, and publish listings to the buyer storefront.</p>
-        </div>
-      </div>
-
       <!-- Messages & Alerts -->
       {% if messages %}
         {% for message in messages %}
@@ -177,6 +169,10 @@
                         <i class="fa-solid fa-ban"></i> Delist
                       </button>
                     {% endif %}
+                  </div>
+                  <div class="d-inline-flex gap-1 ms-1">
+                    <a class="btn btn-action btn-review" href="{% url 'admin_product_edit' product.id %}" title="Edit complete product"><i class="fa-solid fa-pen-to-square"></i></a>
+                    <form method="post" action="{% url 'admin_product_delete' product.id %}" onsubmit="return confirm('Permanently delete product {{ product.name|escapejs }} and all live catalogue relationships? This cannot be undone.');">{% csrf_token %}<button type="submit" class="btn btn-action btn-reject" title="Permanently delete product"><i class="fa-solid fa-trash"></i></button></form>
                   </div>
                 </td>
               </tr>

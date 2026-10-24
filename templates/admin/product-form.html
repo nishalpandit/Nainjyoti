@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if is_edit %}Edit product{% else %}Add product{% endif %} · Bazaar Admin{% endblock %}
+{% block breadcrumb %}{% if is_edit %}Edit Product{% else %}Add Product{% endif %}{% endblock %}
+
+{% block admin_content %}
+{% if messages %}
+  {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h4 class="mb-1">{% if is_edit %}Edit {{ product.name }}{% else %}Add product on behalf of a vendor{% endif %}</h4><div class="text-muted small">The selected vendor will own this catalogue item and receive its orders.</div></div>
+  <a href="{% url 'admin_products' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to products</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+  {% csrf_token %}
+  <div class="card-body p-4">
+    <div class="alert alert-info py-2"><i class="fa-solid fa-store me-2"></i>Select the seller first. This records exactly which vendor the admin is acting for.</div>
+    <div class="row g-3">
+      <div class="col-md-7">
+        <label class="form-label">Add on behalf of vendor *</label>
+        <select class="form-select" name="vendor_id" required>
+          <option value="">Select vendor</option>
+          {% for seller in vendors %}
+          <option value="{{ seller.id }}" {% if form_data %}{% if form_data.vendor_id == seller.id|stringformat:'s' %}selected{% endif %}{% elif product.vendor_id == seller.id %}selected{% endif %}>{{ seller.business_name }} — {{ seller.vendor_code }} ({{ seller.get_status_display }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">Category</label>
+        <select class="form-select" name="category_id">
+          <option value="">Uncategorized</option>
+          {% for item in categories %}
+          <option value="{{ item.id }}" {% if form_data %}{% if form_data.category_id == item.id|stringformat:'s' %}selected{% endif %}{% elif product.category_id == item.id %}selected{% endif %}>{{ item.name }} ({{ item.get_status_display }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-8"><label class="form-label">Product name *</label><input class="form-control" name="name" required value="{% if form_data %}{{ form_data.name }}{% else %}{{ product.name|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">SKU</label><input class="form-control" name="sku" value="{% if form_data %}{{ form_data.sku }}{% else %}{{ product.sku|default:'' }}{% endif %}" placeholder="Auto-generated if blank"></div>
+      <div class="col-md-4"><label class="form-label">Regular price (₹) *</label><input class="form-control" name="price" type="number" min="0" step="0.01" required value="{% if form_data %}{{ form_data.price }}{% else %}{{ product.price|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Discount price (₹)</label><input class="form-control" name="discount_price" type="number" min="0" step="0.01" value="{% if form_data %}{{ form_data.discount_price }}{% else %}{{ product.discount_price|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Unit</label><input class="form-control" name="unit" value="{% if form_data %}{{ form_data.unit }}{% else %}{{ product.unit|default:'Piece' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Stock quantity *</label><input class="form-control" name="stock_quantity" type="number" min="0" required {% if product.has_variants %}readonly{% endif %} value="{% if form_data %}{{ form_data.stock_quantity }}{% else %}{{ product.stock_quantity|default:0 }}{% endif %}">{% if product.has_variants %}<div class="form-text">Calculated from active variants.</div>{% endif %}</div>
+      <div class="col-md-4"><label class="form-label">Low-stock threshold</label><input class="form-control" name="low_stock_threshold" type="number" min="0" value="{% if form_data %}{{ form_data.low_stock_threshold }}{% else %}{{ product.low_stock_threshold|default:10 }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Catalogue status *</label><select class="form-select" name="status">{% for value,label in product_status_choices %}<option value="{{ value }}" {% if form_data %}{% if form_data.status == value %}selected{% endif %}{% elif product.status == value %}selected{% elif not product and value == 'ACTIVE' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="col-md-4 d-flex align-items-end"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="is_approved" id="isApproved" {% if form_data %}{% if form_data.is_approved %}checked{% endif %}{% elif product.is_approved %}checked{% endif %}><label class="form-check-label" for="isApproved">Approved for customer catalogue</label></div></div>
+      <div class="col-12"><label class="form-label">Description</label><textarea class="form-control" name="description" rows="5">{% if form_data %}{{ form_data.description }}{% else %}{{ product.description|default:'' }}{% endif %}</textarea></div>
+      <div class="col-md-6"><label class="form-label">Upload image</label><input class="form-control" type="file" name="image" accept="image/*"></div>
+      <div class="col-md-6"><label class="form-label">Or existing media path / URL</label><input class="form-control" name="image_url" value="{% if form_data %}{{ form_data.image_url }}{% endif %}" placeholder="products/item.jpg"></div>
+      {% if product.image %}<div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="remove_image" id="removeImage"><label class="form-check-label" for="removeImage">Remove current image</label></div></div>{% endif %}
+    </div>
+  </div>
+  <div class="card-footer bg-white d-flex justify-content-end gap-2 p-3"><a href="{% url 'admin_products' %}" class="btn btn-light">Cancel</a><button class="btn btn-dark" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Save product</button></div>
+</form>
+{% endblock %}

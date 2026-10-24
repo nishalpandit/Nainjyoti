@@ -54,20 +54,12 @@
       <div><span class="crumb">Marketplace / </span><strong>Customer Control</strong></div>
       <div class="top-right">
         <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
         <div class="avatar">AS</div>
       </div>
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>User &amp; Customer Management</h1>
-          <p>Control customer accounts, access authorization, and status permissions.</p>
-        </div>
-      </div>
-
       {% if messages %}
       <div class="mb-3">
         {% for message in messages %}
@@ -120,7 +112,10 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} customer{{ total_count|pluralize }}</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} customer{{ total_count|pluralize }}</span>
+            <a class="btn btn-dark btn-sm" href="{% url 'admin:nainjyoti_userprofile_add' %}"><i class="fa-solid fa-plus me-1"></i>Add customer</a>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -188,6 +183,10 @@
                           <i class="fa-solid fa-check me-1"></i>Activate
                         </button>
                       {% endif %}
+                    </form>
+                    <form method="post" action="{% url 'admin_customer_delete' customer.id %}" style="display:inline;" onsubmit="return confirm('Permanently delete customer {{ customer.name|escapejs }} and their saved account data? Order snapshots will remain, but this cannot be undone.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger btn-action-sm" title="Permanently delete customer"><i class="fa-solid fa-trash"></i></button>
                     </form>
                   </div>
                 </td>

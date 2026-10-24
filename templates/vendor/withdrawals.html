@@ -9,12 +9,6 @@
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head mb-4">
-        <div>
-            <h1>Withdrawals &amp; Settlements</h1>
-            <p class="sub">Request fund disbursements directly to your verified bank account.</p>
-        </div>
-    </div>
 
     <!-- Stat Cards -->
     <div class="row g-3 mb-4">
@@ -134,7 +128,13 @@
     <div class="card shadow-sm">
         <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">Disbursement &amp; Settlement History</h5>
-            <span class="text-secondary small">{{ payouts|length }} records</span>
+            <span class="text-secondary small">
+                {% if page_obj %}
+                    Showing <strong>{{ page_obj.start_index }}-{{ page_obj.end_index }}</strong> of <strong>{{ page_obj.paginator.count }}</strong> records
+                {% else %}
+                    {{ payouts|length }} records
+                {% endif %}
+            </span>
         </div>
         <div class="table-responsive">
             <table class="table align-middle mb-0 table-hover">
@@ -186,5 +186,6 @@
                 </tbody>
             </table>
         </div>
+        {% include "vendor/pagination.html" with page_obj=page_obj %}
     </div>
 {% endblock %}

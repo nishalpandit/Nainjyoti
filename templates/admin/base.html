@@ -14,14 +14,14 @@
             <div><span class="crumb">Marketplace / </span><strong>{% block breadcrumb %}Dashboard{% endblock %}</strong></div>
             <div class="top-right">
                 <span class="date-label">09 Oct 2026 · IST</span>
-                <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
+                <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
                 <div class="avatar">AS</div>
             </div>
         </header>
 
         <main class="main">
             {% block admin_content %}{% endblock %}
-            <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Sample data for demonstration</footer>
+            <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected database</footer>
         </main>
     </div>
 {% endblock %}

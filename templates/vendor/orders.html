@@ -9,12 +9,6 @@
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head mb-4">
-        <div>
-            <h1>Customer Orders</h1>
-            <p class="sub">Track, fulfill, and update dispatch tracking for customer purchases.</p>
-        </div>
-    </div>
 
     <!-- Status Tabs -->
     <div class="d-flex flex-wrap gap-2 mb-3">
@@ -58,7 +52,13 @@
                 </div>
                 <button type="submit" class="btn btn-outline-primary">Search</button>
             </form>
-            <span class="text-secondary small">Showing {{ orders_data|length }} of {{ counts.ALL }} orders</span>
+            <span class="text-secondary small">
+                {% if page_obj %}
+                    Showing <strong>{{ page_obj.start_index }}-{{ page_obj.end_index }}</strong> of <strong>{{ page_obj.paginator.count }}</strong> orders
+                {% else %}
+                    Showing {{ orders_data|length }} orders
+                {% endif %}
+            </span>
         </div>
 
         <div class="table-responsive">
@@ -187,5 +187,6 @@
                 </tbody>
             </table>
         </div>
+        {% include "vendor/pagination.html" with page_obj=page_obj %}
     </div>
 {% endblock %}

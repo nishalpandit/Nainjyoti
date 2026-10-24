@@ -4,20 +4,17 @@
 {% block breadcrumb %}Products{% endblock %}
 {% block nav_products %}active{% endblock %}
 
+{% block topbar_actions %}
+    <a class="btn btn-primary btn-sm px-3 shadow-sm me-2 d-inline-flex align-items-center" href="{% url 'vendor_product_add' %}">
+        <i class="fa-solid fa-plus me-1"></i>Add product
+    </a>
+{% endblock %}
+
 {% block page_css %}
     <link href="{% static 'vendor/css/products.css' %}" rel="stylesheet">
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>Product Catalog</h1>
-            <p class="sub">Manage your active listings, inventory levels, and store pricing.</p>
-        </div>
-        <a class="btn btn-primary" href="{% url 'vendor_product_add' %}">
-            <i class="fa-solid fa-plus me-2"></i>Add product
-        </a>
-    </div>
 
     <!-- Quick Stats -->
     <div class="row g-3 mb-4">
@@ -55,7 +52,7 @@
     <div class="card shadow-sm">
         <div class="card-head p-3 border-bottom">
             <form method="get" class="row g-2 align-items-center">
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-secondary"></i></span>
                         <input class="form-control border-start-0" type="search" name="q" value="{{ search_query }}" placeholder="Search by name, SKU...">
@@ -76,11 +73,16 @@
                         <option value="INACTIVE" {% if selected_status == 'INACTIVE' %}selected{% endif %}>Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-2 d-flex gap-2">
+                <div class="col-md-1 d-flex gap-2">
                     <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
                     {% if search_query or selected_category or selected_status %}
                         <a href="{% url 'vendor_products' %}" class="btn btn-light border" title="Clear filters"><i class="fa-solid fa-xmark"></i></a>
                     {% endif %}
+                </div>
+                <div class="col-md-2 text-end">
+                    <a class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center" href="{% url 'vendor_product_add' %}">
+                        <i class="fa-solid fa-plus me-1"></i>Add product
+                    </a>
                 </div>
             </form>
         </div>
@@ -103,7 +105,7 @@
                 <tbody id="vendorProductsTableBody">
                     {% for p in products %}
                         <tr id="vendorProductRow{{ p.id }}">
-                            <td class="text-secondary small">{{ forloop.counter }}</td>
+                            <td class="text-secondary small fw-semibold">{{ page_obj.start_index|add:forloop.counter0|default:forloop.counter }}</td>
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="me-3 rounded d-flex align-items-center justify-content-center border" style="width:42px;height:42px;background:#f8fafc;color:#6366f1;font-size:16px;">
@@ -213,6 +215,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "vendor/pagination.html" with page_obj=page_obj %}
     </div>
 
     <!-- Vendor Product Variants Modal -->

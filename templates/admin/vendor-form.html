@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if is_edit %}Edit vendor{% else %}Add vendor{% endif %} · Bazaar Admin{% endblock %}
+{% block breadcrumb %}{% if is_edit %}Edit Vendor{% else %}Add Vendor{% endif %}{% endblock %}
+
+{% block admin_content %}
+{% if messages %}
+  {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-1">{% if is_edit %}Edit {{ vendor.business_name }}{% else %}Create vendor account{% endif %}</h4>
+    <div class="text-muted small">Manage the seller profile, login access, KYC and bank information.</div>
+  </div>
+  <a href="{% url 'admin_vendors' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to vendors</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+  {% csrf_token %}
+  <div class="card-body p-4">
+    <div class="row g-3">
+      {% if is_edit %}
+      <div class="col-md-4">
+        <label class="form-label">Vendor ID</label>
+        <input class="form-control" value="{{ vendor.vendor_code }}" readonly>
+      </div>
+      {% endif %}
+      <div class="col-md-{% if is_edit %}8{% else %}6{% endif %}">
+        <label class="form-label">Business name *</label>
+        <input class="form-control" name="business_name" required value="{% if form_data %}{{ form_data.business_name }}{% else %}{{ vendor.business_name|default:'' }}{% endif %}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Owner name *</label>
+        <input class="form-control" name="owner_name" required value="{% if form_data %}{{ form_data.owner_name }}{% else %}{{ vendor.owner_name|default:'' }}{% endif %}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Login email *</label>
+        <input class="form-control" name="email" type="email" required value="{% if form_data %}{{ form_data.email }}{% else %}{{ vendor.user.email|default:'' }}{% endif %}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Phone *</label>
+        <input class="form-control" name="phone" required value="{% if form_data %}{{ form_data.phone }}{% else %}{{ vendor.phone|default:'' }}{% endif %}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Status *</label>
+        <select class="form-select" name="status" required>
+          {% for value,label in vendor_status_choices %}
+          <option value="{{ value }}" {% if form_data %}{% if form_data.status == value %}selected{% endif %}{% elif vendor.status == value %}selected{% elif not vendor and value == 'PENDING' %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">Blocked disables dashboard login and vendor API access immediately.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">{% if is_edit %}New password{% else %}Password *{% endif %}</label>
+        <input class="form-control" name="password" type="password" {% if not is_edit %}required minlength="6"{% endif %}>
+        {% if is_edit %}<div class="form-text">Leave blank to keep the current password.</div>{% endif %}
+      </div>
+
+      <div class="col-12"><hr><h6>Business and tax details</h6></div>
+      <div class="col-md-4"><label class="form-label">Business type</label><input class="form-control" name="business_type" value="{% if form_data %}{{ form_data.business_type }}{% else %}{{ vendor.business_type|default:'Retailer' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Category</label><input class="form-control" name="category" value="{% if form_data %}{{ form_data.category }}{% else %}{{ vendor.category|default:'General Merchandise' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Support email</label><input class="form-control" type="email" name="support_email" value="{% if form_data %}{{ form_data.support_email }}{% else %}{{ vendor.support_email|default:'' }}{% endif %}"></div>
+      <div class="col-md-6"><label class="form-label">GSTIN</label><input class="form-control" name="gst_number" value="{% if form_data %}{{ form_data.gst_number }}{% else %}{{ vendor.gst_number|default:'' }}{% endif %}"></div>
+      <div class="col-md-6"><label class="form-label">PAN</label><input class="form-control" name="pan_number" value="{% if form_data %}{{ form_data.pan_number }}{% else %}{{ vendor.pan_number|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">GST document</label><input class="form-control" type="file" name="gst_document"></div>
+      <div class="col-md-4"><label class="form-label">PAN document</label><input class="form-control" type="file" name="pan_document"></div>
+      <div class="col-md-4"><label class="form-label">ID proof</label><input class="form-control" type="file" name="id_proof"></div>
+
+      <div class="col-12"><hr><h6>Settlement details</h6></div>
+      <div class="col-md-4"><label class="form-label">Bank name</label><input class="form-control" name="bank_name" value="{% if form_data %}{{ form_data.bank_name }}{% else %}{{ vendor.bank_name|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Account number</label><input class="form-control" name="account_number" value="{% if form_data %}{{ form_data.account_number }}{% else %}{{ vendor.account_number|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">IFSC code</label><input class="form-control" name="ifsc_code" value="{% if form_data %}{{ form_data.ifsc_code }}{% else %}{{ vendor.ifsc_code|default:'' }}{% endif %}"></div>
+
+      <div class="col-12"><hr><h6>Store address and branding</h6></div>
+      <div class="col-12"><label class="form-label">Address</label><textarea class="form-control" name="address" rows="2">{% if form_data %}{{ form_data.address }}{% else %}{{ vendor.address|default:'' }}{% endif %}</textarea></div>
+      <div class="col-md-4"><label class="form-label">City</label><input class="form-control" name="city" value="{% if form_data %}{{ form_data.city }}{% else %}{{ vendor.city|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">State</label><input class="form-control" name="state" value="{% if form_data %}{{ form_data.state }}{% else %}{{ vendor.state|default:'' }}{% endif %}"></div>
+      <div class="col-md-4"><label class="form-label">Pincode</label><input class="form-control" name="pincode" value="{% if form_data %}{{ form_data.pincode }}{% else %}{{ vendor.pincode|default:'' }}{% endif %}"></div>
+      <div class="col-12"><label class="form-label">Store description</label><textarea class="form-control" name="store_description" rows="3">{% if form_data %}{{ form_data.store_description }}{% else %}{{ vendor.store_description|default:'' }}{% endif %}</textarea></div>
+      <div class="col-md-6"><label class="form-label">Store logo</label><input class="form-control" type="file" name="store_logo" accept="image/*"></div>
+      <div class="col-md-6"><label class="form-label">Store banner</label><input class="form-control" type="file" name="store_banner" accept="image/*"></div>
+      <div class="col-12"><label class="form-label">Rejection reason</label><textarea class="form-control" name="rejection_reason" rows="2">{% if form_data %}{{ form_data.rejection_reason }}{% else %}{{ vendor.rejection_reason|default:'' }}{% endif %}</textarea></div>
+    </div>
+  </div>
+  <div class="card-footer bg-white d-flex justify-content-between p-3">
+    {% if is_edit %}
+    <button class="btn {% if vendor.status == 'BLOCKED' %}btn-success{% else %}btn-outline-danger{% endif %}" type="submit" formaction="{% url 'admin_vendor_toggle_block' vendor.id %}" formnovalidate onclick="return confirm('{% if vendor.status == 'BLOCKED' %}Unblock and approve this vendor?{% else %}Block this vendor from all seller access?{% endif %}')">
+      <i class="fa-solid {% if vendor.status == 'BLOCKED' %}fa-unlock{% else %}fa-ban{% endif %} me-1"></i>{% if vendor.status == 'BLOCKED' %}Unblock vendor{% else %}Block vendor access{% endif %}
+    </button>
+    {% else %}<span></span>{% endif %}
+    <div class="d-flex gap-2"><a href="{% url 'admin_vendors' %}" class="btn btn-light">Cancel</a><button class="btn btn-dark" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Save vendor</button></div>
+  </div>
+</form>
+{% endblock %}

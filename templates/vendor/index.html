@@ -4,20 +4,17 @@
 {% block breadcrumb %}Dashboard{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
+{% block topbar_actions %}
+    <a class="btn btn-primary btn-sm px-3 shadow-sm me-2 d-inline-flex align-items-center" href="{% url 'vendor_product_add' %}">
+        <i class="fa-solid fa-plus me-1"></i>Add product
+    </a>
+{% endblock %}
+
 {% block page_css %}
     <link href="{% static 'vendor/css/index.css' %}" rel="stylesheet">
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head">
-        <div>
-            <h1>Hello, {{ vendor.owner_name|default:vendor.business_name }} 👋</h1>
-            <p class="sub">Welcome to your store console for <strong>{{ vendor.business_name }}</strong>.</p>
-        </div>
-        <a class="btn btn-primary" href="{% url 'vendor_product_add' %}">
-            <i class="fa-solid fa-plus me-2"></i>Add product
-        </a>
-    </div>
 
     <!-- KPI Metric Cards -->
     <div class="row g-3 mb-4">

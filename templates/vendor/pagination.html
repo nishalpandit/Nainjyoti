@@ -1,0 +1,82 @@
+{% if page_obj and page_obj.paginator.count > 0 %}
+<div class="card-footer bg-white border-top px-3 py-3 d-flex flex-wrap justify-content-between align-items-center gap-3 vendor-pagination-container">
+    <div class="d-flex align-items-center gap-3">
+        <div class="text-secondary small pagination-info">
+            Showing <strong class="text-dark">{{ page_obj.start_index }}</strong>&ndash;<strong class="text-dark">{{ page_obj.end_index }}</strong> of <strong class="text-dark">{{ page_obj.paginator.count }}</strong> records
+        </div>
+        {% if page_obj.paginator.count > 5 %}
+        <div class="d-none d-md-flex align-items-center gap-2 small text-secondary">
+            <span>Per page:</span>
+            <div class="btn-group btn-group-sm">
+                <a href="?page=1&page_size=10{{ querystring }}" class="btn btn-sm {% if page_size == 10 or not page_size %}btn-dark{% else %}btn-light border{% endif %}" style="font-size:11px;padding:2px 8px;">10</a>
+                <a href="?page=1&page_size=25{{ querystring }}" class="btn btn-sm {% if page_size == 25 %}btn-dark{% else %}btn-light border{% endif %}" style="font-size:11px;padding:2px 8px;">25</a>
+                <a href="?page=1&page_size=50{{ querystring }}" class="btn btn-sm {% if page_size == 50 %}btn-dark{% else %}btn-light border{% endif %}" style="font-size:11px;padding:2px 8px;">50</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="pagination-nav ms-auto" aria-label="Table pagination">
+        <ul class="pagination pagination-sm mb-0 gap-1 align-items-center vendor-pagination-list">
+            <!-- First Page -->
+            {% if page_obj.has_previous and page_obj.number > 2 %}
+            <li class="page-item">
+                <a class="page-link vendor-page-btn" href="?page=1{% if page_size %}&page_size={{ page_size }}{% endif %}{{ querystring }}" title="First Page">
+                    <i class="fa-solid fa-angles-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Previous Page -->
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link vendor-page-btn" href="?page={{ page_obj.previous_page_number }}{% if page_size %}&page_size={{ page_size }}{% endif %}{{ querystring }}" title="Previous Page">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link vendor-page-btn disabled"><i class="fa-solid fa-chevron-left"></i></span>
+            </li>
+            {% endif %}
+
+            <!-- Elided Page Numbers -->
+            {% for num in elided_page_range %}
+                {% if num == '...' %}
+                    <li class="page-item disabled"><span class="page-link vendor-page-btn ellipsis">&hellip;</span></li>
+                {% elif num == page_obj.number %}
+                    <li class="page-item active" aria-current="page"><span class="page-link vendor-page-btn active">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link vendor-page-btn" href="?page={{ num }}{% if page_size %}&page_size={{ page_size }}{% endif %}{{ querystring }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Next Page -->
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link vendor-page-btn" href="?page={{ page_obj.next_page_number }}{% if page_size %}&page_size={{ page_size }}{% endif %}{{ querystring }}" title="Next Page">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link vendor-page-btn disabled"><i class="fa-solid fa-chevron-right"></i></span>
+            </li>
+            {% endif %}
+
+            <!-- Last Page -->
+            {% if page_obj.has_next and page_obj.number < page_obj.paginator.num_pages|add:"-1" %}
+            <li class="page-item">
+                <a class="page-link vendor-page-btn" href="?page={{ page_obj.paginator.num_pages }}{% if page_size %}&page_size={{ page_size }}{% endif %}{{ querystring }}" title="Last Page ({{ page_obj.paginator.num_pages }})">
+                    <i class="fa-solid fa-angles-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endif %}

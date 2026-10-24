@@ -9,12 +9,6 @@
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head mb-4">
-        <div>
-            <h1>Inventory &amp; Stock Ledger</h1>
-            <p class="sub">Real-time stock level monitoring, re-order alerts, and physical adjustment logs.</p>
-        </div>
-    </div>
 
     <!-- Stat Cards -->
     <div class="row g-3 mb-4">
@@ -183,6 +177,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "vendor/pagination.html" with page_obj=page_obj %}
     </div>
 
     <!-- Audit Stock Log History -->

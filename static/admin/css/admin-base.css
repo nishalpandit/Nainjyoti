@@ -283,13 +283,36 @@ body {
   border-radius: 6px;
 }
 
-.btn-dark {
-  background: #294536;
-  border-color: #294536;
+.btn-dark,
+a.btn-dark {
+  background: #294536 !important;
+  border-color: #294536 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  text-decoration: none !important;
 }
 
-.btn-dark:hover {
-  background: #1c3628;
+.btn-dark:hover,
+a.btn-dark:hover {
+  background: #1c3628 !important;
+  border-color: #1c3628 !important;
+  color: #ffffff !important;
+}
+
+.btn-primary,
+a.btn-primary {
+  background: #234d36 !important;
+  border-color: #234d36 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  text-decoration: none !important;
+}
+
+.btn-primary:hover,
+a.btn-primary:hover {
+  background: #173626 !important;
+  border-color: #173626 !important;
+  color: #ffffff !important;
 }
 
 .form-control,

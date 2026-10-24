@@ -47,9 +47,10 @@
       <div>
         <span class="crumb">Marketplace / </span><strong>Dashboard</strong>
       </div>
-      <div class="top-right">
+      <div class="top-right d-flex align-items-center">
+        <a class="btn btn-dark btn-sm px-3 me-2" href="{% url 'admin_reports' %}"><i class="fa-solid fa-chart-line me-1"></i>View reports</a>
         <span class="date-label">{{ today_date_str }} · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications" title="{{ open_issues_count }} items needing attention">
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications" title="{{ open_issues_count }} items needing attention">
           <i class="fa-regular fa-bell"></i>
           {% if open_issues_count > 0 %}<i class="notify-dot"></i>{% endif %}
         </a>
@@ -58,15 +59,6 @@
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>Marketplace overview</h1>
-          <p>A live pulse on your marketplace operations.</p>
-        </div>
-        <a class="btn btn-dark" href="{% url 'admin_reports' %}"><i class="fa-solid fa-download me-2"></i>View reports</a>
-      </div>
-
       <!-- 4 TOP STAT CARDS -->
       <div class="row g-3 mb-4">
         <div class="col-6 col-xl-3">

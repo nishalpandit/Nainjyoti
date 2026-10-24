@@ -18,20 +18,15 @@
       <div><span class="crumb">Marketplace / </span><strong>Vendors</strong></div>
       <div class="top-right">
         <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
         <div class="avatar">AS</div>
       </div>
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>Vendors</h1>
-          <p>Review vendor performance and account status.</p>
-        </div>
-      </div>
-
+      {% if messages %}
+        {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}
+      {% endif %}
       <section class="card">
         <div class="card-head">
           <form method="get" class="filters d-flex gap-2">
@@ -41,10 +36,14 @@
               <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>Approved</option>
               <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
               <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+              <option value="BLOCKED" {% if status_filter == 'BLOCKED' %}selected{% endif %}>Blocked</option>
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} vendor{{ total_count|pluralize }}</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} vendor{{ total_count|pluralize }}</span>
+            <a class="btn btn-dark btn-sm" href="{% url 'admin_vendor_add' %}"><i class="fa-solid fa-plus me-1"></i>Add vendor</a>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -73,11 +72,29 @@
                     <span class="pill green">Active</span>
                   {% elif vendor.status == 'PENDING' %}
                     <span class="pill amber">Pending</span>
+                  {% elif vendor.status == 'BLOCKED' %}
+                    <span class="pill rose">Blocked</span>
                   {% else %}
                     <span class="pill rose">Rejected</span>
                   {% endif %}
                 </td>
-                <td><a class="row-action" href="{% url 'admin_vendor_approval' %}?status={{ vendor.status }}">Details</a></td>
+                <td>
+                  <div class="d-inline-flex gap-1">
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin_vendor_approval' %}?q={{ vendor.vendor_code|urlencode }}">Details</a>
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'admin_vendor_edit' vendor.id %}" title="Edit vendor"><i class="fa-solid fa-pen-to-square"></i></a>
+                    <form method="post" action="{% url 'admin_vendor_toggle_block' vendor.id %}" onsubmit="return confirm('{% if vendor.status == 'BLOCKED' %}Unblock and approve{% else %}Block access for{% endif %} {{ vendor.business_name|escapejs }}?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="admin_vendors">
+                      <button type="submit" class="btn btn-sm {% if vendor.status == 'BLOCKED' %}btn-success{% else %}btn-warning{% endif %}" title="{% if vendor.status == 'BLOCKED' %}Unblock vendor{% else %}Block vendor login and API access{% endif %}">
+                        <i class="fa-solid {% if vendor.status == 'BLOCKED' %}fa-unlock{% else %}fa-ban{% endif %}"></i>
+                      </button>
+                    </form>
+                    <form method="post" action="{% url 'admin_vendor_delete' vendor.id %}" onsubmit="return confirm('Permanently delete vendor {{ vendor.business_name|escapejs }}, its products, and related vendor records? This cannot be undone.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger" title="Permanently delete vendor"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                  </div>
+                </td>
               </tr>
               {% empty %}
               <tr>
@@ -93,6 +110,7 @@
       <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{% static 'admin/js/admin.js' %}"></script>
 </body>
 </html>

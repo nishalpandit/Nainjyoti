@@ -24,20 +24,12 @@
             <div><span class="crumb">Marketplace / </span><strong>Vendor Approval &amp; KYC Verification</strong></div>
             <div class="top-right">
                 <span class="date-label">IST Operations</span>
-                <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
+                <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i><i class="notify-dot"></i></a>
                 <div class="avatar">AS</div>
             </div>
         </header>
 
         <main class="main">
-            <div class="page-head">
-                <div>
-                    <div class="eyebrow">CONTROL CENTRE</div>
-                    <h1>Vendor KYC Verification &amp; Approval</h1>
-                    <p>Inspect submitted business tax records, banking details, and documents to authorize seller dashboard access in real-time.</p>
-                </div>
-            </div>
-
             <!-- Messages & Alerts -->
             {% if messages %}
                 {% for message in messages %}
@@ -63,6 +55,7 @@
                             <option value="PENDING" {% if current_status == 'PENDING' %}selected{% endif %}>Pending (<span id="count-pending">{{ pending_count }}</span>)</option>
                             <option value="APPROVED" {% if current_status == 'APPROVED' %}selected{% endif %}>Approved (<span id="count-approved">{{ approved_count }}</span>)</option>
                             <option value="REJECTED" {% if current_status == 'REJECTED' %}selected{% endif %}>Rejected (<span id="count-rejected">{{ rejected_count }}</span>)</option>
+                            <option value="BLOCKED" {% if current_status == 'BLOCKED' %}selected{% endif %}>Blocked ({{ blocked_count }})</option>
                         </select>
                         <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
                     </form>
@@ -166,6 +159,8 @@
                                             <span class="pill green" id="badge-{{ v.id }}"><i class="fa-solid fa-check me-1"></i>Approved</span>
                                         {% elif v.status == 'REJECTED' %}
                                             <span class="pill rose" id="badge-{{ v.id }}"><i class="fa-solid fa-xmark me-1"></i>Rejected</span>
+                                        {% elif v.status == 'BLOCKED' %}
+                                            <span class="pill rose" id="badge-{{ v.id }}"><i class="fa-solid fa-ban me-1"></i>Blocked</span>
                                         {% endif %}
                                     </td>
                                     <td style="text-align:right;">
@@ -184,6 +179,15 @@
                                             <button type="button" class="btn btn-action btn-reject quick-reject-btn" onclick="openRejectPrompt({{ v.id }})" title="Decline KYC" {% if v.status == 'REJECTED' %}style="display:none;"{% endif %}>
                                                 <i class="fa-solid fa-xmark"></i> Reject
                                             </button>
+                                        </div>
+                                        <div class="d-inline-flex gap-1 ms-1">
+                                            <a class="btn btn-action btn-review" href="{% url 'admin_vendor_edit' v.id %}" title="Edit complete vendor record"><i class="fa-solid fa-pen-to-square"></i></a>
+                                            <form method="post" action="{% url 'admin_vendor_toggle_block' v.id %}" class="d-inline" onsubmit="return confirm('{% if v.status == 'BLOCKED' %}Unblock and approve{% else %}Block access for{% endif %} {{ v.business_name|escapejs }}?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="next" value="admin_vendor_approval">
+                                                <button type="submit" class="btn btn-action {% if v.status == 'BLOCKED' %}btn-approve{% else %}btn-reject{% endif %}" title="{% if v.status == 'BLOCKED' %}Unblock vendor{% else %}Block vendor login and API access{% endif %}"><i class="fa-solid {% if v.status == 'BLOCKED' %}fa-unlock{% else %}fa-ban{% endif %}"></i></button>
+                                            </form>
+                                            <form method="post" action="{% url 'admin_vendor_delete' v.id %}" onsubmit="return confirm('Permanently delete vendor {{ v.business_name|escapejs }}, its products, and related vendor records? This cannot be undone.');">{% csrf_token %}<button type="submit" class="btn btn-action btn-reject" title="Permanently delete vendor"><i class="fa-solid fa-trash"></i></button></form>
                                         </div>
                                     </td>
                                 </tr>

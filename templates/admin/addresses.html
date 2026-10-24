@@ -23,8 +23,9 @@
   <div class="workspace">
     <header class="topbar"><div><span class="crumb">Marketplace / </span><strong>Address Management</strong></div><div class="top-right"><span class="date-label">Live database view</span><div class="avatar">AS</div></div></header>
     <main class="main">
-      <div class="page-head"><div><div class="eyebrow">CUSTOMER OPERATIONS</div><h1>Address Management</h1><p>Monitor customer delivery addresses saved through the Address Management API.</p></div></div>
-
+      {% if messages %}
+        {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}
+      {% endif %}
       <div class="row g-3 mb-4">
         <div class="col-12 col-md-4"><div class="stat-mini-card"><div><span>Total saved addresses</span><strong>{{ total_count }}</strong></div><i class="fa-solid fa-map-location-dot text-primary fs-4"></i></div></div>
         <div class="col-12 col-md-4"><div class="stat-mini-card"><div><span>Default addresses</span><strong class="text-success">{{ default_count }}</strong></div><i class="fa-solid fa-circle-check text-success fs-4"></i></div></div>
@@ -48,11 +49,14 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ filtered_count }} matching record{{ filtered_count|pluralize }}</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ filtered_count }} matching record{{ filtered_count|pluralize }}</span>
+            <a class="btn btn-dark btn-sm" href="{% url 'admin:nainjyoti_useraddress_add' %}"><i class="fa-solid fa-plus me-1"></i>Add address</a>
+          </div>
         </div>
         <div class="table-responsive">
           <table class="table align-middle">
-            <thead><tr><th>ID</th><th>Customer</th><th>Type</th><th>Recipient</th><th>Delivery address</th><th>Phone</th><th>Default</th><th>Updated</th></tr></thead>
+            <thead><tr><th>ID</th><th>Customer</th><th>Type</th><th>Recipient</th><th>Delivery address</th><th>Phone</th><th>Default</th><th>Updated</th><th class="text-end">Actions</th></tr></thead>
             <tbody>
               {% for address in addresses %}
               <tr>
@@ -64,9 +68,13 @@
                 <td><code>{{ address.phone }}</code></td>
                 <td>{% if address.is_default %}<span class="pill green">Default</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
                 <td>{{ address.updated_at|date:"d M Y, H:i" }}</td>
+                <td class="text-end"><div class="d-inline-flex gap-1">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'admin:nainjyoti_useraddress_change' address.id %}" title="Edit address"><i class="fa-solid fa-pen-to-square"></i></a>
+                  <form method="post" action="{% url 'admin_address_delete' address.id %}" onsubmit="return confirm('Permanently delete this address for {{ address.full_name|escapejs }}? This cannot be undone.');">{% csrf_token %}<button type="submit" class="btn btn-sm btn-danger" title="Delete address"><i class="fa-solid fa-trash"></i></button></form>
+                </div></td>
               </tr>
               {% empty %}
-              <tr><td colspan="8" class="text-center py-5 text-muted"><i class="fa-solid fa-location-dot d-block fs-3 mb-2"></i>No saved addresses match the filters.</td></tr>
+              <tr><td colspan="9" class="text-center py-5 text-muted"><i class="fa-solid fa-location-dot d-block fs-3 mb-2"></i>No saved addresses match the filters.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -76,5 +84,6 @@
       <footer>BAZAAR ADMIN <span>·</span> Address data synchronized from the live database</footer>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

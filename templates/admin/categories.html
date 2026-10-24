@@ -35,24 +35,18 @@
       </div>
       {% endif %}
 
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">MASTER CONFIGURATION</div>
-          <h1>Category Master</h1>
-          <p>Product categories used by vendors when listing items.</p>
-        </div>
-        <a class="btn btn-dark" href="{% url 'admin_category_add' %}">
-          <i class="fa-solid fa-plus me-2"></i>Add category
-        </a>
-      </div>
-
       <section class="card">
         <div class="card-head">
           <form method="get" class="filters d-flex gap-2">
             <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Search categories..." aria-label="Search records">
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_categories }} categories</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_categories }} categories</span>
+            <a class="btn btn-dark" href="{% url 'admin_category_add' %}">
+              <i class="fa-solid fa-plus me-1"></i>Add category
+            </a>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -112,6 +106,10 @@
                           <i class="fa-solid fa-check"></i>
                         </button>
                       {% endif %}
+                    </form>
+                    <form method="post" action="{% url 'admin_category_delete' cat.id %}" style="display:inline;" onsubmit="return confirm('Permanently delete category {{ cat.name|escapejs }}? Linked products will be kept but become uncategorized. This cannot be undone.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger" title="Permanently delete category"><i class="fa-solid fa-trash"></i></button>
                     </form>
                   </div>
                 </td>

@@ -33,7 +33,8 @@
                 <span class="d-none d-sm-inline">{{ vendor.business_name|default:"Seller Console" }} / </span>
                 <strong class="text-dark">{% block breadcrumb %}Dashboard{% endblock %}</strong>
             </div>
-            <div class="profile-mini">
+            <div class="profile-mini d-flex align-items-center">
+                {% block topbar_actions %}{% endblock %}
                 <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill me-2 d-none d-md-inline-block" style="font-size:11px;">
                     <i class="fa-solid fa-circle-check me-1"></i>Verified Store
                 </span>

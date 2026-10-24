@@ -706,14 +706,22 @@ body {
     color: #6c766e
 }
 
-.btn-primary {
-    background: #466f52;
-    border-color: #466f52
+.btn-primary,
+a.btn-primary,
+button.btn-primary {
+    background: #234d36 !important;
+    border-color: #234d36 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-decoration: none !important;
 }
 
-.btn-primary:hover {
-    background: #365a41;
-    border-color: #365a41
+.btn-primary:hover,
+a.btn-primary:hover,
+button.btn-primary:hover {
+    background: #173626 !important;
+    border-color: #173626 !important;
+    color: #ffffff !important;
 }
 
 .btn {
@@ -784,11 +792,11 @@ body {
     color: #7d887f !important
 }
 
-a:not(.brand) {
+a:not(.brand):not(.btn) {
     color: #507456
 }
 
-a:not(.brand):hover {
+a:not(.brand):not(.btn):hover {
     color: #2b5737
 }
 

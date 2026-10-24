@@ -15,30 +15,31 @@
 }
 
 .table thead th {
-  font-size: 9px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.9px;
-  color: #818d83;
-  padding: 15px 18px;
+  letter-spacing: 0.6px;
+  color: #697a6f;
+  padding: 13px 18px;
   font-weight: 650;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #e7ede5;
+  background: #fbfcf9;
   white-space: nowrap;
 }
 
 .table tbody td {
-  padding: 16px 18px;
-  font-size: 12px;
-  color: #45534a;
-  border-color: #f0f2f5;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #3b4d42;
+  border-bottom: 1px solid #f0f3ee;
   vertical-align: middle;
 }
 
 .table tbody tr:hover {
-  background: #fafbf8;
+  background: #fafbf8 !important;
 }
 
 .table-responsive {
-  border-radius: 0 0 13px 13px;
+  border-radius: 0;
 }
 
 

@@ -203,14 +203,60 @@ body {
   padding: 10px 15px;
 }
 
-.btn-primary {
-  background: #466f52;
-  border-color: #466f52;
+.btn-primary,
+a.btn-primary,
+button.btn-primary {
+  background: #234d36 !important;
+  border-color: #234d36 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 6px rgba(35, 77, 54, 0.2);
 }
 
-.btn-primary:hover {
-  background: #365a41;
-  border-color: #365a41;
+.btn-primary:hover,
+a.btn-primary:hover,
+button.btn-primary:hover,
+.btn-primary:focus,
+a.btn-primary:focus,
+button.btn-primary:focus {
+  background: #173626 !important;
+  border-color: #173626 !important;
+  color: #ffffff !important;
+}
+
+.btn-dark,
+a.btn-dark,
+button.btn-dark {
+  background: #192b23 !important;
+  border-color: #192b23 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.btn-dark:hover,
+a.btn-dark:hover,
+button.btn-dark:hover {
+  background: #0d1a14 !important;
+  border-color: #0d1a14 !important;
+  color: #ffffff !important;
+}
+
+.btn-outline-primary,
+a.btn-outline-primary,
+button.btn-outline-primary {
+  border-color: #234d36 !important;
+  color: #234d36 !important;
+  font-weight: 600 !important;
+}
+
+.btn-outline-primary:hover,
+a.btn-outline-primary:hover,
+button.btn-outline-primary:hover {
+  background: #234d36 !important;
+  border-color: #234d36 !important;
+  color: #ffffff !important;
 }
 
 .btn-light {
@@ -276,11 +322,11 @@ body {
   color: #6c766e;
 }
 
-a:not(.brand) {
+a:not(.brand):not(.btn) {
   color: #507456;
 }
 
-a:not(.brand):hover {
+a:not(.brand):not(.btn):hover {
   color: #2b5737;
 }
 
@@ -335,13 +381,151 @@ footer {
   .main {
     padding: 22px 15px;
   }
-  .page-head {
-    display: block;
+  .vendor-pagination-container {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 12px !important;
   }
-  .page-head .btn {
-    margin-top: 14px;
-  }
-  .page-head h1 {
-    font-size: 22px;
+  .vendor-pagination-container .pagination-nav {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: center;
   }
 }
+
+/* =============================================================================
+   Enhanced Design Polish (Cards, Tables, Badges, Hover Effects)
+   ============================================================================= */
+.stat-card {
+  border: 1px solid #e7ebe5 !important;
+  border-radius: 10px !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: #ffffff !important;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(35, 77, 54, 0.07) !important;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  margin: 0;
+}
+
+.table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #728277;
+  padding: 13px 18px;
+  font-weight: 650;
+  border-bottom: 1px solid #e7ebe5;
+  background: #fbfcf9;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #3b4d42;
+  border-bottom: 1px solid #f0f3ee;
+  vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.table tbody tr:hover {
+  background-color: #fbfcf9 !important;
+}
+
+/* =============================================================================
+   Modern Vendor Pagination System
+   ============================================================================= */
+.vendor-pagination-container {
+  border-top: 1px solid #edf1eb !important;
+  background: #fafbf9 !important;
+  padding: 14px 22px !important;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.vendor-pagination-container .pagination-info {
+  font-size: 12px;
+  color: #637267;
+  letter-spacing: 0.01em;
+}
+
+.vendor-pagination-container .pagination-info strong {
+  color: #1a2d21;
+  font-weight: 700;
+}
+
+.vendor-pagination-list {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 5px;
+  align-items: center;
+}
+
+.vendor-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #384a3f !important;
+  background: #ffffff !important;
+  border: 1px solid #dde4da !important;
+  border-radius: 7px !important;
+  text-decoration: none !important;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(25, 45, 33, 0.04);
+}
+
+.vendor-page-btn:hover {
+  background: #edf5eb !important;
+  color: #1b3d29 !important;
+  border-color: #bcd2b7 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(27, 61, 41, 0.08);
+}
+
+.vendor-page-btn.active,
+.page-item.active .vendor-page-btn {
+  background: #234d36 !important;
+  color: #ffffff !important;
+  border-color: #234d36 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 7px rgba(35, 77, 54, 0.3) !important;
+  pointer-events: none;
+}
+
+.vendor-page-btn.disabled,
+.page-item.disabled .vendor-page-btn {
+  color: #b3bfb7 !important;
+  background: #fafbf9 !important;
+  border-color: #ebf0e9 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  box-shadow: none !important;
+  transform: none;
+}
+
+.vendor-page-btn.ellipsis {
+  background: transparent !important;
+  border: none !important;
+  color: #8c9b91 !important;
+  box-shadow: none !important;
+  min-width: 22px;
+  font-weight: 700;
+}
+

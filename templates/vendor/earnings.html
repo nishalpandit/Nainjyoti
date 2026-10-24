@@ -4,20 +4,17 @@
 {% block breadcrumb %}Earnings{% endblock %}
 {% block nav_earnings %}active{% endblock %}
 
+{% block topbar_actions %}
+    <a class="btn btn-primary btn-sm px-3 shadow-sm me-2 d-inline-flex align-items-center" href="{% url 'vendor_withdrawals' %}">
+        <i class="fa-solid fa-wallet me-1"></i>Request Payout
+    </a>
+{% endblock %}
+
 {% block page_css %}
     <link href="{% static 'vendor/css/earnings.css' %}" rel="stylesheet">
 {% endblock %}
 
 {% block vendor_content %}
-    <div class="page-head d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>Earnings &amp; Financial Analytics</h1>
-            <p class="sub">Transparent fee breakdown, settlement balances, and net seller disbursements.</p>
-        </div>
-        <a class="btn btn-primary" href="{% url 'vendor_withdrawals' %}">
-            <i class="fa-solid fa-wallet me-2"></i>Request Payout
-        </a>
-    </div>
 
     <!-- Stat Cards -->
     <div class="row g-3 mb-4">
@@ -83,7 +80,13 @@
     <div class="card shadow-sm">
         <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">Order-by-Order Earnings Ledger</h5>
-            <span class="text-secondary small">{{ earnings_records|length }} transactions</span>
+            <span class="text-secondary small">
+                {% if page_obj %}
+                    Showing <strong>{{ page_obj.start_index }}-{{ page_obj.end_index }}</strong> of <strong>{{ page_obj.paginator.count }}</strong> transactions
+                {% else %}
+                    {{ earnings_records|length }} transactions
+                {% endif %}
+            </span>
         </div>
         <div class="table-responsive">
             <table class="table align-middle mb-0 table-hover">
@@ -140,5 +143,6 @@
                 </tbody>
             </table>
         </div>
+        {% include "vendor/pagination.html" with page_obj=page_obj %}
     </div>
 {% endblock %}

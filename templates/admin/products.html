@@ -18,20 +18,15 @@
       <div><span class="crumb">Marketplace / </span><strong>Products</strong></div>
       <div class="top-right">
         <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
         <div class="avatar">AS</div>
       </div>
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>Products</h1>
-          <p>Marketplace-wide product catalogue.</p>
-        </div>
-      </div>
-
+      {% if messages %}
+        {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}
+      {% endif %}
       <section class="card">
         <div class="card-head">
           <form method="get" class="filters d-flex gap-2">
@@ -45,7 +40,10 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} item{{ total_count|pluralize }}</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} item{{ total_count|pluralize }}</span>
+            <a class="btn btn-dark btn-sm" href="{% url 'admin_product_add' %}"><i class="fa-solid fa-plus me-1"></i>Add product</a>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -136,6 +134,11 @@
                             onclick="openAdminVariantsModal({{ product.id }}, '{{ product.name|escapejs }}', '{{ product.sku|escapejs }}', {{ product.price }})">
                       <i class="fa-solid fa-sliders me-1"></i>Variants
                     </button>
+                    <a class="btn btn-sm btn-outline-secondary" href="{% url 'admin_product_edit' product.id %}" title="Edit full product"><i class="fa-solid fa-pen-to-square"></i></a>
+                    <form method="post" action="{% url 'admin_product_delete' product.id %}" onsubmit="return confirm('Permanently delete product {{ product.name|escapejs }} and its variants, cart, wishlist, review, and stock records? This cannot be undone.');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger" title="Permanently delete product"><i class="fa-solid fa-trash"></i></button>
+                    </form>
                   </div>
                 </td>
               </tr>

@@ -18,20 +18,15 @@
       <div><span class="crumb">Marketplace / </span><strong>Payments</strong></div>
       <div class="top-right">
         <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_dashboard' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
+        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
         <div class="avatar">AS</div>
       </div>
     </header>
 
     <main class="main">
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">CONTROL CENTRE</div>
-          <h1>Payments &amp; Settlements</h1>
-          <p>Monitor collections, payout transfers, and vendor bank disbursements.</p>
-        </div>
-      </div>
-
+      {% if messages %}
+        {% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}
+      {% endif %}
       <section class="card">
         <div class="card-head">
           <form method="get" class="filters d-flex gap-2">
@@ -45,7 +40,10 @@
             </select>
             <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-2"></i>Filter</button>
           </form>
-          <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} settlement{{ total_count|pluralize }}</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="record-count">Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ total_count }} settlement{{ total_count|pluralize }}</span>
+            <a class="btn btn-dark btn-sm" href="{% url 'admin:nainjyoti_vendorpayout_add' %}"><i class="fa-solid fa-plus me-1"></i>Add payout</a>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -59,6 +57,7 @@
                 <th>UTR / Bank Ref</th>
                 <th>Status</th>
                 <th>Requested Date</th>
+                <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -71,10 +70,14 @@
                 <td><code>{{ payout.utr_number }}</code></td>
                 <td><span class="pill {{ payout.status_pill }}">{{ payout.status_display }}</span></td>
                 <td>{{ payout.requested_at|date:"d M Y" }}</td>
+                <td class="text-end"><div class="d-inline-flex gap-1">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'admin:nainjyoti_vendorpayout_change' payout.id %}" title="Edit payout"><i class="fa-solid fa-pen-to-square"></i></a>
+                  <form method="post" action="{% url 'admin_payout_delete' payout.id %}" onsubmit="return confirm('Permanently delete payout {{ payout.payout_number|escapejs }}? This cannot be undone.');">{% csrf_token %}<button type="submit" class="btn btn-sm btn-danger" title="Delete payout"><i class="fa-solid fa-trash"></i></button></form>
+                </div></td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="7" class="text-center py-4 text-muted">No payout records found matching filter.</td>
+                <td colspan="8" class="text-center py-4 text-muted">No payout records found matching filter.</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -86,6 +89,7 @@
       <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{% static 'admin/js/admin.js' %}"></script>
 </body>
 </html>
