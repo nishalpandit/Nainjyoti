@@ -57,6 +57,7 @@ urlpatterns = [
     path('admin-dashboard/notifications/create/', views.admin_notification_form, name='admin_notification_add'),
     path('admin-dashboard/notifications/<int:notification_id>/delete/', views.admin_notification_delete, name='admin_notification_delete'),
     path('admin-dashboard/reports/', views.admin_reports, name='admin_reports'),
+    path('admin-dashboard/reports/export/', views.admin_reports_export, name='admin_reports_export'),
     path('admin-dashboard/settings/', views.admin_settings, name='admin_settings'),
 
     # Admin Legacy & Relative .html Fail-safe Redirects

@@ -6,13 +6,15 @@ from django.contrib.auth.models import User
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg
-from django.http import JsonResponse
+from django.db.models.functions import TruncDate
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from datetime import timedelta, datetime
 from decimal import Decimal, InvalidOperation
 import json
+import csv
 from django.utils.text import slugify
 from .models import (
     VendorProfile,
@@ -27,6 +29,14 @@ from .models import (
     StockLog,
     OrderRequest,
     Notification,
+    PaymentTransaction,
+    ProductReview,
+    WishlistItem,
+    CartItem,
+    CommissionSetting,
+    CommissionRateHistory,
+    commission_amount_for,
+    customer_price_for,
 )
 
 
@@ -1870,34 +1880,106 @@ def admin_payout_delete(request, payout_id):
 
 @admin_required
 def admin_commissions(request):
-    """Database-backed commission ledger generated from vendor earnings."""
-    search_query = request.GET.get('q', '').strip()
-    status_filter = request.GET.get('status', 'ALL').upper()
-    earnings = VendorEarning.objects.select_related('vendor', 'order').order_by('-created_at')
-    if search_query:
-        earnings = earnings.filter(
-            Q(vendor__business_name__icontains=search_query)
-            | Q(vendor__vendor_code__icontains=search_query)
-            | Q(order__order_number__icontains=search_query)
-        )
-    if status_filter in dict(VendorEarning.STATUS_CHOICES):
-        earnings = earnings.filter(status=status_filter)
-    totals = earnings.aggregate(
-        gross=Sum('gross_amount'),
-        commission=Sum('commission_amount'),
-        net=Sum('net_amount'),
+    """Set the marketplace markup and preview its effect on customer prices."""
+    setting, _ = CommissionSetting.objects.get_or_create(
+        pk=1,
+        defaults={'rate_percent': Decimal('5.00'), 'updated_by': request.user},
     )
-    p_data = paginate_queryset(request, earnings, default_page_size=10)
+
+    if request.method == 'POST':
+        raw_rate = request.POST.get('rate_percent', '').strip()
+        try:
+            new_rate = Decimal(raw_rate)
+            if not new_rate.is_finite() or new_rate < 0 or new_rate > 100:
+                raise ValueError
+            new_rate = new_rate.quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, 'Commission rate must be a number between 0 and 100.')
+            return redirect('admin_commissions')
+
+        with transaction.atomic():
+            locked_setting = CommissionSetting.objects.select_for_update().get(pk=1)
+            old_rate = locked_setting.rate_percent
+            locked_setting.rate_percent = new_rate
+            locked_setting.updated_by = request.user
+            locked_setting.save(update_fields=['rate_percent', 'updated_by', 'updated_at'])
+            if old_rate != new_rate:
+                CommissionRateHistory.objects.create(
+                    old_rate_percent=old_rate,
+                    new_rate_percent=new_rate,
+                    changed_by=request.user,
+                )
+
+        if old_rate == new_rate:
+            messages.info(request, f'Commission is already set to {new_rate:.2f}%.')
+        else:
+            messages.success(
+                request,
+                f'Commission changed from {old_rate:.2f}% to {new_rate:.2f}%. '
+                'Customer catalogue and cart prices have been updated.',
+            )
+        return redirect('admin_commissions')
+
+    search_query = request.GET.get('q', '').strip()
+    vendor_filter = request.GET.get('vendor', '').strip()
+    category_filter = request.GET.get('category', '').strip()
+    products = Product.objects.select_related('vendor', 'category').prefetch_related('variants').order_by('name', 'id')
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(sku__icontains=search_query)
+            | Q(vendor__business_name__icontains=search_query)
+            | Q(vendor__vendor_code__icontains=search_query)
+        )
+    if vendor_filter.isdigit():
+        products = products.filter(vendor_id=int(vendor_filter))
+    if category_filter.isdigit():
+        products = products.filter(category_id=int(category_filter))
+
+    p_data = paginate_queryset(request, products, default_page_size=10)
+    product_previews = []
+    for product in p_data['page_items']:
+        active_variants = [variant for variant in product.variants.all() if variant.is_active]
+        if active_variants:
+            vendor_price = min(Decimal(str(variant.effective_price)) for variant in active_variants)
+            price_label = 'Starting price'
+        else:
+            vendor_price = product.discount_price if product.discount_price is not None else product.price
+            price_label = 'Product price'
+        commission_amount = commission_amount_for(vendor_price, setting.rate_percent)
+        product_previews.append({
+            'product': product,
+            'vendor_price': vendor_price,
+            'commission_amount': commission_amount,
+            'customer_price': customer_price_for(vendor_price, setting.rate_percent),
+            'price_label': price_label,
+        })
+
+    active_product_count = Product.objects.filter(
+        status='ACTIVE',
+        is_approved=True,
+        vendor__status='APPROVED',
+    ).filter(Q(category__isnull=True) | Q(category__status='ACTIVE')).count()
+    example_vendor_price = Decimal('100.00')
+    example_commission = commission_amount_for(example_vendor_price, setting.rate_percent)
     return render(request, 'admin/commissions.html', {
-        'earnings': p_data['page_items'],
+        'setting': setting,
+        'example_vendor_price': example_vendor_price,
+        'example_commission': example_commission,
+        'example_customer_price': customer_price_for(example_vendor_price, setting.rate_percent),
+        'active_product_count': active_product_count,
+        'product_previews': product_previews,
+        'vendors': VendorProfile.objects.order_by('business_name'),
+        'categories': Category.objects.order_by('name'),
+        'history': CommissionRateHistory.objects.select_related('changed_by')[:10],
         'page_obj': p_data['page_obj'],
         'paginator': p_data['paginator'],
         'querystring': p_data['querystring'],
         'elided_page_range': p_data['elided_page_range'],
         'total_count': p_data['total_count'],
-        'totals': totals,
         'search_query': search_query,
-        'status_filter': status_filter,
+        'vendor_filter': vendor_filter,
+        'category_filter': category_filter,
     })
 
 
@@ -2077,17 +2159,362 @@ def admin_notification_delete(request, notification_id):
 
 @admin_required
 def admin_reports(request):
-    """Admin Reports View."""
-    total_gmv = Order.objects.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0
-    total_orders = Order.objects.count()
-    total_vendors = VendorProfile.objects.count()
-    total_customers = UserProfile.objects.count()
-    return render(request, "admin/reports.html", {
-        "total_gmv": format_inr(total_gmv),
-        "total_orders": total_orders,
-        "total_vendors": total_vendors,
-        "total_customers": total_customers,
-    })
+    """Comprehensive marketplace reporting backed entirely by live model data."""
+    start_date, end_date, vendor, filter_errors = _report_filters(request)
+    for error in filter_errors:
+        messages.error(request, error)
+
+    orders = Order.objects.all()
+    order_items = OrderItem.objects.select_related('order', 'vendor', 'product')
+    if start_date:
+        orders = orders.filter(created_at__date__gte=start_date)
+        order_items = order_items.filter(order__created_at__date__gte=start_date)
+    if end_date:
+        orders = orders.filter(created_at__date__lte=end_date)
+        order_items = order_items.filter(order__created_at__date__lte=end_date)
+    if vendor:
+        order_items = order_items.filter(vendor=vendor)
+        orders = orders.filter(items__vendor=vendor).distinct()
+
+    valid_orders = orders.exclude(status='CANCELLED')
+    net_orders = valid_orders.exclude(status='RETURNED')
+    valid_items = order_items.exclude(order__status='CANCELLED').exclude(status='CANCELLED')
+    net_items = valid_items.exclude(order__status='RETURNED').exclude(status='RETURNED')
+
+    if vendor:
+        total_gmv = valid_items.aggregate(value=Sum('total_price'))['value'] or Decimal('0')
+        net_sales = net_items.aggregate(value=Sum('total_price'))['value'] or Decimal('0')
+    else:
+        total_gmv = valid_orders.aggregate(value=Sum('total_amount'))['value'] or Decimal('0')
+        net_sales = net_orders.aggregate(value=Sum('total_amount'))['value'] or Decimal('0')
+
+    total_orders = orders.count()
+    gmv_order_count = (
+        valid_items.values('order_id').distinct().count() if vendor else valid_orders.count()
+    )
+    aov = (Decimal(total_gmv) / gmv_order_count) if gmv_order_count else Decimal('0')
+    units_sold = valid_items.aggregate(value=Sum('quantity'))['value'] or 0
+
+    payments = PaymentTransaction.objects.select_related('order', 'customer')
+    earnings = VendorEarning.objects.select_related('vendor', 'order')
+    payouts = VendorPayout.objects.select_related('vendor')
+    order_requests = OrderRequest.objects.select_related('order', 'customer')
+    if start_date:
+        payments = payments.filter(created_at__date__gte=start_date)
+        earnings = earnings.filter(created_at__date__gte=start_date)
+        payouts = payouts.filter(requested_at__date__gte=start_date)
+        order_requests = order_requests.filter(created_at__date__gte=start_date)
+    if end_date:
+        payments = payments.filter(created_at__date__lte=end_date)
+        earnings = earnings.filter(created_at__date__lte=end_date)
+        payouts = payouts.filter(requested_at__date__lte=end_date)
+        order_requests = order_requests.filter(created_at__date__lte=end_date)
+    if vendor:
+        payments = payments.filter(order__items__vendor=vendor).distinct()
+        earnings = earnings.filter(vendor=vendor)
+        payouts = payouts.filter(vendor=vendor)
+        order_requests = order_requests.filter(order__items__vendor=vendor).distinct()
+
+    paid_amount = payments.filter(status='PAID').aggregate(value=Sum('amount'))['value'] or Decimal('0')
+    refunded_amount = payments.filter(status='REFUNDED').aggregate(value=Sum('amount'))['value'] or Decimal('0')
+    commission_amount = earnings.exclude(status='REFUNDED').aggregate(value=Sum('commission_amount'))['value'] or Decimal('0')
+    vendor_net_amount = earnings.exclude(status='REFUNDED').aggregate(value=Sum('net_amount'))['value'] or Decimal('0')
+    pending_payout_amount = payouts.filter(status__in=['PENDING', 'PROCESSING']).aggregate(value=Sum('amount'))['value'] or Decimal('0')
+
+    product_scope = Product.objects.select_related('vendor', 'category').prefetch_related('variants')
+    if vendor:
+        product_scope = product_scope.filter(vendor=vendor)
+    inventory_products = list(product_scope)
+    inventory_value = sum((Decimal(str(product.stock_valuation)) for product in inventory_products), Decimal('0'))
+    total_stock_units = sum(max(product.stock_quantity, 0) for product in inventory_products)
+    low_stock_count = sum(1 for product in inventory_products if 0 < product.stock_quantity <= product.low_stock_threshold)
+    out_of_stock_count = sum(1 for product in inventory_products if product.stock_quantity <= 0)
+
+    order_status_counts = {row['status']: row['count'] for row in orders.values('status').annotate(count=Count('id'))}
+    order_status_report = _distribution_rows(Order.STATUS_CHOICES, order_status_counts, total_orders)
+    payment_status_counts = {row['status']: row['count'] for row in payments.values('status').annotate(count=Count('id'))}
+    payment_status_report = _distribution_rows(PaymentTransaction.STATUS_CHOICES, payment_status_counts, payments.count())
+    payment_method_counts = {row['payment_method']: row['count'] for row in orders.values('payment_method').annotate(count=Count('id'))}
+    payment_method_report = _distribution_rows(Order.PAYMENT_METHOD_CHOICES, payment_method_counts, total_orders)
+    request_status_counts = {row['status']: row['count'] for row in order_requests.values('status').annotate(count=Count('id'))}
+    request_status_report = _distribution_rows(OrderRequest.STATUS_CHOICES, request_status_counts, order_requests.count())
+    payout_status_counts = {row['status']: row['count'] for row in payouts.values('status').annotate(count=Count('id'))}
+    payout_status_report = _distribution_rows(VendorPayout.STATUS_CHOICES, payout_status_counts, payouts.count())
+
+    trend_end = end_date or timezone.localdate()
+    trend_start = max(start_date, trend_end - timedelta(days=29)) if start_date else trend_end - timedelta(days=29)
+    if vendor:
+        trend_raw = valid_items.filter(
+            order__created_at__date__range=(trend_start, trend_end)
+        ).annotate(day=TruncDate('order__created_at')).values('day').annotate(
+            revenue=Sum('total_price'), orders=Count('order_id', distinct=True)
+        ).order_by('day')
+    else:
+        trend_raw = valid_orders.filter(
+            created_at__date__range=(trend_start, trend_end)
+        ).annotate(day=TruncDate('created_at')).values('day').annotate(
+            revenue=Sum('total_amount'), orders=Count('id')
+        ).order_by('day')
+    trend_map = {row['day']: row for row in trend_raw}
+    trend_rows = []
+    cursor = trend_start
+    while cursor <= trend_end:
+        row = trend_map.get(cursor, {})
+        trend_rows.append({
+            'date': cursor,
+            'revenue': row.get('revenue') or Decimal('0'),
+            'orders': row.get('orders') or 0,
+        })
+        cursor += timedelta(days=1)
+    trend_peak = max((float(row['revenue']) for row in trend_rows), default=0) or 1
+    for row in trend_rows:
+        row['bar_percent'] = max(2, round(float(row['revenue']) / trend_peak * 100)) if row['revenue'] else 0
+
+    top_vendors = list(valid_items.values(
+        'vendor_id', 'vendor__vendor_code', 'vendor__business_name'
+    ).annotate(
+        revenue=Sum('total_price'),
+        units=Sum('quantity'),
+        orders=Count('order_id', distinct=True),
+    ).order_by('-revenue')[:10])
+    top_products = list(valid_items.values(
+        'product_id', 'product_name', 'product_sku'
+    ).annotate(
+        revenue=Sum('total_price'),
+        units=Sum('quantity'),
+        orders=Count('order_id', distinct=True),
+    ).order_by('-revenue')[:10])
+
+    category_sales = {
+        row['product__category_id']: row
+        for row in valid_items.exclude(product__category__isnull=True).values('product__category_id').annotate(
+            revenue=Sum('total_price'), units=Sum('quantity')
+        )
+    }
+    if vendor:
+        categories = Category.objects.annotate(
+            product_count=Count('products', filter=Q(products__vendor=vendor), distinct=True),
+            stock_units=Sum('products__stock_quantity', filter=Q(products__vendor=vendor)),
+        ).filter(product_count__gt=0).order_by('name')
+    else:
+        categories = Category.objects.annotate(
+            product_count=Count('products', distinct=True),
+            stock_units=Sum('products__stock_quantity'),
+        ).order_by('name')
+    category_report = []
+    for category in categories:
+        sales = category_sales.get(category.id, {})
+        category_report.append({
+            'id': category.id,
+            'name': category.name,
+            'status': category.status,
+            'product_count': category.product_count,
+            'stock_units': category.stock_units or 0,
+            'units_sold': sales.get('units') or 0,
+            'revenue': sales.get('revenue') or Decimal('0'),
+        })
+    category_report.sort(key=lambda row: row['revenue'], reverse=True)
+
+    period_customer_qs = UserProfile.objects.all()
+    period_vendor_qs = VendorProfile.objects.all()
+    if start_date:
+        period_customer_qs = period_customer_qs.filter(created_at__date__gte=start_date)
+        period_vendor_qs = period_vendor_qs.filter(created_at__date__gte=start_date)
+    if end_date:
+        period_customer_qs = period_customer_qs.filter(created_at__date__lte=end_date)
+        period_vendor_qs = period_vendor_qs.filter(created_at__date__lte=end_date)
+
+    review_qs = ProductReview.objects.all()
+    wishlist_qs = WishlistItem.objects.all()
+    cart_qs = CartItem.objects.all()
+    if vendor:
+        review_qs = review_qs.filter(product__vendor=vendor)
+        wishlist_qs = wishlist_qs.filter(product__vendor=vendor)
+        cart_qs = cart_qs.filter(product__vendor=vendor)
+    if start_date:
+        review_qs = review_qs.filter(created_at__date__gte=start_date)
+        wishlist_qs = wishlist_qs.filter(created_at__date__gte=start_date)
+        cart_qs = cart_qs.filter(created_at__date__gte=start_date)
+    if end_date:
+        review_qs = review_qs.filter(created_at__date__lte=end_date)
+        wishlist_qs = wishlist_qs.filter(created_at__date__lte=end_date)
+        cart_qs = cart_qs.filter(created_at__date__lte=end_date)
+
+    context = {
+        'start_date': start_date.isoformat() if start_date else '',
+        'end_date': end_date.isoformat() if end_date else '',
+        'selected_vendor_id': str(vendor.id) if vendor else '',
+        'selected_vendor': vendor,
+        'vendors': VendorProfile.objects.order_by('business_name'),
+        'period_label': _report_period_label(start_date, end_date),
+        'total_gmv': format_inr(total_gmv),
+        'net_sales': format_inr(net_sales),
+        'paid_amount': format_inr(paid_amount),
+        'refunded_amount': format_inr(refunded_amount),
+        'commission_amount': format_inr(commission_amount),
+        'vendor_net_amount': format_inr(vendor_net_amount),
+        'pending_payout_amount': format_inr(pending_payout_amount),
+        'inventory_value': format_inr(inventory_value),
+        'total_orders': total_orders,
+        'aov': format_inr(aov),
+        'units_sold': units_sold,
+        'total_vendors': VendorProfile.objects.count(),
+        'approved_vendors': VendorProfile.objects.filter(status='APPROVED').count(),
+        'new_vendors': period_vendor_qs.count(),
+        'total_customers': UserProfile.objects.count(),
+        'active_customers': UserProfile.objects.filter(is_active=True).count(),
+        'new_customers': period_customer_qs.count(),
+        'total_products': len(inventory_products),
+        'approved_products': sum(1 for product in inventory_products if product.is_approved),
+        'total_stock_units': total_stock_units,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'pending_returns': order_requests.filter(status='PENDING').count(),
+        'return_request_count': order_requests.filter(request_type='RETURN').count(),
+        'cancel_request_count': order_requests.filter(request_type='CANCEL').count(),
+        'average_rating': review_qs.filter(is_approved=True).aggregate(value=Avg('rating'))['value'] or 0,
+        'review_count': review_qs.count(),
+        'wishlist_count': wishlist_qs.count(),
+        'cart_item_count': cart_qs.count(),
+        'unread_notifications': Notification.objects.filter(is_read=False).count(),
+        'order_status_report': order_status_report,
+        'payment_status_report': payment_status_report,
+        'payment_method_report': payment_method_report,
+        'request_status_report': request_status_report,
+        'payout_status_report': payout_status_report,
+        'trend_rows': trend_rows,
+        'trend_start': trend_start,
+        'trend_end': trend_end,
+        'top_vendors': top_vendors,
+        'top_products': top_products,
+        'category_report': category_report[:10],
+        'recent_orders': orders.select_related('customer').order_by('-created_at')[:10],
+    }
+    return render(request, "admin/reports.html", context)
+
+
+def _parse_report_date(raw_value, field_label):
+    raw_value = (raw_value or '').strip()
+    if not raw_value:
+        return None, None
+    try:
+        return datetime.strptime(raw_value, '%Y-%m-%d').date(), None
+    except ValueError:
+        return None, f'{field_label} must use YYYY-MM-DD format.'
+
+
+def _report_filters(request):
+    start_date, start_error = _parse_report_date(request.GET.get('start_date'), 'Start date')
+    end_date, end_error = _parse_report_date(request.GET.get('end_date'), 'End date')
+    errors = [error for error in (start_error, end_error) if error]
+    if start_date and end_date and start_date > end_date:
+        errors.append('Start date cannot be after end date.')
+        start_date = end_date = None
+    vendor = None
+    raw_vendor_id = request.GET.get('vendor_id', '').strip()
+    if raw_vendor_id:
+        vendor = VendorProfile.objects.filter(pk=raw_vendor_id).first() if raw_vendor_id.isdigit() else None
+        if not vendor:
+            errors.append('The selected vendor was not found.')
+    return start_date, end_date, vendor, errors
+
+
+def _report_period_label(start_date, end_date):
+    if start_date and end_date:
+        return f"{start_date.strftime('%d %b %Y')} – {end_date.strftime('%d %b %Y')}"
+    if start_date:
+        return f"From {start_date.strftime('%d %b %Y')}"
+    if end_date:
+        return f"Up to {end_date.strftime('%d %b %Y')}"
+    return 'All-time data'
+
+
+def _distribution_rows(choices, counts, total):
+    rows = []
+    for value, label in choices:
+        count = counts.get(value, 0)
+        rows.append({
+            'value': value,
+            'label': label,
+            'count': count,
+            'percent': round((count / total) * 100, 1) if total else 0,
+        })
+    return rows
+
+
+@admin_required
+def admin_reports_export(request):
+    """Export filtered operational report datasets as UTF-8 CSV files."""
+    report_type = request.GET.get('report', 'orders').strip().lower()
+    allowed_types = {'orders', 'products', 'vendors', 'payments', 'returns', 'inventory'}
+    if report_type not in allowed_types:
+        return JsonResponse({'success': False, 'message': 'Invalid report type.'}, status=400)
+
+    start_date, end_date, vendor, errors = _report_filters(request)
+    if errors:
+        return JsonResponse({'success': False, 'message': ' '.join(errors)}, status=400)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="nainjyoti-{report_type}-report-{timezone.localdate().isoformat()}.csv"'
+    response.write('\ufeff')
+    writer = csv.writer(response)
+
+    if report_type == 'orders':
+        queryset = Order.objects.all().order_by('-created_at')
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+        if vendor:
+            queryset = queryset.filter(items__vendor=vendor).distinct()
+        writer.writerow(['Order number', 'Customer', 'Phone', 'Amount', 'Payment method', 'Payment status', 'Order status', 'Created at'])
+        for item in queryset:
+            writer.writerow([item.order_number, item.customer_name, item.customer_phone, item.total_amount, item.payment_method, item.payment_status, item.status, item.created_at.isoformat()])
+    elif report_type == 'products':
+        queryset = Product.objects.select_related('vendor', 'category').order_by('name')
+        if vendor:
+            queryset = queryset.filter(vendor=vendor)
+        writer.writerow(['Product ID', 'Name', 'SKU', 'Vendor', 'Category', 'Price', 'Discount price', 'Stock', 'Status', 'Approved'])
+        for item in queryset:
+            writer.writerow([item.id, item.name, item.sku, item.vendor.business_name, item.category.name if item.category else '', item.price, item.discount_price or '', item.stock_quantity, item.status, item.is_approved])
+    elif report_type == 'vendors':
+        writer.writerow(['Vendor ID', 'Business', 'Owner', 'Email', 'Phone', 'State', 'Status', 'Created at'])
+        for item in VendorProfile.objects.select_related('user').order_by('business_name'):
+            writer.writerow([item.vendor_code, item.business_name, item.owner_name, item.user.email, item.phone, item.state, item.status, item.created_at.isoformat()])
+    elif report_type == 'payments':
+        queryset = PaymentTransaction.objects.select_related('order', 'customer').order_by('-created_at')
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+        if vendor:
+            queryset = queryset.filter(order__items__vendor=vendor).distinct()
+        writer.writerow(['Reference', 'Order', 'Customer', 'Method', 'Amount', 'Currency', 'Status', 'Provider', 'Created at'])
+        for item in queryset:
+            writer.writerow([item.reference, item.order.order_number, item.customer.full_name if item.customer else '', item.method, item.amount, item.currency, item.status, item.provider, item.created_at.isoformat()])
+    elif report_type == 'returns':
+        queryset = OrderRequest.objects.select_related('order', 'customer').order_by('-created_at')
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+        if vendor:
+            queryset = queryset.filter(order__items__vendor=vendor).distinct()
+        writer.writerow(['Request number', 'Type', 'Order', 'Customer', 'Reason', 'Status', 'Admin notes', 'Created at'])
+        for item in queryset:
+            writer.writerow([item.request_number, item.request_type, item.order.order_number, item.customer.full_name, item.reason, item.status, item.admin_notes, item.created_at.isoformat()])
+    else:
+        queryset = StockLog.objects.select_related('product', 'variant', 'vendor').order_by('-created_at')
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date)
+        if vendor:
+            queryset = queryset.filter(vendor=vendor)
+        writer.writerow(['Created at', 'Vendor', 'Product', 'SKU', 'Variant', 'Movement', 'Change', 'Previous stock', 'New stock', 'Reason', 'Reference'])
+        for item in queryset:
+            writer.writerow([item.created_at.isoformat(), item.vendor.business_name, item.product.name, item.product.sku, item.variant.title if item.variant else '', item.movement_type, item.quantity_changed, item.previous_stock, item.new_stock, item.reason, item.reference_id])
+    return response
 
 
 @admin_required

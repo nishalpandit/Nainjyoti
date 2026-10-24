@@ -42,9 +42,33 @@ from .models import (
 
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
 
-    OrderStatusHistory, VendorEarning, VendorPayout
+    OrderStatusHistory, VendorEarning, VendorPayout, CommissionSetting,
+
+    commission_amount_for, customer_price_for
 
 )
+
+
+def _customer_variant_dict(variant, commission_rate=None):
+    """Serialize a variant with customer-payable prices in the standard price fields."""
+    rate = commission_rate if commission_rate is not None else CommissionSetting.current_rate()
+    data = variant.to_dict()
+    base_regular = variant.price if variant.price is not None else variant.product.price
+    if variant.discount_price is not None:
+        base_discount = variant.discount_price
+    elif variant.price is None and variant.product.discount_price is not None:
+        base_discount = variant.product.discount_price
+    else:
+        base_discount = None
+    base_effective = Decimal(str(variant.effective_price))
+    data.update({
+        'price': float(customer_price_for(base_regular, rate)),
+        'discount_price': float(customer_price_for(base_discount, rate)) if base_discount is not None else None,
+        'effective_price': float(customer_price_for(base_effective, rate)),
+        'commission_rate_percent': float(rate),
+        'commission_amount': float(commission_amount_for(base_effective, rate)),
+    })
+    return data
 
 
 def admin_api_required(view_func):
@@ -1977,7 +2001,11 @@ def api_user_category_products(request, category_id):
 
 
 
-    # Price range filters
+    commission_rate = CommissionSetting.current_rate()
+
+    price_multiplier = (Decimal('100') + commission_rate) / Decimal('100')
+
+    # Price range filters use the final customer price (vendor price + commission).
 
     min_price_raw = request.GET.get('min_price')
 
@@ -1985,15 +2013,19 @@ def api_user_category_products(request, category_id):
 
         try:
 
-            min_price = float(min_price_raw)
+            min_price = Decimal(min_price_raw)
+
+            if not min_price.is_finite():
+
+                raise ValueError
 
             if min_price < 0:
 
                 return JsonResponse({"success": False, "message": "Query parameter 'min_price' cannot be negative."}, status=400)
 
-            products_qs = products_qs.filter(effective_price__gte=min_price)
+            products_qs = products_qs.filter(effective_price__gte=min_price / price_multiplier)
 
-        except (ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
 
             return JsonResponse({"success": False, "message": "Query parameter 'min_price' must be a valid number."}, status=400)
 
@@ -2005,15 +2037,19 @@ def api_user_category_products(request, category_id):
 
         try:
 
-            max_price = float(max_price_raw)
+            max_price = Decimal(max_price_raw)
+
+            if not max_price.is_finite():
+
+                raise ValueError
 
             if max_price < 0:
 
                 return JsonResponse({"success": False, "message": "Query parameter 'max_price' cannot be negative."}, status=400)
 
-            products_qs = products_qs.filter(effective_price__lte=max_price)
+            products_qs = products_qs.filter(effective_price__lte=max_price / price_multiplier)
 
-        except (ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
 
             return JsonResponse({"success": False, "message": "Query parameter 'max_price' must be a valid number."}, status=400)
 
@@ -2095,6 +2131,18 @@ def api_user_category_products(request, category_id):
 
     for product in page_items:
 
+        customer_price = customer_price_for(product.price, commission_rate)
+
+        customer_discount_price = (
+
+            customer_price_for(product.discount_price, commission_rate)
+
+            if product.discount_price is not None else None
+
+        )
+
+        customer_effective_price = customer_price_for(product.effective_price, commission_rate)
+
         product_list.append({
 
             "id": product.id,
@@ -2103,11 +2151,15 @@ def api_user_category_products(request, category_id):
 
             "sku": product.sku,
 
-            "price": float(product.price),
+            "price": float(customer_price),
 
-            "discount_price": float(product.discount_price) if product.discount_price is not None else None,
+            "discount_price": float(customer_discount_price) if customer_discount_price is not None else None,
 
-            "effective_price": float(product.effective_price),
+            "effective_price": float(customer_effective_price),
+
+            "commission_rate_percent": float(commission_rate),
+
+            "commission_amount": float(commission_amount_for(product.effective_price, commission_rate)),
 
             "image_url": product.image_url,
 
@@ -2331,6 +2383,10 @@ def api_product_search(request):
 
         }, status=400)
 
+    commission_rate = CommissionSetting.current_rate()
+
+    price_multiplier = (Decimal('100') + commission_rate) / Decimal('100')
+
 
 
     raw_in_stock = request.GET.get('in_stock')
@@ -2467,11 +2523,11 @@ def api_product_search(request):
 
     if min_price is not None:
 
-        products = products.filter(effective_price__gte=min_price)
+        products = products.filter(effective_price__gte=min_price / price_multiplier)
 
     if max_price is not None:
 
-        products = products.filter(effective_price__lte=max_price)
+        products = products.filter(effective_price__lte=max_price / price_multiplier)
 
     if in_stock_only:
 
@@ -2499,15 +2555,21 @@ def api_product_search(request):
 
         'sku': product.sku,
 
-        'price': float(product.price),
+        'price': float(customer_price_for(product.price, commission_rate)),
 
         'discount_price': (
 
-            float(product.discount_price) if product.discount_price is not None else None
+            float(customer_price_for(product.discount_price, commission_rate))
+
+            if product.discount_price is not None else None
 
         ),
 
-        'effective_price': float(product.effective_price),
+        'effective_price': float(customer_price_for(product.effective_price, commission_rate)),
+
+        'commission_rate_percent': float(commission_rate),
+
+        'commission_amount': float(commission_amount_for(product.effective_price, commission_rate)),
 
         'image_url': product.image_url,
 
@@ -2690,6 +2752,8 @@ def api_random_products(request):
 
     random_products = list(products.order_by('?')[:limit])
 
+    commission_rate = CommissionSetting.current_rate()
+
     product_data = [{
 
         'id': product.id,
@@ -2698,11 +2762,21 @@ def api_random_products(request):
 
         'sku': product.sku,
 
-        'price': float(product.price),
+        'price': float(customer_price_for(product.price, commission_rate)),
 
-        'discount_price': float(product.discount_price) if product.discount_price is not None else None,
+        'discount_price': (
 
-        'effective_price': float(product.effective_price),
+            float(customer_price_for(product.discount_price, commission_rate))
+
+            if product.discount_price is not None else None
+
+        ),
+
+        'effective_price': float(customer_price_for(product.effective_price, commission_rate)),
+
+        'commission_rate_percent': float(commission_rate),
+
+        'commission_amount': float(commission_amount_for(product.effective_price, commission_rate)),
 
         'image_url': product.image_url,
 
@@ -2808,11 +2882,21 @@ def api_user_product_detail(request, product_id):
 
 
 
-    price = float(product.price)
+    commission_rate = CommissionSetting.current_rate()
 
-    discount_price = float(product.discount_price) if product.discount_price is not None else None
+    price = float(customer_price_for(product.price, commission_rate))
 
-    effective_price = product.customer_effective_price
+    discount_price = (
+
+        float(customer_price_for(product.discount_price, commission_rate))
+
+        if product.discount_price is not None else None
+
+    )
+
+    base_effective_price = product.customer_effective_price
+
+    effective_price = float(customer_price_for(base_effective_price, commission_rate))
 
     savings_amount = round(price - effective_price, 2) if effective_price < price else 0.0
 
@@ -2864,7 +2948,13 @@ def api_user_product_detail(request, product_id):
 
 
 
-    variants = [v.to_dict() for v in product.variants.filter(is_active=True).order_by('id')]
+    variants = [
+
+        _customer_variant_dict(v, commission_rate)
+
+        for v in product.variants.filter(is_active=True).order_by('id')
+
+    ]
 
     has_variants = len(variants) > 0
 
@@ -2908,9 +2998,15 @@ def api_user_product_detail(request, product_id):
 
     for rel in related_qs.order_by('-created_at')[:6]:
 
-        rel_price = float(rel.price)
+        rel_price = float(customer_price_for(rel.price, commission_rate))
 
-        rel_discount = float(rel.discount_price) if rel.discount_price is not None else None
+        rel_discount = (
+
+            float(customer_price_for(rel.discount_price, commission_rate))
+
+            if rel.discount_price is not None else None
+
+        )
 
         related_products.append({
 
@@ -2924,7 +3020,11 @@ def api_user_product_detail(request, product_id):
 
             "discount_price": rel_discount,
 
-            "effective_price": rel.customer_effective_price,
+            "effective_price": float(customer_price_for(rel.customer_effective_price, commission_rate)),
+
+            "commission_rate_percent": float(commission_rate),
+
+            "commission_amount": float(commission_amount_for(rel.customer_effective_price, commission_rate)),
 
             "image_url": rel.image_url,
 
@@ -2961,6 +3061,10 @@ def api_user_product_detail(request, product_id):
         "discount_price": discount_price,
 
         "effective_price": effective_price,
+
+        "commission_rate_percent": float(commission_rate),
+
+        "commission_amount": float(commission_amount_for(base_effective_price, commission_rate)),
 
         "savings_amount": savings_amount,
 
@@ -3070,6 +3174,8 @@ def api_user_product_variants(request, product_id):
 
     variants = list(product.variants.filter(is_active=True).order_by('id'))
 
+    commission_rate = CommissionSetting.current_rate()
+
     available_colors = sorted({variant.color for variant in variants if variant.color})
 
     available_sizes = sorted({variant.size for variant in variants if variant.size})
@@ -3094,7 +3200,9 @@ def api_user_product_variants(request, product_id):
 
         "available_materials": available_materials,
 
-        "variants": [variant.to_dict() for variant in variants],
+        "commission_rate_percent": float(commission_rate),
+
+        "variants": [_customer_variant_dict(variant, commission_rate) for variant in variants],
 
     }, status=200)
 
@@ -3150,11 +3258,13 @@ def api_user_variant_detail(request, variant_id):
 
 
 
+    commission_rate = CommissionSetting.current_rate()
+
     return JsonResponse({
 
         "success": True,
 
-        "variant": variant.to_dict(),
+        "variant": _customer_variant_dict(variant, commission_rate),
 
     }, status=200)
 
@@ -3910,6 +4020,8 @@ def api_user_checkout(request):
 
         total_amount = Decimal('0.00')
 
+        commission_rate = CommissionSetting.current_rate()
+
         for cart_item in cart_items:
 
             product = products.get(cart_item.product_id)
@@ -3980,23 +4092,31 @@ def api_user_checkout(request):
 
             if variant and variant.discount_price is not None:
 
-                unit_price = variant.discount_price
+                vendor_unit_price = variant.discount_price
 
             elif variant and variant.price is not None:
 
-                unit_price = variant.price
+                vendor_unit_price = variant.price
 
             elif product.discount_price is not None:
 
-                unit_price = product.discount_price
+                vendor_unit_price = product.discount_price
 
             else:
 
-                unit_price = product.price
+                vendor_unit_price = product.price
 
 
+
+            unit_commission = commission_amount_for(vendor_unit_price, commission_rate)
+
+            unit_price = customer_price_for(vendor_unit_price, commission_rate)
 
             line_total = unit_price * cart_item.quantity
+
+            vendor_line_total = vendor_unit_price * cart_item.quantity
+
+            line_commission = unit_commission * cart_item.quantity
 
             total_amount += line_total
 
@@ -4011,6 +4131,14 @@ def api_user_checkout(request):
                 'stock_target': stock_target,
 
                 'unit_price': unit_price,
+
+                'vendor_unit_price': vendor_unit_price,
+
+                'commission_rate': commission_rate,
+
+                'commission_amount': line_commission,
+
+                'vendor_line_total': vendor_line_total,
 
                 'line_total': line_total,
 
@@ -4123,6 +4251,12 @@ def api_user_checkout(request):
                 variant_title=variant.title if variant else '',
 
                 price=line['unit_price'],
+
+                vendor_unit_price=line['vendor_unit_price'],
+
+                commission_rate=line['commission_rate'],
+
+                commission_amount=line['commission_amount'],
 
                 quantity=cart_item.quantity,
 
@@ -10570,11 +10704,11 @@ def api_vendor_order_status_update(request, order_id):
 
                     'gross_amount': item.total_price,
 
-                    'commission_rate': 5.00,
+                    'commission_rate': item.commission_rate,
 
-                    'commission_amount': round(float(item.total_price) * 0.05, 2),
+                    'commission_amount': item.commission_amount,
 
-                    'net_amount': round(float(item.total_price) * 0.95, 2),
+                    'net_amount': item.vendor_unit_price * item.quantity,
 
                     'status': 'AVAILABLE',
 

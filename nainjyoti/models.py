@@ -4,7 +4,11 @@ from django.utils import timezone
 import random
 import secrets
 from datetime import timedelta
-from django.utils.text import slugify
+from django.utils.text import slugify
+
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+from decimal import Decimal, ROUND_HALF_UP
 
 class VendorProfile(models.Model):
     STATUS_CHOICES = [
@@ -296,7 +300,7 @@ class OTPRecord(models.Model):
         )
 
 
-class Category(models.Model):
+class Category(models.Model):
     """
     Master Category Taxonomy.
     Includes name, description, image thumbnail, and active status for product listings.
@@ -331,7 +335,7 @@ class Category(models.Model):
     def products_count(self):
         return self.products.filter(status='ACTIVE', is_approved=True, vendor__status='APPROVED').count()
 
-    def to_dict(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
@@ -341,10 +345,79 @@ class Category(models.Model):
             'products_count': self.products_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-        }
+        }
+
+
+class CommissionSetting(models.Model):
+    """Singleton marketplace commission applied as markup on vendor base prices."""
+
+    rate_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('5.00'),
+        validators=[MinValueValidator(Decimal('0.00')), MaxValueValidator(Decimal('100.00'))],
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='commission_setting_updates',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Marketplace Commission Setting'
+        verbose_name_plural = 'Marketplace Commission Setting'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def current_rate(cls):
+        rate = cls.objects.filter(pk=1).values_list('rate_percent', flat=True).first()
+        return rate if rate is not None else Decimal('5.00')
+
+    def __str__(self):
+        return f"Marketplace commission: {self.rate_percent}%"
+
+
+class CommissionRateHistory(models.Model):
+    """Audit trail for changes to the marketplace commission rate."""
+
+    old_rate_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    new_rate_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='commission_rate_changes',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Commission Rate History'
+        verbose_name_plural = 'Commission Rate History'
+
+    def __str__(self):
+        return f"{self.old_rate_percent}% to {self.new_rate_percent}%"
+
+
+def commission_amount_for(base_price, rate_percent=None):
+    base = Decimal(str(base_price or 0))
+    rate = Decimal(str(rate_percent if rate_percent is not None else CommissionSetting.current_rate()))
+    return (base * rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def customer_price_for(base_price, rate_percent=None):
+    base = Decimal(str(base_price or 0))
+    return (base + commission_amount_for(base, rate_percent)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-class Product(models.Model):
+class Product(models.Model):
     """
     Product Model for Vendor / Merchant Catalog.
     Includes item details, pricing, stock, category master mapping, and product image.
@@ -427,11 +500,29 @@ class Product(models.Model):
         return self.active_variant_count
 
     @property
-    def customer_effective_price(self):
+    def customer_effective_price(self):
         variants = list(self.variants.filter(is_active=True))
         if variants:
             return min(variant.effective_price for variant in variants)
-        return float(self.discount_price if self.discount_price is not None else self.price)
+        return float(self.discount_price if self.discount_price is not None else self.price)
+
+    @property
+    def customer_regular_price_with_commission(self):
+        return customer_price_for(self.price)
+
+    @property
+    def customer_discount_price_with_commission(self):
+        if self.discount_price is None:
+            return None
+        return customer_price_for(self.discount_price)
+
+    @property
+    def customer_effective_price_with_commission(self):
+        return customer_price_for(self.customer_effective_price)
+
+    @property
+    def effective_commission_amount(self):
+        return commission_amount_for(self.customer_effective_price)
 
     def sync_variant_inventory(self, force=False):
         """Keep legacy product stock/status fields aligned with variant inventory."""
@@ -461,7 +552,7 @@ class Product(models.Model):
             return round(sum(variant.effective_price * max(variant.stock_quantity, 0) for variant in variants), 2)
         return round(self.customer_effective_price * max(self.stock_quantity, 0), 2)
 
-    def to_dict(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'vendor_id': self.vendor_id,
@@ -474,7 +565,14 @@ class Product(models.Model):
             'description': self.description,
             'price': float(self.price) if self.price is not None else 0.0,
             'discount_price': float(self.discount_price) if self.discount_price is not None else None,
-            'effective_price': self.customer_effective_price,
+            'effective_price': self.customer_effective_price,
+            'customer_price': float(self.customer_regular_price_with_commission),
+            'customer_discount_price': (
+                float(self.customer_discount_price_with_commission)
+                if self.customer_discount_price_with_commission is not None else None
+            ),
+            'customer_effective_price': float(self.customer_effective_price_with_commission),
+            'commission_rate_percent': float(CommissionSetting.current_rate()),
             'stock_quantity': self.stock_quantity,
             'low_stock_threshold': self.low_stock_threshold,
             'stock_status': self.stock_status,
@@ -490,7 +588,7 @@ class Product(models.Model):
         }
 
 
-class ProductVariant(models.Model):
+class ProductVariant(models.Model):
     """Purchasable color, size, or material option belonging to a product."""
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
@@ -542,7 +640,7 @@ class ProductVariant(models.Model):
         return self.product.image_url
 
     @property
-    def effective_price(self):
+    def effective_price(self):
         if self.discount_price is not None:
             return float(self.discount_price)
         if self.price is not None:
@@ -552,9 +650,30 @@ class ProductVariant(models.Model):
             if self.product.discount_price is not None
             else self.product.price
         )
-        return float(product_price)
+        return float(product_price)
+
+    @property
+    def customer_regular_price(self):
+        base_price = self.price if self.price is not None else self.product.price
+        return customer_price_for(base_price)
+
+    @property
+    def customer_discount_price(self):
+        if self.discount_price is not None:
+            return customer_price_for(self.discount_price)
+        if self.price is None and self.product.discount_price is not None:
+            return customer_price_for(self.product.discount_price)
+        return None
+
+    @property
+    def customer_effective_price(self):
+        return customer_price_for(self.effective_price)
+
+    @property
+    def effective_commission_amount(self):
+        return commission_amount_for(self.effective_price)
 
-    def to_dict(self):
+    def to_dict(self):
         regular_price = float(self.price) if self.price is not None else float(self.product.price)
         sale_price = float(self.discount_price) if self.discount_price is not None else (
             float(self.product.discount_price) if self.product.discount_price is not None else None
@@ -569,7 +688,13 @@ class ProductVariant(models.Model):
             'sku': self.sku,
             'price': regular_price,
             'discount_price': sale_price,
-            'effective_price': self.effective_price,
+            'effective_price': self.effective_price,
+            'customer_price': float(self.customer_regular_price),
+            'customer_discount_price': (
+                float(self.customer_discount_price) if self.customer_discount_price is not None else None
+            ),
+            'customer_effective_price': float(self.customer_effective_price),
+            'commission_rate_percent': float(CommissionSetting.current_rate()),
             'stock_quantity': self.stock_quantity,
             'in_stock': self.stock_quantity > 0,
             'image_url': self.image_url,
@@ -577,7 +702,7 @@ class ProductVariant(models.Model):
         }
 
 
-class CartItem(models.Model):
+class CartItem(models.Model):
     """A customer's persisted cart line for a product or product variant."""
 
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='cart_items')
@@ -619,16 +744,28 @@ class CartItem(models.Model):
         return f"{self.user.full_name} - {item_name} x {self.quantity}"
 
     @property
-    def regular_unit_price(self):
-        if self.variant and self.variant.price is not None:
-            return self.variant.price
-        return self.product.price
+    def regular_unit_price(self):
+        if self.variant and self.variant.price is not None:
+            base_price = self.variant.price
+        else:
+            base_price = self.product.price
+        return customer_price_for(base_price)
+
+    @property
+    def vendor_regular_unit_price(self):
+        if self.variant and self.variant.price is not None:
+            return self.variant.price
+        return self.product.price
 
     @property
-    def effective_unit_price(self):
-        if self.variant:
-            if self.variant.discount_price is not None:
-                return self.variant.discount_price
+    def effective_unit_price(self):
+        return customer_price_for(self.vendor_effective_unit_price)
+
+    @property
+    def vendor_effective_unit_price(self):
+        if self.variant:
+            if self.variant.discount_price is not None:
+                return self.variant.discount_price
             if self.variant.price is not None:
                 return self.variant.price
         if self.product.discount_price is not None:
@@ -644,8 +781,20 @@ class CartItem(models.Model):
         return self.effective_unit_price * self.quantity
 
     @property
-    def line_savings(self):
-        return (self.regular_unit_price - self.effective_unit_price) * self.quantity
+    def line_savings(self):
+        return (self.regular_unit_price - self.effective_unit_price) * self.quantity
+
+    @property
+    def commission_unit_amount(self):
+        return commission_amount_for(self.vendor_effective_unit_price)
+
+    @property
+    def commission_total(self):
+        return self.commission_unit_amount * self.quantity
+
+    @property
+    def vendor_line_total(self):
+        return self.vendor_effective_unit_price * self.quantity
 
     def to_dict(self):
         return {
@@ -661,7 +810,9 @@ class CartItem(models.Model):
             'material': self.variant.material if self.variant else '',
             'image_url': self.variant.image_url if self.variant else self.product.image_url,
             'regular_price': float(self.regular_unit_price),
-            'effective_price': float(self.effective_unit_price),
+            'effective_price': float(self.effective_unit_price),
+            'commission_rate_percent': float(CommissionSetting.current_rate()),
+            'commission_amount': float(self.commission_unit_amount),
             'quantity': self.quantity,
             'line_total': float(self.line_total),
             'savings': float(self.line_savings),
@@ -672,7 +823,7 @@ class CartItem(models.Model):
         }
 
 
-class WishlistItem(models.Model):
+class WishlistItem(models.Model):
     """A product or exact product variant saved by a customer for later."""
 
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='wishlist_items')
@@ -708,16 +859,28 @@ class WishlistItem(models.Model):
         return f"{self.user.full_name} - {item_name}"
 
     @property
-    def regular_price(self):
-        if self.variant and self.variant.price is not None:
-            return self.variant.price
-        return self.product.price
+    def regular_price(self):
+        if self.variant and self.variant.price is not None:
+            base_price = self.variant.price
+        else:
+            base_price = self.product.price
+        return customer_price_for(base_price)
+
+    @property
+    def vendor_regular_price(self):
+        if self.variant and self.variant.price is not None:
+            return self.variant.price
+        return self.product.price
 
     @property
-    def effective_price(self):
-        if self.variant:
-            if self.variant.discount_price is not None:
-                return self.variant.discount_price
+    def effective_price(self):
+        return customer_price_for(self.vendor_effective_price)
+
+    @property
+    def vendor_effective_price(self):
+        if self.variant:
+            if self.variant.discount_price is not None:
+                return self.variant.discount_price
             if self.variant.price is not None:
                 return self.variant.price
         if self.product.discount_price is not None:
@@ -758,7 +921,9 @@ class WishlistItem(models.Model):
                 float(self.effective_price)
                 if self.effective_price != self.regular_price else None
             ),
-            'effective_price': float(self.effective_price),
+            'effective_price': float(self.effective_price),
+            'commission_rate_percent': float(CommissionSetting.current_rate()),
+            'commission_amount': float(commission_amount_for(self.vendor_effective_price)),
             'image_url': self.variant.image_url if self.variant else product.image_url,
             'category_id': product.category_id,
             'category_name': product.category.name if product.category else None,
@@ -1072,7 +1237,7 @@ class PaymentTransaction(models.Model):
         }
 
 
-class OrderItem(models.Model):
+class OrderItem(models.Model):
     """
     Individual items inside an order, bound to the specific vendor who sells the product.
     """
@@ -1091,8 +1256,11 @@ class OrderItem(models.Model):
     product_name = models.CharField(max_length=200)
     product_sku = models.CharField(max_length=60, blank=True)
     variant_title = models.CharField(max_length=150, blank=True, default='')
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    vendor_unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    quantity = models.PositiveIntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
 
@@ -1131,7 +1299,10 @@ class OrderItem(models.Model):
             'variant_id': self.variant_id,
             'variant_title': self.variant_title,
             'variant': self.variant.to_dict() if self.variant else None,
-            'price': float(self.price),
+            'price': float(self.price),
+            'vendor_unit_price': float(self.vendor_unit_price),
+            'commission_rate': float(self.commission_rate),
+            'commission_amount': float(self.commission_amount),
             'quantity': self.quantity,
             'total_price': float(self.total_price),
             'status': self.status,

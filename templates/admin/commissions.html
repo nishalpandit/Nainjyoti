@@ -1,9 +1,166 @@
 {% extends "admin/base.html" %}
-{% block title %}Commissions · Bazaar Admin{% endblock %}
-{% block breadcrumb %}Commissions{% endblock %}
+{% load static %}
+
+{% block title %}Commission settings | Bazaar Admin{% endblock %}
+{% block breadcrumb %}Commission settings{% endblock %}
+{% block page_css %}<link href="{% static 'admin/css/commissions.css' %}" rel="stylesheet">{% endblock %}
+
 {% block admin_content %}
-<div class="mb-3"><h4 class="mb-1">Commission ledger</h4><div class="text-muted small">Live earnings records created from marketplace orders.</div></div>
-<div class="row g-3 mb-3"><div class="col-md-4"><div class="card border-0 shadow-sm p-3"><small class="text-muted">Gross sales</small><strong class="fs-5">₹{{ totals.gross|default:0|floatformat:2 }}</strong></div></div><div class="col-md-4"><div class="card border-0 shadow-sm p-3"><small class="text-muted">Platform commission</small><strong class="fs-5">₹{{ totals.commission|default:0|floatformat:2 }}</strong></div></div><div class="col-md-4"><div class="card border-0 shadow-sm p-3"><small class="text-muted">Vendor net</small><strong class="fs-5">₹{{ totals.net|default:0|floatformat:2 }}</strong></div></div></div>
-<section class="card border-0 shadow-sm"><div class="card-header bg-white p-3"><form method="get" class="d-flex gap-2"><input class="form-control" name="q" value="{{ search_query }}" placeholder="Vendor, vendor ID or order"><select class="form-select" name="status"><option value="ALL">All statuses</option><option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option><option value="AVAILABLE" {% if status_filter == 'AVAILABLE' %}selected{% endif %}>Available</option><option value="WITHDRAWN" {% if status_filter == 'WITHDRAWN' %}selected{% endif %}>Withdrawn</option><option value="REFUNDED" {% if status_filter == 'REFUNDED' %}selected{% endif %}>Refunded</option></select><button class="btn btn-outline-secondary">Filter</button></form></div>
-<div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Vendor</th><th>Order</th><th>Gross</th><th>Rate</th><th>Commission</th><th>Vendor net</th><th>Status</th><th>Created</th></tr></thead><tbody>{% for item in earnings %}<tr><td><strong>{{ item.vendor.business_name }}</strong><br><small>{{ item.vendor.vendor_code }}</small></td><td>{{ item.order.order_number }}</td><td>₹{{ item.gross_amount }}</td><td>{{ item.commission_rate }}%</td><td>₹{{ item.commission_amount }}</td><td>₹{{ item.net_amount }}</td><td>{{ item.get_status_display }}</td><td>{{ item.created_at|date:'d M Y' }}</td></tr>{% empty %}<tr><td colspan="8" class="text-center text-muted py-5">No commission entries found.</td></tr>{% endfor %}</tbody></table></div><div class="card-footer bg-white">{% include "admin/pagination.html" %}</div></section>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">MARKETPLACE PRICING</div>
+    <h1>Commission settings</h1>
+    <p>Set the percentage added above every vendor's selling price.</p>
+  </div>
+  <div class="rate-badge"><span>Current rate</span><strong>{{ setting.rate_percent|floatformat:2 }}%</strong></div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="commission-summary">
+  <div class="summary-card">
+    <span class="summary-icon green"><i class="fa-solid fa-percent"></i></span>
+    <div><small>Commission rate</small><strong>{{ setting.rate_percent|floatformat:2 }}%</strong></div>
+  </div>
+  <div class="summary-card">
+    <span class="summary-icon amber"><i class="fa-solid fa-store"></i></span>
+    <div><small>Vendor receives</small><strong>&#8377;{{ example_vendor_price|floatformat:2 }}</strong></div>
+  </div>
+  <div class="summary-card">
+    <span class="summary-icon blue"><i class="fa-solid fa-coins"></i></span>
+    <div><small>Platform commission</small><strong>&#8377;{{ example_commission|floatformat:2 }}</strong></div>
+  </div>
+  <div class="summary-card featured">
+    <span class="summary-icon dark"><i class="fa-solid fa-cart-shopping"></i></span>
+    <div><small>Customer pays</small><strong>&#8377;{{ example_customer_price|floatformat:2 }}</strong></div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-xl-7">
+    <section class="card h-100">
+      <div class="card-head">
+        <div><h2>Set marketplace commission</h2><small>This rate is added to the vendor price, not deducted from it.</small></div>
+        <span class="safe-pill"><i class="fa-solid fa-shield-halved"></i> Admin only</span>
+      </div>
+      <div class="card-body p-4">
+        <form method="post" id="commissionForm">
+          {% csrf_token %}
+          <div class="row g-3 align-items-end">
+            <div class="col-md-8">
+              <label class="form-label" for="ratePercent">COMMISSION PERCENTAGE</label>
+              <div class="input-group commission-input">
+                <input id="ratePercent" class="form-control" type="number" name="rate_percent" value="{{ setting.rate_percent }}" min="0" max="100" step="0.01" required>
+                <span class="input-group-text">%</span>
+              </div>
+              <div class="form-text">Allowed range: 0% to 100%. Up to two decimal places.</div>
+            </div>
+            <div class="col-md-4 d-grid">
+              <button class="btn btn-dark" type="submit"><i class="fa-solid fa-floppy-disk me-2"></i>Save commission</button>
+            </div>
+          </div>
+        </form>
+
+        <div class="formula-box mt-4">
+          <div class="formula-title">How the final price is calculated</div>
+          <div class="formula-line">
+            <span>Vendor price</span><b>+</b><span>Vendor price &times; <span id="formulaRate">{{ setting.rate_percent|floatformat:2 }}</span>%</span><b>=</b><span>Customer price</span>
+          </div>
+          <div class="live-example">
+            <span>&#8377;100.00</span><b>+</b><span>&#8377;<span id="liveCommission">{{ example_commission|floatformat:2 }}</span></span><b>=</b><strong>&#8377;<span id="liveTotal">{{ example_customer_price|floatformat:2 }}</span></strong>
+          </div>
+        </div>
+
+        <div class="impact-note mt-3">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><strong>What changes when you save?</strong><br>The new rate updates catalogue, search, variants, wishlist, and cart prices immediately. Checkout stores the exact vendor price and commission used, so already placed orders remain unchanged.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-5">
+    <section class="card h-100">
+      <div class="card-head"><div><h2>Recent rate changes</h2><small>Audit trail for administrator updates.</small></div></div>
+      <div class="history-list">
+        {% for entry in history %}
+        <div class="history-row">
+          <span class="history-icon"><i class="fa-solid fa-arrow-trend-up"></i></span>
+          <div class="history-copy"><strong>{{ entry.old_rate_percent|floatformat:2 }}% &rarr; {{ entry.new_rate_percent|floatformat:2 }}%</strong><small>{{ entry.changed_by.get_full_name|default:entry.changed_by.username|default:'Administrator' }} &middot; {{ entry.created_at|date:'d M Y, h:i A' }}</small></div>
+        </div>
+        {% empty %}
+        <div class="empty-history"><i class="fa-regular fa-clock"></i><span>No rate changes recorded yet.</span></div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<section class="card">
+  <div class="card-head">
+    <div><h2>Product price preview</h2><small>{{ active_product_count }} customer-visible product{{ active_product_count|pluralize }} currently use this rate.</small></div>
+    <span class="record-count">{{ total_count }} product{{ total_count|pluralize }}</span>
+  </div>
+  <form method="get" class="preview-filters">
+    <input class="form-control" type="search" name="q" value="{{ search_query }}" placeholder="Product, SKU, vendor or vendor ID">
+    <select class="form-select" name="vendor">
+      <option value="">All vendors</option>
+      {% for vendor in vendors %}<option value="{{ vendor.id }}" {% if vendor_filter == vendor.id|stringformat:'s' %}selected{% endif %}>{{ vendor.business_name }}</option>{% endfor %}
+    </select>
+    <select class="form-select" name="category">
+      <option value="">All categories</option>
+      {% for category in categories %}<option value="{{ category.id }}" {% if category_filter == category.id|stringformat:'s' %}selected{% endif %}>{{ category.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="submit"><i class="fa-solid fa-filter me-1"></i>Filter</button>
+    {% if search_query or vendor_filter or category_filter %}<a class="btn btn-link" href="{% url 'admin_commissions' %}">Clear</a>{% endif %}
+  </form>
+
+  <div class="table-responsive">
+    <table class="table commission-table align-middle mb-0">
+      <thead><tr><th>Product</th><th>Vendor</th><th>Vendor price</th><th>Rate</th><th>Commission added</th><th>Customer price</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for preview in product_previews %}
+        <tr>
+          <td><strong>{{ preview.product.name }}</strong><small>{{ preview.product.sku }} &middot; {{ preview.price_label }}</small></td>
+          <td><strong>{{ preview.product.vendor.business_name }}</strong><small>{{ preview.product.vendor.vendor_code }}</small></td>
+          <td class="money">&#8377;{{ preview.vendor_price|floatformat:2 }}</td>
+          <td><span class="rate-chip">{{ setting.rate_percent|floatformat:2 }}%</span></td>
+          <td class="money commission-plus">+ &#8377;{{ preview.commission_amount|floatformat:2 }}</td>
+          <td class="money final-price">&#8377;{{ preview.customer_price|floatformat:2 }}</td>
+          <td><span class="status-chip status-{{ preview.product.status|lower }}">{{ preview.product.get_status_display }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-5"><i class="fa-solid fa-box-open d-block fs-4 mb-2"></i>No products match these filters.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "admin/pagination.html" %}
+</section>
+{% endblock %}
+
+{% block page_js %}
+<script>
+(() => {
+  const input = document.getElementById('ratePercent');
+  const rate = document.getElementById('formulaRate');
+  const commission = document.getElementById('liveCommission');
+  const total = document.getElementById('liveTotal');
+  if (!input) return;
+  const updatePreview = () => {
+    const value = Math.min(100, Math.max(0, Number.parseFloat(input.value) || 0));
+    rate.textContent = value.toFixed(2);
+    commission.textContent = value.toFixed(2);
+    total.textContent = (100 + value).toFixed(2);
+  };
+  input.addEventListener('input', updatePreview);
+})();
+</script>
 {% endblock %}

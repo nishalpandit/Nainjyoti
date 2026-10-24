@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -9,6 +10,8 @@ from django.urls import reverse
 from .models import (
     CartItem,
     Category,
+    CommissionRateHistory,
+    CommissionSetting,
     Notification,
     Order,
     OrderItem,
@@ -21,6 +24,7 @@ from .models import (
     UserAddress,
     UserProfile,
     VendorProfile,
+    VendorEarning,
     VendorPayout,
 )
 
@@ -168,7 +172,7 @@ class CustomerCommerceAPITests(TestCase):
 
         self.assertEqual(response.status_code, 201, response.content)
         body = response.json()
-        self.assertEqual(body['order']['total_amount'], 3100.0)
+        self.assertEqual(body['order']['total_amount'], 3255.0)
         self.assertEqual(body['order']['payment_method'], 'COD')
         self.assertFalse(body['payment']['requires_online_payment'])
         self.assertTrue(body['cart_cleared'])
@@ -179,6 +183,13 @@ class CustomerCommerceAPITests(TestCase):
         self.assertEqual(self.variant.stock_quantity, 4)
         self.assertEqual(StockLog.objects.filter(movement_type='SALE').count(), 2)
         self.assertEqual(Notification.objects.filter(user=self.customer).count(), 1)
+        order_items = list(OrderItem.objects.filter(order_id=body['order']['id']).order_by('id'))
+        self.assertEqual(float(order_items[0].vendor_unit_price), 800.0)
+        self.assertEqual(float(order_items[0].price), 840.0)
+        self.assertEqual(float(order_items[0].commission_amount), 80.0)
+        self.assertEqual(float(order_items[1].vendor_unit_price), 1500.0)
+        self.assertEqual(float(order_items[1].price), 1575.0)
+        self.assertEqual(float(order_items[1].commission_amount), 75.0)
 
     def test_checkout_validation_rolls_back_everything(self):
         CartItem.objects.create(user=self.customer, product=self.product, quantity=11)
@@ -190,6 +201,26 @@ class CustomerCommerceAPITests(TestCase):
         self.assertEqual(CartItem.objects.filter(user=self.customer).count(), 1)
         self.product.refresh_from_db()
         self.assertEqual(self.product.stock_quantity, 10)
+
+    def test_delivered_order_records_markup_as_platform_commission(self):
+        CartItem.objects.create(user=self.customer, product=self.product, quantity=1)
+        checkout = self.checkout('COD')
+        self.assertEqual(checkout.status_code, 201, checkout.content)
+        order_id = checkout.json()['order']['id']
+
+        delivered = self.client.post(
+            reverse('api_vendor_order_status_update', args=[order_id]),
+            data=json.dumps({'status': 'DELIVERED'}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.vendor.auth_token}',
+        )
+
+        self.assertEqual(delivered.status_code, 200, delivered.content)
+        earning = VendorEarning.objects.get(order_id=order_id)
+        self.assertEqual(earning.gross_amount, Decimal('840.00'))
+        self.assertEqual(earning.commission_rate, Decimal('5.00'))
+        self.assertEqual(earning.commission_amount, Decimal('40.00'))
+        self.assertEqual(earning.net_amount, Decimal('800.00'))
 
     @override_settings(PAYMENT_WEBHOOK_SECRET='test-payment-secret')
     def test_online_checkout_payment_status_and_signed_verification(self):
@@ -512,6 +543,34 @@ class AdminDashboardCRUDTests(TestCase):
         self.assertEqual(created.stock_quantity, 12)
         self.assertTrue(StockLog.objects.filter(product=created, new_stock=12).exists())
 
+    def test_admin_can_set_markup_without_changing_vendor_product_price(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse('admin_commissions'), {'rate_percent': '7.50'})
+
+        self.assertRedirects(response, reverse('admin_commissions'))
+        self.assertEqual(CommissionSetting.current_rate(), Decimal('7.50'))
+        self.assertTrue(CommissionRateHistory.objects.filter(
+            old_rate_percent=Decimal('5.00'),
+            new_rate_percent=Decimal('7.50'),
+            changed_by=self.admin_user,
+        ).exists())
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.price, Decimal('100.00'))
+
+        page = self.client.get(reverse('admin_commissions'))
+        self.assertContains(page, 'Product price preview')
+        self.assertContains(page, '107.50')
+
+        customer_detail = self.client.get(reverse('api_user_product_detail', args=[self.product.id]))
+        self.assertEqual(customer_detail.status_code, 200)
+        self.assertEqual(customer_detail.json()['product']['price'], 107.5)
+        self.assertEqual(customer_detail.json()['product']['commission_amount'], 7.5)
+
+        invalid = self.client.post(reverse('admin_commissions'), {'rate_percent': '101'})
+        self.assertRedirects(invalid, reverse('admin_commissions'))
+        self.assertEqual(CommissionSetting.current_rate(), Decimal('7.50'))
+
     def test_admin_can_process_order_request_and_notify_customer(self):
         order_item = OrderItem.objects.create(
             order=self.order,
@@ -572,6 +631,48 @@ class AdminDashboardCRUDTests(TestCase):
         notification = Notification.objects.get(user=self.customer, title='Account notice')
         self.assertFalse(notification.is_read)
         self.assertEqual(notification.message, 'Your account information was updated.')
+
+    def test_comprehensive_reports_and_csv_exports_use_database_records(self):
+        OrderItem.objects.create(
+            order=self.order,
+            vendor=self.vendor,
+            product=self.product,
+            product_name=self.product.name,
+            product_sku=self.product.sku,
+            price='100.00',
+            quantity=2,
+            total_price='200.00',
+        )
+        self.client.force_login(self.admin_user)
+        report = self.client.get(reverse('admin_reports'), {'vendor_id': self.vendor.id})
+        self.assertEqual(report.status_code, 200)
+        self.assertContains(report, 'Marketplace performance report')
+        self.assertContains(report, 'Daily sales trend')
+        self.assertContains(report, 'Top vendors')
+        self.assertContains(report, 'Category performance')
+        self.assertEqual(report.context['total_orders'], 1)
+        self.assertEqual(report.context['units_sold'], 2)
+        self.assertEqual(report.context['selected_vendor'], self.vendor)
+
+        for report_type, expected_header in (
+            ('orders', 'Order number'),
+            ('products', 'Product ID'),
+            ('vendors', 'Vendor ID'),
+            ('payments', 'Reference'),
+            ('returns', 'Request number'),
+            ('inventory', 'Created at'),
+        ):
+            with self.subTest(report_type=report_type):
+                exported = self.client.get(
+                    reverse('admin_reports_export'),
+                    {'report': report_type, 'vendor_id': self.vendor.id},
+                )
+                self.assertEqual(exported.status_code, 200)
+                self.assertEqual(exported['Content-Type'], 'text/csv; charset=utf-8')
+                self.assertIn(expected_header, exported.content.decode('utf-8-sig'))
+
+        invalid = self.client.get(reverse('admin_reports_export'), {'report': 'unknown'})
+        self.assertEqual(invalid.status_code, 400)
 
     def test_delete_endpoints_are_post_only_and_apply_model_delete_rules(self):
         self.client.force_login(self.admin_user)

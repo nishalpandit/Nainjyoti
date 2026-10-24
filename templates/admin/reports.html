@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reports · Bazaar Admin</title>
+  <title>Marketplace Reports · Bazaar Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
   <link href="{% static 'admin/css/admin-base.css' %}" rel="stylesheet">
@@ -12,65 +12,107 @@
 </head>
 <body>
   {% include "admin/sidebar.html" with active_nav="reports" %}
-
   <div class="workspace">
     <header class="topbar">
-      <div><span class="crumb">Marketplace / </span><strong>Reports</strong></div>
-      <div class="top-right">
-        <span class="date-label">Today · IST</span>
-        <a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a>
-        <div class="avatar">AS</div>
-      </div>
+      <div><span class="crumb">Marketplace / </span><strong>Reports &amp; Analytics</strong></div>
+      <div class="top-right"><span class="date-label">Live database · IST</span><a class="notification" href="{% url 'admin_notifications' %}" aria-label="Notifications"><i class="fa-regular fa-bell"></i></a><div class="avatar">AS</div></div>
     </header>
 
-    <main class="main">
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-xl-3">
-          <div class="card stat">
-            <div class="stat-top"><span>Total GMV</span><i class="fa-solid fa-indian-rupee-sign"></i></div>
-            <strong>{{ total_gmv }}</strong>
-            <small>Gross Marketplace Sales</small>
-          </div>
-        </div>
-        <div class="col-6 col-xl-3">
-          <div class="card stat">
-            <div class="stat-top"><span>Total orders</span><i class="fa-solid fa-bag-shopping"></i></div>
-            <strong>{{ total_orders }}</strong>
-            <small>Across all vendors</small>
-          </div>
-        </div>
-        <div class="col-6 col-xl-3">
-          <div class="card stat">
-            <div class="stat-top"><span>Registered vendors</span><i class="fa-solid fa-store"></i></div>
-            <strong>{{ total_vendors }}</strong>
-            <small>Sellers active</small>
-          </div>
-        </div>
-        <div class="col-6 col-xl-3">
-          <div class="card stat">
-            <div class="stat-top"><span>Registered customers</span><i class="fa-solid fa-users"></i></div>
-            <strong>{{ total_customers }}</strong>
-            <small>Consumer profiles</small>
-          </div>
+    <main class="main report-main">
+      {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>{% endfor %}{% endif %}
+
+      <div class="report-heading">
+        <div><div class="eyebrow">BUSINESS INTELLIGENCE</div><h1>Marketplace performance report</h1><p>{{ period_label }}{% if selected_vendor %} · {{ selected_vendor.business_name }}{% else %} · All vendors{% endif %}</p></div>
+        <div class="dropdown">
+          <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown"><i class="fa-solid fa-download me-2"></i>Download CSV</button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=orders&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Orders report</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=payments&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Payments report</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=products&amp;vendor_id={{ selected_vendor_id }}">Product catalogue</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=vendors">Vendor directory</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=returns&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Returns and cancellations</a></li>
+            <li><a class="dropdown-item" href="{% url 'admin_reports_export' %}?report=inventory&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Inventory movement ledger</a></li>
+          </ul>
         </div>
       </div>
 
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h2>Operational audit</h2>
-            <small>All numbers dynamically extracted from live database tables</small>
-          </div>
-        </div>
-        <div class="p-3">
-          <p class="text-muted">Downloadable ledger reporting and real-time financial reconciliation are fully connected to the database order and settlement models.</p>
-          <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-dark">Return to Overview</a>
-        </div>
+      <section class="card report-filter-card mb-3">
+        <form method="get" id="reportFilters" class="row g-2 align-items-end">
+          <div class="col-sm-6 col-lg-3"><label class="form-label">Start date</label><input class="form-control" type="date" name="start_date" id="startDate" value="{{ start_date }}"></div>
+          <div class="col-sm-6 col-lg-3"><label class="form-label">End date</label><input class="form-control" type="date" name="end_date" id="endDate" value="{{ end_date }}"></div>
+          <div class="col-lg-4"><label class="form-label">Vendor scope</label><select class="form-select" name="vendor_id"><option value="">All marketplace vendors</option>{% for item in vendors %}<option value="{{ item.id }}" {% if selected_vendor_id == item.id|stringformat:'s' %}selected{% endif %}>{{ item.business_name }} · {{ item.vendor_code }}</option>{% endfor %}</select></div>
+          <div class="col-lg-2 d-flex gap-2"><button class="btn btn-dark flex-grow-1" type="submit"><i class="fa-solid fa-filter me-1"></i>Apply</button><a class="btn btn-outline-secondary" href="{% url 'admin_reports' %}" title="Clear filters"><i class="fa-solid fa-rotate-left"></i></a></div>
+        </form>
+        <div class="quick-ranges"><span>Quick range:</span><button type="button" onclick="setReportRange(7)">7 days</button><button type="button" onclick="setReportRange(30)">30 days</button><button type="button" onclick="setMonthRange()">This month</button><a href="{% url 'admin_reports' %}">All time</a></div>
       </section>
 
-      <footer>BAZAAR ADMIN <span>·</span> India marketplace operations <span>·</span> Connected Database</footer>
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-xl-3"><div class="card stat stat-primary"><div class="stat-top"><span>Gross merchandise value</span><i class="fa-solid fa-indian-rupee-sign"></i></div><strong>{{ total_gmv }}</strong><small>Excludes cancelled orders</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Net sales</span><i class="fa-solid fa-chart-line"></i></div><strong>{{ net_sales }}</strong><small>Excludes cancellations and returns</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Total orders</span><i class="fa-solid fa-bag-shopping"></i></div><strong>{{ total_orders }}</strong><small>{{ units_sold }} item{{ units_sold|pluralize }} sold</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Average order value</span><i class="fa-solid fa-receipt"></i></div><strong>{{ aov }}</strong><small>GMV per order in scope</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Payments collected</span><i class="fa-solid fa-circle-check"></i></div><strong>{{ paid_amount }}</strong><small>Successful gateway transactions</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Platform commission</span><i class="fa-solid fa-percent"></i></div><strong>{{ commission_amount }}</strong><small>Vendor net: {{ vendor_net_amount }}</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Refunded amount</span><i class="fa-solid fa-arrow-rotate-left"></i></div><strong>{{ refunded_amount }}</strong><small>{{ pending_returns }} request{{ pending_returns|pluralize }} awaiting review</small></div></div>
+        <div class="col-6 col-xl-3"><div class="card stat"><div class="stat-top"><span>Pending settlements</span><i class="fa-solid fa-building-columns"></i></div><strong>{{ pending_payout_amount }}</strong><small>Pending and processing payouts</small></div></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-xl-8">
+          <section class="card report-card h-100">
+            <div class="card-head"><div><h2>Daily sales trend</h2><small>{{ trend_start|date:'d M Y' }} – {{ trend_end|date:'d M Y' }} · latest 30 calendar days in range</small></div><span class="live-chip"><i class="fa-solid fa-circle"></i> LIVE</span></div>
+            <div class="trend-chart" aria-label="Daily revenue chart">
+              {% for row in trend_rows %}<div class="trend-column" title="{{ row.date|date:'d M Y' }} · ₹{{ row.revenue|floatformat:2 }} · {{ row.orders }} orders"><div class="trend-value">{% if row.revenue %}₹{{ row.revenue|floatformat:0 }}{% endif %}</div><div class="trend-track"><div class="trend-bar" style="height:{{ row.bar_percent }}%"></div></div><span>{% if forloop.first or forloop.last or forloop.counter|divisibleby:5 %}{{ row.date|date:'d M' }}{% endif %}</span></div>{% endfor %}
+            </div>
+          </section>
+        </div>
+        <div class="col-xl-4">
+          <section class="card report-card h-100"><div class="card-head"><div><h2>Order lifecycle</h2><small>Current status distribution</small></div></div><div class="distribution-list">{% for row in order_status_report %}<div class="distribution-row"><div class="distribution-label"><span>{{ row.label }}</span><b>{{ row.count }} <small>{{ row.percent }}%</small></b></div><div class="progress-track"><span class="status-{{ row.value|lower }}" style="width:{{ row.percent }}%"></span></div></div>{% endfor %}</div></section>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-lg-4"><section class="card report-card h-100"><div class="card-head"><div><h2>Payment status</h2><small>{{ paid_amount }} collected</small></div></div><div class="distribution-list compact">{% for row in payment_status_report %}<div class="distribution-row"><div class="distribution-label"><span>{{ row.label }}</span><b>{{ row.count }} <small>{{ row.percent }}%</small></b></div><div class="progress-track"><span class="status-{{ row.value|lower }}" style="width:{{ row.percent }}%"></span></div></div>{% endfor %}</div></section></div>
+        <div class="col-lg-4"><section class="card report-card h-100"><div class="card-head"><div><h2>Payment methods</h2><small>Customer checkout preference</small></div></div><div class="distribution-list compact">{% for row in payment_method_report %}<div class="distribution-row"><div class="distribution-label"><span>{{ row.label }}</span><b>{{ row.count }} <small>{{ row.percent }}%</small></b></div><div class="progress-track"><span class="status-method" style="width:{{ row.percent }}%"></span></div></div>{% endfor %}</div></section></div>
+        <div class="col-lg-4"><section class="card report-card h-100"><div class="card-head"><div><h2>Settlement status</h2><small>{{ pending_payout_amount }} outstanding</small></div></div><div class="distribution-list compact">{% for row in payout_status_report %}<div class="distribution-row"><div class="distribution-label"><span>{{ row.label }}</span><b>{{ row.count }} <small>{{ row.percent }}%</small></b></div><div class="progress-track"><span class="status-{{ row.value|lower }}" style="width:{{ row.percent }}%"></span></div></div>{% endfor %}</div></section></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6 col-xl-3"><div class="card insight-card"><div class="insight-icon green"><i class="fa-solid fa-boxes-stacked"></i></div><div><small>Catalogue &amp; inventory</small><strong>{{ total_products }} products</strong><span>{{ approved_products }} approved · {{ total_stock_units }} units</span><span>{{ inventory_value }} stock value</span></div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="card insight-card"><div class="insight-icon amber"><i class="fa-solid fa-triangle-exclamation"></i></div><div><small>Inventory attention</small><strong>{{ low_stock_count }} low stock</strong><span>{{ out_of_stock_count }} out of stock</span><span>Based on each product threshold</span></div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="card insight-card"><div class="insight-icon blue"><i class="fa-solid fa-store"></i></div><div><small>Vendor network</small><strong>{{ approved_vendors }} approved</strong><span>{{ total_vendors }} total vendors</span><span>{{ new_vendors }} registered in period</span></div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="card insight-card"><div class="insight-icon rose"><i class="fa-solid fa-users"></i></div><div><small>Customer base</small><strong>{{ active_customers }} active</strong><span>{{ total_customers }} total customers</span><span>{{ new_customers }} registered in period</span></div></div></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-xl-6"><section class="card report-card h-100"><div class="card-head"><div><h2>Top vendors</h2><small>Ranked by gross item revenue</small></div><a href="{% url 'admin_vendors' %}">View vendors</a></div><div class="table-responsive"><table class="table report-table"><thead><tr><th>Vendor</th><th>Orders</th><th>Units</th><th class="text-end">Revenue</th></tr></thead><tbody>{% for item in top_vendors %}<tr><td><strong>{{ item.vendor__business_name }}</strong><small>{{ item.vendor__vendor_code }}</small></td><td>{{ item.orders }}</td><td>{{ item.units }}</td><td class="text-end"><strong>₹{{ item.revenue|floatformat:2 }}</strong></td></tr>{% empty %}<tr><td colspan="4" class="empty-state">No vendor sales in this period.</td></tr>{% endfor %}</tbody></table></div></section></div>
+        <div class="col-xl-6"><section class="card report-card h-100"><div class="card-head"><div><h2>Top products</h2><small>Ranked by gross item revenue</small></div><a href="{% url 'admin_products' %}">View products</a></div><div class="table-responsive"><table class="table report-table"><thead><tr><th>Product</th><th>Orders</th><th>Units</th><th class="text-end">Revenue</th></tr></thead><tbody>{% for item in top_products %}<tr><td><strong>{{ item.product_name }}</strong><small>{{ item.product_sku }}</small></td><td>{{ item.orders }}</td><td>{{ item.units }}</td><td class="text-end"><strong>₹{{ item.revenue|floatformat:2 }}</strong></td></tr>{% empty %}<tr><td colspan="4" class="empty-state">No product sales in this period.</td></tr>{% endfor %}</tbody></table></div></section></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-xl-8"><section class="card report-card h-100"><div class="card-head"><div><h2>Category performance</h2><small>Catalogue size, inventory and sales</small></div><a href="{% url 'admin_categories' %}">Manage categories</a></div><div class="table-responsive"><table class="table report-table"><thead><tr><th>Category</th><th>Status</th><th>Products</th><th>Stock</th><th>Units sold</th><th class="text-end">Revenue</th></tr></thead><tbody>{% for item in category_report %}<tr><td><strong>{{ item.name }}</strong></td><td><span class="pill {% if item.status == 'ACTIVE' %}green{% else %}rose{% endif %}">{{ item.status|title }}</span></td><td>{{ item.product_count }}</td><td>{{ item.stock_units }}</td><td>{{ item.units_sold }}</td><td class="text-end"><strong>₹{{ item.revenue|floatformat:2 }}</strong></td></tr>{% empty %}<tr><td colspan="6" class="empty-state">No category records available.</td></tr>{% endfor %}</tbody></table></div></section></div>
+        <div class="col-xl-4"><section class="card report-card h-100"><div class="card-head"><div><h2>Customer engagement</h2><small>Current marketplace activity</small></div></div><div class="metric-list"><div><span><i class="fa-solid fa-star"></i>Average product rating</span><b>{{ average_rating|floatformat:1 }} / 5</b></div><div><span><i class="fa-solid fa-comments"></i>Product reviews</span><b>{{ review_count }}</b></div><div><span><i class="fa-solid fa-heart"></i>Wishlist items</span><b>{{ wishlist_count }}</b></div><div><span><i class="fa-solid fa-cart-shopping"></i>Cart items</span><b>{{ cart_item_count }}</b></div><div><span><i class="fa-solid fa-bell"></i>Unread notifications</span><b>{{ unread_notifications }}</b></div></div></section></div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-xl-4"><section class="card report-card h-100"><div class="card-head"><div><h2>Returns &amp; cancellations</h2><small>{{ return_request_count }} returns · {{ cancel_request_count }} cancellations</small></div><a href="{% url 'admin_order_requests' %}">Review</a></div><div class="distribution-list compact">{% for row in request_status_report %}<div class="distribution-row"><div class="distribution-label"><span>{{ row.label }}</span><b>{{ row.count }} <small>{{ row.percent }}%</small></b></div><div class="progress-track"><span class="status-{{ row.value|lower }}" style="width:{{ row.percent }}%"></span></div></div>{% endfor %}</div></section></div>
+        <div class="col-xl-8"><section class="card report-card h-100"><div class="card-head"><div><h2>Recent orders</h2><small>Latest orders inside the selected scope</small></div><a href="{% url 'admin_orders' %}">All orders</a></div><div class="table-responsive"><table class="table report-table"><thead><tr><th>Order</th><th>Customer</th><th>Payment</th><th>Status</th><th>Date</th><th class="text-end">Amount</th></tr></thead><tbody>{% for item in recent_orders %}<tr><td><strong>{{ item.order_number }}</strong></td><td>{{ item.customer_name }}<small>{{ item.customer_phone }}</small></td><td>{{ item.get_payment_method_display }}<small>{{ item.get_payment_status_display }}</small></td><td><span class="pill {% if item.status == 'DELIVERED' %}green{% elif item.status == 'CANCELLED' or item.status == 'RETURNED' %}rose{% elif item.status == 'SHIPPED' %}blue{% else %}amber{% endif %}">{{ item.get_status_display }}</span></td><td>{{ item.created_at|date:'d M Y, H:i' }}</td><td class="text-end"><strong>₹{{ item.total_amount|floatformat:2 }}</strong></td></tr>{% empty %}<tr><td colspan="6" class="empty-state">No orders in this period.</td></tr>{% endfor %}</tbody></table></div></section></div>
+      </div>
+
+      <section class="card report-card export-panel">
+        <div><div class="export-icon"><i class="fa-solid fa-file-csv"></i></div><div><h2>Audit-ready data exports</h2><p>Download filtered source records for reconciliation, accounting or offline analysis.</p></div></div>
+        <div class="export-buttons"><a href="{% url 'admin_reports_export' %}?report=orders&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Orders</a><a href="{% url 'admin_reports_export' %}?report=payments&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Payments</a><a href="{% url 'admin_reports_export' %}?report=products&amp;vendor_id={{ selected_vendor_id }}">Products</a><a href="{% url 'admin_reports_export' %}?report=inventory&amp;start_date={{ start_date }}&amp;end_date={{ end_date }}&amp;vendor_id={{ selected_vendor_id }}">Inventory</a></div>
+      </section>
+
+      <footer>BAZAAR ADMIN <span>·</span> Live marketplace reporting <span>·</span> Connected Database</footer>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{% static 'admin/js/admin.js' %}"></script>
+  <script>
+    function localISO(date) { const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10); }
+    function setReportRange(days) { const end = new Date(); const start = new Date(); start.setDate(end.getDate() - days + 1); document.getElementById('startDate').value = localISO(start); document.getElementById('endDate').value = localISO(end); document.getElementById('reportFilters').submit(); }
+    function setMonthRange() { const end = new Date(); const start = new Date(end.getFullYear(), end.getMonth(), 1); document.getElementById('startDate').value = localISO(start); document.getElementById('endDate').value = localISO(end); document.getElementById('reportFilters').submit(); }
+  </script>
 </body>
 </html>

@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem,
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
-    OrderStatusHistory, VendorEarning, VendorPayout
+    OrderStatusHistory, VendorEarning, VendorPayout, CommissionSetting, CommissionRateHistory
 )
 
 
@@ -49,6 +49,18 @@ class ProductVariantAdmin(FullControlAdminMixin, admin.ModelAdmin):
     list_display = ('title', 'product', 'sku', 'price', 'stock_quantity', 'is_active')
     list_filter = ('is_active', 'color', 'size')
     search_fields = ('title', 'sku', 'product__name')
+
+
+@admin.register(CommissionSetting)
+class CommissionSettingAdmin(FullControlAdminMixin, admin.ModelAdmin):
+    list_display = ('rate_percent', 'updated_by', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+
+@admin.register(CommissionRateHistory)
+class CommissionRateHistoryAdmin(FullControlAdminMixin, admin.ModelAdmin):
+    list_display = ('old_rate_percent', 'new_rate_percent', 'changed_by', 'created_at')
+    readonly_fields = ('old_rate_percent', 'new_rate_percent', 'changed_by', 'created_at')
 
 
 @admin.register(CartItem)
