@@ -139,9 +139,86 @@ response:
 
 ---
 
+API for User Direct Registration
+url: http://192.168.1.52:8000/api/user/register/
+method: POST
+
+headers:
+Content-Type: multipart/form-data (recommended when uploading profile_photo) or application/json
+
+params (form-data or json):
+- first_name: Dev (required)
+- last_name: Sharma (required)
+- phone: 9876543210 (required, 10 digits)
+- email: dev.sharma@example.com (optional)
+- password: Password@2026 (optional)
+- gender: Male (optional: Male, Female, Other, Prefer not to say)
+- dob: 1995-08-15 (optional, YYYY-MM-DD)
+- profile_photo: [Select File in Postman form-data, or base64 data, optional]
+
+> **Postman Tip for File Upload**: In Postman under the **Body** tab, choose **form-data**. Hover over the `profile_photo` key field and change the dropdown from `Text` to `File`. Click "Select Files" to choose your image (`.jpg`, `.jpeg`, `.png`, `.webp`).
+
+response (201 Created):
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "token": "4aec2e7a27ea478f71bb72130d6a63dd2b0ff214b1b798a946345b76887ca088",
+  "user": {
+    "id": 28,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "phone": "9876543210",
+    "email": "dev.sharma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/user_28_3e98e8de.jpg",
+    "is_active": true,
+    "created_at": "2026-10-24T11:25:36.881116+00:00"
+  }
+}
+```
+
+---
+
+API for User Direct Password Login
+url: http://192.168.1.52:8000/api/user/login/
+method: POST
+
+headers:
+Content-Type: multipart/form-data or application/json
+
+params (form-data or json):
+- identifier: 9876543210 (or dev.sharma@example.com)
+- password: Password@2026
+
+response:
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "token": "4aec2e7a27ea478f71bb72130d6a63dd2b0ff214b1b798a946345b76887ca088",
+  "user": {
+    "id": 28,
+    "first_name": "Dev",
+    "last_name": "Sharma",
+    "full_name": "Dev Sharma",
+    "phone": "9876543210",
+    "email": "dev.sharma@example.com",
+    "dob": "1995-08-15",
+    "gender": "Male",
+    "profile_photo": "/media/user_profiles/photos/user_28_3e98e8de.jpg",
+    "is_active": true
+  }
+}
+```
+
+---
+
 API for Update Customer Profile
 url: http://192.168.1.52:8000/api/user/profile/update/
-method: POST (or PUT)
+method: PUT or POST
 
 headers:
 Authorization: Bearer <user_token>
@@ -149,11 +226,14 @@ Content-Type: multipart/form-data (when attaching photo file) or application/jso
 
 params (form-data or json):
 first_name: Dev
-last_name: Sharma
-email: dev.sharma@example.com
+last_name: Verma
+email: dev.verma@example.com
 dob: 1995-08-15
 gender: Male
-profile_photo: [Attach image file, or base64 data, or filename]
+profile_photo: [Attach image file in Postman form-data, or base64 data, or filename]
+remove_photo: false (set to true to remove profile photo)
+
+> **Important Postman form-data Note**: When uploading a file, make sure the `profile_photo` row in the Postman Body tab is set to type **File** (not Text) and an image file is attached. The endpoint automatically supports both `PUT` and `POST` multipart/form-data.
 
 response:
 ```json
@@ -161,17 +241,17 @@ response:
   "success": true,
   "message": "Profile updated successfully",
   "user": {
-    "id": 9,
+    "id": 25,
     "first_name": "Dev",
-    "last_name": "Sharma",
-    "full_name": "Dev Sharma",
-    "phone": "1234567890",
-    "email": "dev.sharma@example.com",
+    "last_name": "Verma",
+    "full_name": "Dev Verma",
+    "phone": "1231231231",
+    "email": "dev.verma@example.com",
     "dob": "1995-08-15",
     "gender": "Male",
-    "profile_photo": "/media/user_profiles/photos/user_9_ab12cd34.png",
+    "profile_photo": "/media/user_profiles/photos/user_25_cfcf8c3c.jpg",
     "is_active": true,
-    "created_at": "2026-10-23T05:35:40.995425+00:00",
+    "created_at": "2026-10-24T07:28:41.655882+00:00",
     "total_orders": 0,
     "total_spent": 0.0
   }

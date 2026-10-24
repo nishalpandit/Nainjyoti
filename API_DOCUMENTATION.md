@@ -56,14 +56,18 @@ API for Customer Registration
 url: http://192.168.1.52:8000/api/user/register/
 method: POST
 
-params:
+headers:
+Content-Type: multipart/form-data (recommended when attaching photo file) or application/json
+
+params (form-data or json):
 first_name: Ananya
 last_name: Iyer
 phone: 9876543211
 email: ananya.iyer@example.com
+password: Password@2026 (optional)
 dob: 1999-04-12
 gender: Female
-profile_photo: ananya_profile.png
+profile_photo: [Select File in Postman form-data, or base64 data, optional]
 
 response:
 {
@@ -110,19 +114,20 @@ response:
 
 API for Update Customer Profile
 url: http://192.168.1.52:8000/api/user/profile/update/ (or /api/user/profile/)
-method: POST (or PUT)
+method: PUT or POST
 
 headers:
 Authorization: Bearer <customer_token>
 Content-Type: multipart/form-data (when uploading photo) or application/json
 
-params:
+params (form-data or json):
 first_name: Ananya
 last_name: Iyer
 email: ananya.updated@example.com
 dob: 1999-04-12
 gender: Female
-profile_photo: [Upload binary image file or base64 or filename]
+profile_photo: [Select File in Postman form-data, or base64 data]
+remove_photo: false (set to true to remove profile photo)
 
 response:
 {

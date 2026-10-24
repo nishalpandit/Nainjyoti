@@ -67,28 +67,68 @@ def admin_api_required(view_func):
     return wrapped
 
 
-def _parse_request_data(request):
+def _populate_multipart_request(request):
+    """
+    Ensure request._post and request._files are properly populated for PUT/PATCH,
+    or requests where Content-Type was application/json but payload is multipart form-data.
+    """
+    content_type = request.content_type or request.META.get('CONTENT_TYPE', '') or ''
+    is_multipart = 'multipart/form-data' in content_type
+    raw_body = b''
+    try:
+        raw_body = request.body
+    except Exception:
+        pass
 
-    """Helper to extract data from JSON body, POST form data, or PUT/PATCH body."""
+    looks_like_multipart = bool(raw_body and raw_body.startswith(b'--'))
 
-    if request.content_type and 'application/json' in request.content_type:
+    if is_multipart or looks_like_multipart:
+        curr_files = getattr(request, '_files', None)
+        curr_post = getattr(request, '_post', None)
+        if (curr_files and len(curr_files) > 0) or (curr_post and len(curr_post) > 0):
+            return
 
         try:
-
-            return json.loads(request.body.decode('utf-8'))
-
+            from io import BytesIO
+            from django.http.multipartparser import MultiPartParser
+            meta = request.META.copy()
+            if not is_multipart and looks_like_multipart:
+                first_line = raw_body.split(b'\r\n')[0]
+                boundary = first_line.strip(b'- \r\n').decode('latin1', errors='ignore')
+                meta["CONTENT_TYPE"] = f"multipart/form-data; boundary={boundary}"
+            stream = BytesIO(raw_body)
+            parser = MultiPartParser(meta, stream, request.upload_handlers, request.encoding)
+            post_data, files_data = parser.parse()
+            request._post = post_data
+            request._files = files_data
         except Exception:
+            pass
 
+
+def _parse_request_data(request):
+    """Helper to extract data from JSON body, POST form data, or PUT/PATCH body."""
+    _populate_multipart_request(request)
+
+    content_type = request.content_type or request.META.get('CONTENT_TYPE', '') or ''
+    try:
+        raw_body = request.body
+    except Exception:
+        raw_body = b''
+
+    if ('multipart/form-data' in content_type) or (raw_body and raw_body.startswith(b'--')):
+        return request.POST.dict()
+
+    if 'application/json' in content_type:
+        try:
+            return json.loads(raw_body.decode('utf-8'))
+        except Exception:
             return {}
 
-    if request.method in ('PUT', 'PATCH') and request.content_type and 'application/x-www-form-urlencoded' in request.content_type:
-
+    if request.method in ('PUT', 'PATCH') and 'application/x-www-form-urlencoded' in content_type:
         from django.http import QueryDict
-
-        return QueryDict(request.body).dict()
+        return QueryDict(raw_body).dict()
 
     return request.POST.dict()
-
 
 
 def _get_authenticated_profile(request):
@@ -390,213 +430,116 @@ def api_verify_otp_login(request):
 @csrf_exempt
 
 def api_user_register(request):
-
     """
-
     API: Register New User with Full Profile Details
-
     Endpoint: POST /api/user/register/
-
     Accepts: multipart/form-data or application/json
-
     Fields:
-
       - first_name (required)
-
       - last_name (required)
-
       - phone (required)
-
       - email (optional)
-
+      - password (optional)
       - dob (optional, YYYY-MM-DD)
-
       - gender (Male/Female/Other/Prefer not to say)
-
-      - profile_photo (file, optional)
-
+      - profile_photo (file, base64, or binary, optional)
     """
-
     if request.method != "POST":
-
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
 
-
-
+    _populate_multipart_request(request)
     data = _parse_request_data(request)
 
-
-
     first_name = data.get("first_name", "").strip()
-
     last_name = data.get("last_name", "").strip()
-
     phone = str(data.get("phone", "")).strip().replace(" ", "").replace("-", "")
-
     email = data.get("email", "").strip().lower() or None
-
     dob_raw = data.get("dob", "").strip()
-
     gender = data.get("gender", "Prefer not to say").strip()
 
-
-
-    # Profile photo can be in request.FILES
-
-    profile_photo = request.FILES.get("profile_photo", None)
-
-
-
     # Validations
-
     if not first_name or not last_name:
-
         return JsonResponse({
-
             "success": False,
-
             "message": "Both First Name and Last Name are required."
-
         }, status=400)
-
-
 
     if not phone or len(phone) < 10:
-
         return JsonResponse({
-
             "success": False,
-
             "message": "A valid 10-digit mobile phone number is required."
-
         }, status=400)
-
-
 
     # Check if phone already registered
-
     if UserProfile.objects.filter(phone=phone).exists():
-
         return JsonResponse({
-
             "success": False,
-
             "message": f"An account with phone number {phone} is already registered. Please sign in with OTP."
-
         }, status=400)
 
-
+    # Check if email is already in use
+    if email and User.objects.filter(email=email).exists():
+        return JsonResponse({
+            "success": False,
+            "message": "This email address is already in use by another account."
+        }, status=400)
 
     # Parse DOB if provided
-
     dob_parsed = None
-
     if dob_raw:
-
         for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
-
             try:
-
                 dob_parsed = datetime.strptime(dob_raw, fmt).date()
-
                 break
-
             except ValueError:
-
                 continue
 
-
-
     # Ensure unique auth username
-
     base_username = f"usr_{phone}"
-
     username = base_username
-
     counter = 1
-
     while User.objects.filter(username=username).exists():
-
         username = f"{base_username}_{counter}"
-
         counter += 1
 
-
-
     # Create Django User
-
     user = User.objects.create_user(
-
         username=username,
-
         email=email or "",
-
         first_name=first_name,
-
         last_name=last_name
-
     )
-
     password = data.get("password", "").strip()
-
     if password:
-
         user.set_password(password)
-
     else:
-
         user.set_unusable_password()
-
     user.save()
 
-
-
     # Create Customer UserProfile
-
     profile = UserProfile.objects.create(
-
         user=user,
-
         first_name=first_name,
-
         last_name=last_name,
-
         phone=phone,
-
         email=email,
-
         dob=dob_parsed,
-
         gender=gender,
-
-        profile_photo=profile_photo,
-
         is_active=True
-
     )
 
-
+    # Save uploaded profile photo if provided
+    _save_profile_photo_from_request(request, profile, data)
 
     if hasattr(request, 'session'):
-
         login(request, user)
 
-
-
     return JsonResponse({
-
         "success": True,
-
         "message": "User registered successfully",
-
         "token": profile.auth_token,
-
         "user": profile.to_dict()
-
     }, status=201)
-
-
-
 
 
 @csrf_exempt
@@ -807,42 +750,117 @@ def api_user_status(request):
 
 
 
-def _handle_profile_update(request, profile):
-    """Internal helper to process profile field updates, email conflicts, and photo updates."""
+def _save_profile_photo_from_request(request, profile, data=None):
+    """
+    Extracts and attaches profile photo to a UserProfile from:
+      1. request.FILES (keys: profile_photo, photo, image, avatar, profile_image, file, picture, user_photo, img, or first file)
+      2. remove_photo: true flag
+      3. Raw binary body (image/* or application/octet-stream)
+      4. Base64 data URI or raw base64 string in data
+      5. Local filesystem path or media filename in data
+    Saves and persists to profile.profile_photo.
+    """
     import os
-    from io import BytesIO
+    if data is None:
+        data = _parse_request_data(request)
 
-    # 1. Handle multipart form-data for PUT/PATCH, or if Content-Type was set to application/json but body is multipart
-    if request.content_type and "multipart/form-data" in request.content_type:
-        if request.method in ("PUT", "PATCH") and not request.FILES:
+    # 1. Check remove_photo
+    if str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
+        profile.profile_photo = None
+        profile.save(update_fields=['profile_photo'])
+        return True
+
+    # 2. Check uploaded file in request.FILES
+    photo_file = None
+    if request.FILES:
+        for key in ("profile_photo", "photo", "image", "avatar", "profile_image", "file", "picture", "user_photo", "img"):
+            if key in request.FILES:
+                photo_file = request.FILES[key]
+                break
+        if not photo_file:
+            photo_file = next(iter(request.FILES.values()), None)
+
+    if photo_file:
+        if hasattr(photo_file, 'seek'):
             try:
-                from django.http.multipartparser import MultiPartParser
-                stream = BytesIO(request.body)
-                parser = MultiPartParser(request.META, stream, request.upload_handlers, request.encoding)
-                post_data, files_data = parser.parse()
-                request.POST = post_data
-                request.FILES = files_data
+                photo_file.seek(0)
             except Exception:
                 pass
-    elif request.body and request.body.startswith(b'--') and not request.FILES:
-        # Client sent multipart body with wrong Content-Type header (e.g. application/json in Postman)
+        ext = os.path.splitext(getattr(photo_file, 'name', '') or '')[1].lower()
+        if not ext or ext not in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+            ext = '.png'
+        file_name = f"user_{profile.id}_{secrets.token_hex(4)}{ext}"
         try:
-            from django.http.multipartparser import MultiPartParser
-            first_line = request.body.split(b'\r\n')[0]
-            boundary = first_line.strip(b'- \r\n').decode('latin1', errors='ignore')
-            meta = request.META.copy()
-            meta['CONTENT_TYPE'] = f"multipart/form-data; boundary={boundary}"
-            stream = BytesIO(request.body)
-            parser = MultiPartParser(meta, stream, request.upload_handlers, request.encoding)
-            post_data, files_data = parser.parse()
-            request.POST = post_data
-            request.FILES = files_data
+            file_bytes = photo_file.read()
+            profile.profile_photo.save(file_name, ContentFile(file_bytes), save=False)
         except Exception:
-            pass
+            profile.profile_photo = photo_file
+        profile.save(update_fields=['profile_photo'])
+        return True
 
+    # 3. Check raw binary body
+    content_type = request.content_type or request.META.get('CONTENT_TYPE', '') or ''
+    if (content_type.startswith('image/') or content_type == 'application/octet-stream') and request.body and len(request.body) > 100:
+        ext = '.jpg' if 'jpeg' in content_type else ('.png' if 'png' in content_type else '.jpg')
+        file_name = f"user_{profile.id}_{secrets.token_hex(4)}{ext}"
+        profile.profile_photo.save(file_name, ContentFile(request.body), save=False)
+        profile.save(update_fields=['profile_photo'])
+        return True
+
+    # 4. Check base64 string or filename in data
+    raw_photo = None
+    for key in ("profile_photo", "profile_photo_base64", "photo", "image", "avatar", "profile_image", "file", "picture"):
+        if key in data and data[key]:
+            raw_photo = data[key]
+            break
+
+    if raw_photo and isinstance(raw_photo, str):
+        raw_photo_str = raw_photo.strip()
+        # (A) Base64 string
+        if "base64," in raw_photo_str or (len(raw_photo_str) > 100 and not raw_photo_str.startswith("http") and not raw_photo_str.startswith("/")):
+            b64_str = raw_photo_str.split(",", 1)[1] if "," in raw_photo_str else raw_photo_str
+            try:
+                img_data = base64.b64decode(b64_str)
+                file_name = f"user_{profile.id}_{secrets.token_hex(4)}.png"
+                profile.profile_photo.save(file_name, ContentFile(img_data), save=False)
+                profile.save(update_fields=['profile_photo'])
+                return True
+            except Exception:
+                pass
+        # (B) Absolute path on local filesystem
+        elif os.path.isabs(raw_photo_str) and os.path.exists(raw_photo_str) and os.path.isfile(raw_photo_str):
+            try:
+                with open(raw_photo_str, "rb") as f_local:
+                    file_name = f"user_{profile.id}_{secrets.token_hex(4)}_{os.path.basename(raw_photo_str)}"
+                    profile.profile_photo.save(file_name, ContentFile(f_local.read()), save=False)
+                    profile.save(update_fields=['profile_photo'])
+                    return True
+            except Exception:
+                pass
+        # (C) Relative filename or media path (ignore placeholders like '<binary file optional>')
+        elif raw_photo_str and not raw_photo_str.startswith("<"):
+            clean_name = raw_photo_str.replace("/media/", "").replace("media/", "").strip("/\\")
+            direct_path = os.path.join(settings.MEDIA_ROOT, clean_name)
+            photo_dir = os.path.join(settings.MEDIA_ROOT, "user_profiles", "photos")
+            sub_path = os.path.join(photo_dir, os.path.basename(clean_name))
+            if os.path.exists(direct_path) and os.path.isfile(direct_path):
+                profile.profile_photo.name = clean_name
+                profile.save(update_fields=['profile_photo'])
+                return True
+            elif os.path.exists(sub_path) and os.path.isfile(sub_path):
+                profile.profile_photo.name = f"user_profiles/photos/{os.path.basename(clean_name)}"
+                profile.save(update_fields=['profile_photo'])
+                return True
+
+    return False
+
+
+def _handle_profile_update(request, profile):
+    """Internal helper to process profile field updates, email conflicts, and photo updates."""
+    _populate_multipart_request(request)
     data = _parse_request_data(request)
 
-    # 2. Update text fields
+    # 1. Update text fields
     if "first_name" in data and str(data["first_name"]).strip():
         profile.first_name = str(data["first_name"]).strip()
         profile.user.first_name = profile.first_name
@@ -877,91 +895,21 @@ def _handle_profile_update(request, profile):
             except ValueError:
                 continue
 
-    # 3. Photo updates
-    # (A) Check request.FILES: match common keys or pick first uploaded file
-    photo_file = None
-    if request.FILES:
-        for key in ("profile_photo", "photo", "image", "avatar", "profile_image", "file", "picture", "user_photo", "img"):
-            if key in request.FILES:
-                photo_file = request.FILES[key]
-                break
-        if not photo_file:
-            photo_file = next(iter(request.FILES.values()), None)
-
-    if photo_file:
-        if hasattr(photo_file, 'seek'):
-            try:
-                photo_file.seek(0)
-            except Exception:
-                pass
-        ext = os.path.splitext(photo_file.name)[1].lower() if hasattr(photo_file, 'name') and photo_file.name else '.png'
-        if not ext or ext not in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
-            ext = '.png'
-        file_name = f"user_{profile.id}_{secrets.token_hex(4)}{ext}"
-        try:
-            file_bytes = photo_file.read()
-            profile.profile_photo.save(file_name, ContentFile(file_bytes), save=False)
-        except Exception:
-            profile.profile_photo = photo_file
-    elif str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
-        profile.profile_photo = None
-    else:
-        # (B) Check raw image body (e.g. Postman Body -> binary)
-        if request.content_type and (request.content_type.startswith('image/') or request.content_type == 'application/octet-stream') and request.body and len(request.body) > 100:
-            ext = '.jpg' if 'jpeg' in request.content_type else ('.png' if 'png' in request.content_type else '.jpg')
-            file_name = f"user_{profile.id}_{secrets.token_hex(4)}{ext}"
-            profile.profile_photo.save(file_name, ContentFile(request.body), save=False)
-        else:
-            # (C) Base64 string, URL, filename, or local path passed in data
-            raw_photo = None
-            for key in ("profile_photo", "profile_photo_base64", "photo", "image", "avatar", "profile_image", "file", "picture"):
-                if key in data and data[key]:
-                    raw_photo = data[key]
-                    break
-
-            if raw_photo and isinstance(raw_photo, str):
-                raw_photo_str = raw_photo.strip()
-                # 1. Base64
-                if "base64," in raw_photo_str or (len(raw_photo_str) > 100 and not raw_photo_str.startswith("http")):
-                    b64_str = raw_photo_str.split(",", 1)[1] if "," in raw_photo_str else raw_photo_str
-                    try:
-                        img_data = base64.b64decode(b64_str)
-                        file_name = f"user_{profile.id}_{secrets.token_hex(4)}.png"
-                        profile.profile_photo.save(file_name, ContentFile(img_data), save=False)
-                    except Exception:
-                        pass
-                # 2. Absolute path on local filesystem (e.g. from developer machine testing)
-                elif os.path.isabs(raw_photo_str) and os.path.exists(raw_photo_str) and os.path.isfile(raw_photo_str):
-                    try:
-                        with open(raw_photo_str, "rb") as f_local:
-                            file_name = f"user_{profile.id}_{secrets.token_hex(4)}_{os.path.basename(raw_photo_str)}"
-                            profile.profile_photo.save(file_name, ContentFile(f_local.read()), save=False)
-                    except Exception:
-                        pass
-                # 3. Filename or relative media path (e.g. "ananya_profile.png", "avatar.jpg", "/media/user_profiles/photos/...")
-                elif raw_photo_str:
-                    clean_name = raw_photo_str.replace("/media/", "").replace("media/", "").strip("/\\")
-                    direct_path = os.path.join(settings.MEDIA_ROOT, clean_name)
-                    photo_dir = os.path.join(settings.MEDIA_ROOT, "user_profiles", "photos")
-                    sub_path = os.path.join(photo_dir, os.path.basename(clean_name))
-                    if os.path.exists(direct_path) and os.path.isfile(direct_path):
-                        profile.profile_photo.name = clean_name
-                    elif os.path.exists(sub_path) and os.path.isfile(sub_path):
-                        profile.profile_photo.name = f"user_profiles/photos/{os.path.basename(clean_name)}"
-
     profile.user.save()
     profile.save()
 
+    # 2. Update photo if provided
+    _save_profile_photo_from_request(request, profile, data)
+
     res_user = profile.to_dict()
-    res_user["total_orders"] = profile.orders.count()
-    res_user["total_spent"] = float(profile.orders.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0)
+    res_user['total_orders'] = profile.orders.count()
+    res_user['total_spent'] = float(profile.orders.exclude(status='CANCELLED').aggregate(t=Sum('total_amount'))['t'] or 0.0)
 
     return JsonResponse({
         "success": True,
         "message": "Profile updated successfully",
         "user": res_user
     }, status=200)
-
 
 
 @csrf_exempt
@@ -1125,171 +1073,68 @@ def api_user_profile_update(request):
 @csrf_exempt
 
 def api_user_profile_photo(request):
-
     """
-
     API: Upload, Update, or Remove User Profile Photo
-
-    Endpoint: POST /api/user/profile/photo/
-
+    Endpoint: POST or PUT /api/user/profile/photo/
     Header: Authorization: Bearer <token>
-
     Content-Type: multipart/form-data (or application/json for base64/remove)
-
     Params:
-
       - profile_photo: [binary file]
-
       - remove_photo: true (optional, to remove profile photo)
-
     """
-
     auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
-
     token = ''
-
     if auth_header:
-
         parts = auth_header.split()
-
         if len(parts) == 2 and parts[0].lower() in ['bearer', 'token']:
-
             token = parts[1].strip()
 
-
-
     if token:
-
         raw_profile = UserProfile.objects.filter(auth_token=token).first()
-
         if raw_profile and (not raw_profile.is_active or (raw_profile.user and not raw_profile.user.is_active)):
-
             return JsonResponse({
-
                 "success": False,
-
                 "message": "Your account has been deactivated by administrator. Please contact support."
-
             }, status=403)
 
-
-
     profile = _get_authenticated_profile(request)
-
     if not profile:
-
         return JsonResponse({
-
             "success": False,
-
             "message": "Authentication required. Pass valid Bearer token in 'Authorization' header."
-
         }, status=401)
 
+    if request.method not in ["POST", "PUT"]:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use POST or PUT."}, status=405)
 
-
-    if request.method != "POST":
-
-        return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
-
-
-
+    _populate_multipart_request(request)
     data = _parse_request_data(request)
 
-
-
     # 1. Check if user wants to remove photo
-
     if str(data.get("remove_photo", "")).lower() in ["true", "1", "yes"]:
-
         profile.profile_photo = None
-
         profile.save(update_fields=['profile_photo'])
-
         return JsonResponse({
-
             "success": True,
-
             "message": "Profile photo removed successfully",
-
-            "profile_photo": None,
-
-            "user": profile.to_dict()
-
-        }, status=200)
-
-
-
-    # 2. Check binary file upload
-
-    photo_file = request.FILES.get("profile_photo") or request.FILES.get("image") or request.FILES.get("photo")
-
-    if photo_file:
-
-        profile.profile_photo = photo_file
-
-        profile.save(update_fields=['profile_photo'])
-
-        return JsonResponse({
-
-            "success": True,
-
-            "message": "Profile photo uploaded successfully",
-
             "profile_photo": profile.photo_url,
-
             "user": profile.to_dict()
-
         }, status=200)
 
-
-
-    # 3. Base64 fallback
-
-    b64_str = data.get("profile_photo") or data.get("profile_photo_base64")
-
-    if b64_str and isinstance(b64_str, str) and ("base64," in b64_str or len(b64_str) > 100):
-
-        if "," in b64_str:
-
-            b64_str = b64_str.split(",", 1)[1]
-
-        try:
-
-            img_data = base64.b64decode(b64_str)
-
-            file_name = f"user_{profile.id}_{secrets.token_hex(4)}.png"
-
-            profile.profile_photo.save(file_name, ContentFile(img_data), save=True)
-
-            return JsonResponse({
-
-                "success": True,
-
-                "message": "Profile photo uploaded successfully",
-
-                "profile_photo": profile.photo_url,
-
-                "user": profile.to_dict()
-
-            }, status=200)
-
-        except Exception:
-
-            pass
-
-
+    # 2. Extract and save uploaded photo
+    saved = _save_profile_photo_from_request(request, profile, data)
+    if not saved and not profile.profile_photo:
+        return JsonResponse({
+            "success": False,
+            "message": "No profile_photo file or valid image data was provided in the request."
+        }, status=400)
 
     return JsonResponse({
-
-        "success": False,
-
-        "message": "No profile_photo file or valid image data was provided in the request."
-
-    }, status=400)
-
-
-
+        "success": True,
+        "message": "Profile photo uploaded successfully",
+        "profile_photo": profile.photo_url,
+        "user": profile.to_dict()
+    }, status=200)
 
 
 def _require_user_auth(request):
