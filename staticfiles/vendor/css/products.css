@@ -1,0 +1,82 @@
+/* Nainjyoti Vendor - Products Catalog Styles */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar .form-control {
+  width: 230px;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  margin: 0;
+}
+
+.table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #697a6f;
+  padding: 13px 18px;
+  font-weight: 650;
+  border-bottom: 1px solid #e7ede5;
+  background: #fbfcf9;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #3b4d42;
+  border-bottom: 1px solid #f0f3ee;
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: #fafbf8 !important;
+}
+
+.table-responsive {
+  border-radius: 0;
+}
+
+
+.product-cell {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 190px;
+}
+
+.product-thumb {
+  width: 39px;
+  height: 39px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #f1f2e9;
+  color: #54765b;
+  font-size: 16px;
+}
+
+.product-cell strong {
+  display: block;
+  font-size: 12px;
+}
+
+.product-cell small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+
+@media (max-width: 600px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .toolbar .form-control {
+    width: 100%;
+  }
+}

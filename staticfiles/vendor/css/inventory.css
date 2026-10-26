@@ -1,0 +1,81 @@
+/* Nainjyoti Vendor - Inventory Stock Control Styles */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar .form-control {
+  width: 230px;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  margin: 0;
+}
+
+.table thead th {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: #818d83;
+  padding: 15px 18px;
+  font-weight: 650;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 16px 18px;
+  font-size: 12px;
+  color: #45534a;
+  border-color: #f0f2f5;
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: #fafbf8;
+}
+
+.table-responsive {
+  border-radius: 0 0 13px 13px;
+}
+
+
+.stat-card {
+  padding: 23px 22px;
+  min-height: 138px;
+  height: 100%;
+}
+
+.stat-label {
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #77847a;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-weight: 500;
+  margin: 8px 0 3px;
+  letter-spacing: -0.7px;
+  color: #203429;
+}
+
+.stat-foot {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+
+@media (max-width: 600px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+  .toolbar .form-control {
+    width: 100%;
+  }
+}

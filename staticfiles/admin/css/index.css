@@ -1,0 +1,244 @@
+/* Nainjyoti Admin - Marketplace Overview Dashboard Styles */
+.stat {
+  padding: 18px 19px;
+  height: 100%;
+  min-height: 123px;
+}
+
+.stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #76837a;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.stat-top i {
+  color: #739177;
+  background: #eff3eb;
+  padding: 9px;
+  border-radius: 8px;
+}
+
+.stat > strong {
+  display: block;
+  font: 500 27px Georgia, serif;
+  letter-spacing: -0.5px;
+  margin: 9px 0 2px;
+  color: #24392d;
+}
+
+.stat > small {
+  font-size: 10px;
+  color: #828e85;
+}
+
+.chart {
+  height: 220px;
+  display: flex;
+  padding: 20px 20px 18px;
+}
+
+.chart-grid {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #a3aca5;
+  font-size: 9px;
+  padding-bottom: 18px;
+  width: 38px;
+}
+
+.chart-bars {
+  flex: 1;
+  display: flex;
+  align-items: end;
+  justify-content: space-around;
+  position: relative;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 39px,
+    #eff1ed 40px,
+    #eff1ed 41px
+  );
+  padding: 0 12px;
+}
+
+.bar-wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  align-items: center;
+  width: 9%;
+}
+
+.bar {
+  width: min(28px, 70%);
+  background: linear-gradient(180deg, #9bbb8c, #52745b);
+  border-radius: 5px 5px 0 0;
+}
+
+.bar-wrap small {
+  position: absolute;
+  bottom: -17px;
+  font-size: 9px;
+  color: #87928a;
+}
+
+.queue {
+  padding: 5px 17px;
+}
+
+.queue > a {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 2px;
+  border-bottom: 1px solid #f0f1ed;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.queue > a:last-child {
+  border: 0;
+}
+
+.queue > a > span:nth-child(2) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.queue b {
+  font-size: 11px;
+}
+
+.queue small {
+  font-size: 10px;
+  color: #87928a;
+}
+
+.queue > a > i {
+  font-size: 10px;
+  color: #a2aaa4;
+}
+
+.queue-icon {
+  width: 31px;
+  height: 31px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.amber {
+  background: #faf1df;
+  color: #a27625;
+}
+
+.blue {
+  background: #e9f0f4;
+  color: #4b7184;
+}
+
+.rose {
+  background: #f7ebe7;
+  color: #a15c49;
+}
+
+.green {
+  background: #e8f1e7;
+  color: #4e7752;
+}
+
+.pill {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill.amber {
+  background: #fbf2df;
+  color: #997021;
+}
+
+.pill.blue {
+  background: #eaf1f5;
+  color: #507286;
+}
+
+.pill.rose {
+  background: #f7eae6;
+  color: #a25e4e;
+}
+
+.pill.green {
+  background: #eaf3e8;
+  color: #4f7954;
+}
+
+.table {
+  margin: 0;
+  --bs-table-bg: transparent;
+}
+
+.table thead th {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #88948b;
+  border-bottom: 1px solid #edf0eb;
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  font-size: 11px;
+  color: #48564d;
+  padding: 13px 16px;
+  vertical-align: middle;
+  border-color: #f0f2ee;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover {
+  background: #fafbf8;
+}
+
+.category-list {
+  padding: 3px 19px;
+}
+
+.category-list > div {
+  padding: 12px 0;
+  font-size: 10px;
+  color: #59665d;
+}
+
+.category-list strong {
+  float: right;
+}
+
+.progress {
+  height: 5px;
+  background: #eef1eb;
+  margin-top: 7px;
+}
+
+.progress div {
+  height: 100%;
+  border-radius: 5px;
+  background: #719175;
+}
+
+@media (max-width: 700px) {
+  .stat > strong {
+    font-size: 23px;
+  }
+}

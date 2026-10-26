@@ -1,0 +1,162 @@
+/* Nainjyoti Admin - Login Page Styles */
+:root {
+  --ink: #202b27;
+  --muted: #829089;
+  --line: #e9ece7;
+  --paper: #fff;
+  --canvas: #f4f5f1;
+  --forest: #244536;
+  --accent: #cde4b8;
+  --gold: #d4a64a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 13px/1.5 Inter, "Avenir Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: radial-gradient(ellipse at 15% 20%, #e4eddd, transparent 40%), #f3f5f0;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  font-size: 19px;
+  color: #294536;
+}
+
+.login-brand .brand-mark {
+  background: #294536;
+  color: #d6e7c8;
+  width: 35px;
+  height: 35px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+}
+
+.login-brand > b span {
+  color: #73906d;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.login-card {
+  width: min(420px, calc(100% - 30px));
+  background: white;
+  border: 1px solid #e7ebe4;
+  box-shadow: 0 20px 60px #263b2712;
+  border-radius: 12px;
+  padding: 34px;
+}
+
+.login-card .eyebrow {
+  color: #718471;
+  margin-bottom: 10px;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 1.55px;
+}
+
+.login-card h1 {
+  font: 600 30px/1.15 Georgia, "Times New Roman", serif;
+  letter-spacing: -0.4px;
+  margin: 0 0 7px;
+  color: #24372d;
+}
+
+.login-card > p {
+  margin: 0 0 25px;
+  color: #7f8a83;
+  font-size: 12px;
+}
+
+.remember {
+  font-size: 10px;
+  color: #59675d;
+}
+
+.remember input {
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+.login-card a {
+  font-size: 10px;
+  color: #55755b;
+  text-decoration: none;
+}
+
+.login-card a:hover {
+  text-decoration: underline;
+}
+
+.login-note {
+  background: #f2f5ee;
+  color: #71806d;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 17px;
+  font-size: 9px;
+}
+
+.login-footer {
+  position: absolute;
+  bottom: 18px;
+  color: #a0aaa1;
+  letter-spacing: 1px;
+  font-size: 9px;
+}
+
+.form-control {
+  font-size: 11px;
+  padding: 9px 10px;
+  border-color: #dfe5de;
+  border-radius: 6px;
+}
+
+.form-control:focus {
+  border-color: #77947c;
+  box-shadow: 0 0 0 0.17rem #77947c24;
+}
+
+.form-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4d5c51;
+}
+
+.btn-dark {
+  background: #294536;
+  border-color: #294536;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 9px 13px;
+  border-radius: 6px;
+}
+
+.btn-dark:hover {
+  background: #1c3628;
+}
+
+.login-brand .brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

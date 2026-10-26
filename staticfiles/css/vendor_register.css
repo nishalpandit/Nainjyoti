@@ -1,0 +1,374 @@
+/* Nainjyoti Marketplace - Full-Screen Merchant Onboarding Styles
+   Aesthetic: Heritage Luxury Indian Commerce & Modern SaaS
+   Pure Form Viewport - Absolutely Zero Navbars, No Floating Card Boxes
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --forest-dark: #0a1812;
+  --forest-deep: #0f241a;
+  --forest-mid: #163628;
+  --gold-accent: #c59b27;
+  --gold-light: #dfb749;
+  --gold-warm: #f1cf75;
+  --parchment-bg: #f9f7f2;
+  --parchment-border: #e6e1d4;
+  --ink-primary: #122119;
+  --ink-secondary: #4a5c52;
+  --ink-muted: #798c80;
+  --input-bg: #ffffff;
+  --input-border: #dcd6c7;
+  --input-focus: #0f241a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  width: 100%;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--parchment-bg);
+  color: var(--ink-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   Full-Screen Layout Container (Zero Navbars)
+   ========================================================================== */
+.fullscreen-register-page {
+  min-height: 100vh;
+  width: 100%;
+  padding: 56px 24px 80px;
+  background-color: var(--parchment-bg);
+  background-image: 
+    radial-gradient(circle at 10% 10%, rgba(197, 155, 39, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 90%, rgba(15, 36, 26, 0.04) 0%, transparent 40%);
+}
+
+/* Main Form Body */
+.fullscreen-reg-main {
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Centered Brand Header */
+.reg-brand-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.brand-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.brand-monogram {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #c59b27, #997415);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(197, 155, 39, 0.25);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  line-height: 1.1;
+}
+
+.brand-name span {
+  color: var(--gold-accent);
+}
+
+.brand-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+/* Page Intro Title */
+.reg-intro-section {
+  text-align: center;
+  margin-bottom: 44px;
+}
+
+.reg-page-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+.reg-page-subtitle {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+/* Error Alerts */
+.messages-container {
+  margin-bottom: 32px;
+}
+
+.reg-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.reg-alert.alert-error {
+  background: #fdf2f2;
+  border: 1px solid #f8b4b4;
+  color: #9b1c1c;
+}
+
+/* Form Structure (No Card Box, Clean Section Dividers) */
+.full-reg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 38px;
+}
+
+.form-section-block {
+  padding-bottom: 34px;
+  border-bottom: 1px solid var(--parchment-border);
+}
+
+.section-block-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.section-index {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--forest-deep);
+  color: var(--gold-warm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  letter-spacing: 0.5px;
+}
+
+.section-head-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-heading {
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  letter-spacing: -0.3px;
+}
+
+.section-subtext {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+/* Grids */
+.fields-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.fields-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-primary);
+}
+
+.form-control,
+.form-select {
+  width: 100%;
+  height: 48px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 10px;
+  padding: 0 16px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink-primary);
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--forest-deep);
+  box-shadow: 0 0 0 4px rgba(15, 36, 26, 0.08);
+}
+
+.form-control::placeholder {
+  color: var(--ink-muted);
+}
+
+/* File Upload Blocks */
+.file-upload-box {
+  border: 1.5px dashed var(--input-border);
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: all 0.2s ease;
+}
+
+.file-upload-box:hover {
+  border-color: var(--gold-accent);
+}
+
+.file-input {
+  width: 100%;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.upload-hint {
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-top: 6px;
+}
+
+/* Terms */
+.terms-declaration-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+}
+
+.custom-terms-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--forest-deep);
+  cursor: pointer;
+}
+
+/* Submit Action */
+.submit-action-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.btn-submit-application {
+  height: 52px;
+  width: 100%;
+  max-width: 400px;
+  background: var(--forest-deep);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 16px rgba(15, 36, 26, 0.2);
+}
+
+.btn-submit-application:hover {
+  background: var(--forest-mid);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 36, 26, 0.3);
+}
+
+.btn-submit-application i {
+  color: var(--gold-light);
+}
+
+/* Bottom Link Prompt */
+.reg-bottom-login-prompt {
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-secondary);
+  margin-top: 10px;
+}
+
+.reg-bottom-login-prompt a {
+  color: var(--forest-deep);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.reg-bottom-login-prompt a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 860px) {
+  .fullscreen-register-page {
+    padding: 36px 16px 60px;
+  }
+  .reg-page-title {
+    font-size: 30px;
+  }
+  .fields-grid-2,
+  .fields-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}

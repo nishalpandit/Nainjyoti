@@ -1,0 +1,17 @@
+/* Nainjyoti Vendor - Store Settings Styles */
+.form-card {
+  border-radius: 10px;
+}
+
+.alert-note {
+  padding: 12px 14px;
+  background: #f0f3e8;
+  color: #53674c;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.avatar {
+  background: #e1ead8;
+  color: #365c40;
+}

@@ -1,0 +1,37 @@
+# ==============================================================================
+# cPanel / Apache Configuration for Django Application
+# ==============================================================================
+
+# Enable Passenger WSGI (auto-managed by cPanel Setup Python App)
+<IfModule mod_passenger.c>
+    PassengerAppRoot "."
+    PassengerAppType wsgi
+    PassengerStartupFile passenger_wsgi.py
+</IfModule>
+
+# URL Rewriting & Direct Static / Media File Serving
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # If the requested static or media file exists on disk, serve directly via Apache
+    RewriteCond %{REQUEST_URI} ^/(static|media)/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+</IfModule>
+
+# Browser caching for performance
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+# Disable directory browsing
+Options -Indexes

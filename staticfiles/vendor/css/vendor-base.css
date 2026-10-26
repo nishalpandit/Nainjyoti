@@ -1,0 +1,531 @@
+/* Nainjyoti Vendor Dashboard - Base Design System */
+:root {
+  --navy: #17251f;
+  --muted: #748078;
+  --line: #e7eae4;
+  --bg: #f5f5f0;
+  --purple: #4f7659;
+  --green: #387858;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: #25342d;
+  font-family: Inter, "Avenir Next", system-ui, sans-serif;
+  letter-spacing: 0.005em;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 246px;
+  background: #17251f;
+  color: #fff;
+  padding: 25px 16px;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 750;
+  font-size: 20px;
+  letter-spacing: -0.6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 12px 30px;
+}
+
+.brand-mark {
+  background: #d7e7c8;
+  color: #213c2b;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+
+.nav-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: #87978b;
+  padding: 10px 13px;
+  margin-top: 4px;
+}
+
+.sidebar a {
+  color: #b8c5ba;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 13px;
+  border-radius: 7px;
+  margin: 3px 0;
+  font-weight: 500;
+  transition: background 0.18s, color 0.18s;
+}
+
+.sidebar a:hover {
+  background: #293a31;
+  color: #fff;
+}
+
+.sidebar a.active {
+  background: #34483b;
+  color: #e5f0d6;
+  box-shadow: none;
+}
+
+.sidebar a i {
+  width: 18px;
+  text-align: center;
+}
+
+.side-bottom {
+  position: absolute;
+  bottom: 20px;
+  left: 15px;
+  right: 15px;
+  border-top: 1px solid #33443a;
+  padding-top: 14px;
+}
+
+.workspace {
+  margin-left: 246px;
+  min-height: 100vh;
+}
+
+.topbar {
+  height: 76px;
+  background: #fbfbf8;
+  border-bottom: 1px solid #e6e9e3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.crumb {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.profile-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e1ead8;
+  color: #365c40;
+  font-weight: 700;
+}
+
+.main {
+  padding: 36px 40px;
+  max-width: 1580px;
+  margin: auto;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.page-head h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 31px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  margin: 0 0 5px;
+  color: #1e3026;
+}
+
+.sub {
+  font-size: 13px;
+  color: #78847a;
+  margin: 0;
+}
+
+.card {
+  border: 1px solid #e8eae4;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(32, 48, 37, 0.035);
+  background: #fff;
+}
+
+.card-head {
+  padding: 19px 22px;
+  background: linear-gradient(90deg, #fff, #fcfcf8);
+  border-bottom: 1px solid #eceee8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-head h2 {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.card-body {
+  padding: 23px;
+}
+
+.btn {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 15px;
+}
+
+.btn-primary,
+a.btn-primary,
+button.btn-primary {
+  background: #234d36 !important;
+  border-color: #234d36 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 6px rgba(35, 77, 54, 0.2);
+}
+
+.btn-primary:hover,
+a.btn-primary:hover,
+button.btn-primary:hover,
+.btn-primary:focus,
+a.btn-primary:focus,
+button.btn-primary:focus {
+  background: #173626 !important;
+  border-color: #173626 !important;
+  color: #ffffff !important;
+}
+
+.btn-dark,
+a.btn-dark,
+button.btn-dark {
+  background: #192b23 !important;
+  border-color: #192b23 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.btn-dark:hover,
+a.btn-dark:hover,
+button.btn-dark:hover {
+  background: #0d1a14 !important;
+  border-color: #0d1a14 !important;
+  color: #ffffff !important;
+}
+
+.btn-outline-primary,
+a.btn-outline-primary,
+button.btn-outline-primary {
+  border-color: #234d36 !important;
+  color: #234d36 !important;
+  font-weight: 600 !important;
+}
+
+.btn-outline-primary:hover,
+a.btn-outline-primary:hover,
+button.btn-outline-primary:hover {
+  background: #234d36 !important;
+  border-color: #234d36 !important;
+  color: #ffffff !important;
+}
+
+.btn-light {
+  background: #fff;
+}
+
+.form-control,
+.form-select {
+  border-color: #dfe4dc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #7e9a80;
+  box-shadow: 0 0 0 0.2rem rgba(79, 118, 89, 0.12);
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 650;
+  color: #445349;
+}
+
+.form-text {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.badge-soft {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.success {
+  background: #e9f1e6;
+  color: #426d4c;
+}
+
+.warning {
+  background: #f8f0dc;
+  color: #97722b;
+}
+
+.danger {
+  background: #f7e9e5;
+  color: #a45745;
+}
+
+.primary {
+  background: #e8eee5;
+  color: #426d4c;
+}
+
+.neutral {
+  background: #eff0eb;
+  color: #6c766e;
+}
+
+a:not(.brand):not(.btn) {
+  color: #507456;
+}
+
+a:not(.brand):not(.btn):hover {
+  color: #2b5737;
+}
+
+footer {
+  color: #879188 !important;
+  letter-spacing: 0.04em;
+  text-align: center;
+  margin-top: 24px;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 70px;
+    padding: 18px 8px;
+  }
+  .brand {
+    padding: 3px 9px 25px;
+  }
+  .brand-name,
+  .nav-label,
+  .sidebar a span,
+  .side-bottom .logout-text {
+    display: none;
+  }
+  .sidebar a {
+    justify-content: center;
+    padding: 12px;
+  }
+  .workspace {
+    margin-left: 70px;
+  }
+  .main {
+    padding: 28px 22px;
+  }
+  .topbar {
+    padding: 0 22px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    display: none;
+  }
+  .workspace {
+    margin: 0;
+  }
+  .topbar {
+    height: 60px;
+    padding: 0 16px;
+  }
+  .main {
+    padding: 22px 15px;
+  }
+  .vendor-pagination-container {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+  .vendor-pagination-container .pagination-nav {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =============================================================================
+   Enhanced Design Polish (Cards, Tables, Badges, Hover Effects)
+   ============================================================================= */
+.stat-card {
+  border: 1px solid #e7ebe5 !important;
+  border-radius: 10px !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  background: #ffffff !important;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(35, 77, 54, 0.07) !important;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  margin: 0;
+}
+
+.table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #728277;
+  padding: 13px 18px;
+  font-weight: 650;
+  border-bottom: 1px solid #e7ebe5;
+  background: #fbfcf9;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: #3b4d42;
+  border-bottom: 1px solid #f0f3ee;
+  vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.table tbody tr:hover {
+  background-color: #fbfcf9 !important;
+}
+
+/* =============================================================================
+   Modern Vendor Pagination System
+   ============================================================================= */
+.vendor-pagination-container {
+  border-top: 1px solid #edf1eb !important;
+  background: #fafbf9 !important;
+  padding: 14px 22px !important;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.vendor-pagination-container .pagination-info {
+  font-size: 12px;
+  color: #637267;
+  letter-spacing: 0.01em;
+}
+
+.vendor-pagination-container .pagination-info strong {
+  color: #1a2d21;
+  font-weight: 700;
+}
+
+.vendor-pagination-list {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 5px;
+  align-items: center;
+}
+
+.vendor-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #384a3f !important;
+  background: #ffffff !important;
+  border: 1px solid #dde4da !important;
+  border-radius: 7px !important;
+  text-decoration: none !important;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(25, 45, 33, 0.04);
+}
+
+.vendor-page-btn:hover {
+  background: #edf5eb !important;
+  color: #1b3d29 !important;
+  border-color: #bcd2b7 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(27, 61, 41, 0.08);
+}
+
+.vendor-page-btn.active,
+.page-item.active .vendor-page-btn {
+  background: #234d36 !important;
+  color: #ffffff !important;
+  border-color: #234d36 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 7px rgba(35, 77, 54, 0.3) !important;
+  pointer-events: none;
+}
+
+.vendor-page-btn.disabled,
+.page-item.disabled .vendor-page-btn {
+  color: #b3bfb7 !important;
+  background: #fafbf9 !important;
+  border-color: #ebf0e9 !important;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  box-shadow: none !important;
+  transform: none;
+}
+
+.vendor-page-btn.ellipsis {
+  background: transparent !important;
+  border: none !important;
+  color: #8c9b91 !important;
+  box-shadow: none !important;
+  min-width: 22px;
+  font-weight: 700;
+}
+
