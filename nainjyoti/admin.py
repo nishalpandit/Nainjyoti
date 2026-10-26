@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem,
+    Banner, Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem,
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
     OrderStatusHistory, VendorEarning, VendorPayout, CommissionSetting, CommissionRateHistory
 )
@@ -28,6 +28,13 @@ class FullControlAdminMixin:
 
     def has_delete_permission(self, request, obj=None):
         return self._is_admin(request)
+
+@admin.register(Banner)
+class BannerAdmin(FullControlAdminMixin, admin.ModelAdmin):
+    list_display = ('title', 'category', 'badge_text', 'display_order', 'status', 'created_at')
+    list_filter = ('status', 'category')
+    search_fields = ('title', 'subtitle', 'badge_text', 'category__name')
+    ordering = ('display_order', '-created_at')
 
 @admin.register(Category)
 class CategoryAdmin(FullControlAdminMixin, admin.ModelAdmin):
