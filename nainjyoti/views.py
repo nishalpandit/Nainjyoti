@@ -19,6 +19,7 @@ from django.utils.text import slugify
 from .models import (
     VendorProfile,
     Category,
+    Banner,
     Product,
     Order,
     OrderItem,
@@ -272,7 +273,7 @@ def format_inr(amount):
 
 def paginate_queryset(request, queryset, default_page_size=10):
     """
-    Standard pagination helper for Bazaar Admin tables.
+    Standard pagination helper for Nainjyoti Admin tables.
     Preserves all active filters and URL parameters across page navigation.
     """
     try:
@@ -574,6 +575,153 @@ def admin_category_form(request, category_id=None):
         category.save()
         messages.success(request, f"Category '{category.name}' saved successfully!")
         return redirect("admin_categories")
+
+
+# =========================================================================
+# Admin Promotional Banners CMS
+# =========================================================================
+
+@admin_required
+def admin_banners(request):
+    """Admin Promotional Hero Banners Management View"""
+    search_query = request.GET.get("q", "").strip()
+    status_filter = request.GET.get("status", "").strip().upper()
+
+    banners_qs = Banner.objects.select_related('category').all().order_by('display_order', '-created_at')
+
+    if search_query:
+        banners_qs = banners_qs.filter(
+            Q(title__icontains=search_query) |
+            Q(subtitle__icontains=search_query) |
+            Q(badge_text__icontains=search_query) |
+            Q(category__name__icontains=search_query)
+        )
+
+    if status_filter in ['ACTIVE', 'INACTIVE']:
+        banners_qs = banners_qs.filter(status=status_filter)
+
+    p_data = paginate_queryset(request, banners_qs, default_page_size=10)
+
+    return render(request, "admin/banners.html", {
+        "banners": p_data['page_items'],
+        "page_obj": p_data['page_obj'],
+        "paginator": p_data['paginator'],
+        "querystring": p_data['querystring'],
+        "elided_page_range": p_data['elided_page_range'],
+        "total_banners": p_data['total_count'],
+        "search_query": search_query,
+        "status_filter": status_filter,
+    })
+
+
+@admin_required
+def admin_banner_form(request, banner_id=None):
+    """Admin Banner Create/Edit Form View"""
+    banner = None
+    if banner_id:
+        banner = get_object_or_404(Banner, id=banner_id)
+
+    if request.method == "POST":
+        title = request.POST.get("title", "").strip()
+        subtitle = request.POST.get("subtitle", "").strip()
+        badge_text = request.POST.get("badge_text", "").strip()
+        category_id = request.POST.get("category_id", "").strip()
+        button_text = request.POST.get("button_text", "Shop Deals").strip() or "Shop Deals"
+        link_url = request.POST.get("link_url", "").strip()
+        try:
+            display_order = int(request.POST.get("display_order", 0) or 0)
+        except (ValueError, TypeError):
+            display_order = 0
+
+        status_raw = request.POST.get("status", "").strip().upper()
+        if status_raw in ["ACTIVE", "INACTIVE"]:
+            status_val = status_raw
+        else:
+            status_val = "ACTIVE" if request.POST.get("status") in ["on", "1", "true", "ACTIVE"] else "INACTIVE"
+
+        category_obj = None
+        if category_id:
+            try:
+                category_obj = Category.objects.filter(id=int(category_id)).first()
+            except (ValueError, TypeError):
+                category_obj = None
+
+        if not banner:
+            banner = Banner(
+                title=title,
+                subtitle=subtitle,
+                badge_text=badge_text,
+                category=category_obj,
+                button_text=button_text,
+                link_url=link_url,
+                display_order=display_order,
+                status=status_val,
+            )
+        else:
+            banner.title = title
+            banner.subtitle = subtitle
+            banner.badge_text = badge_text
+            banner.category = category_obj
+            banner.button_text = button_text
+            banner.link_url = link_url
+            banner.display_order = display_order
+            banner.status = status_val
+
+        if request.FILES.get("image"):
+            banner.image = request.FILES["image"]
+        elif request.POST.get("remove_image") in ["1", "true", "on"]:
+            banner.image = None
+
+        banner.save()
+        messages.success(request, f"Banner '{banner.title}' saved successfully!")
+        return redirect("admin_banners")
+
+    categories = Category.objects.all().order_by('name')
+    return render(request, "admin/banner-form.html", {
+        "banner": banner,
+        "categories": categories,
+    })
+
+
+@admin_required
+@csrf_exempt
+def admin_banner_toggle_status(request, banner_id):
+    """
+    Toggle Banner ACTIVE / INACTIVE status
+    Endpoint: POST /admin-dashboard/banners/<banner_id>/toggle-status/
+    """
+    banner = get_object_or_404(Banner, id=banner_id)
+    new_status = 'INACTIVE' if banner.status == 'ACTIVE' else 'ACTIVE'
+    banner.status = new_status
+    banner.save(update_fields=['status', 'updated_at'])
+
+    action_label = "ACTIVATED" if new_status == 'ACTIVE' else "DEACTIVATED"
+    msg = f"Banner '{banner.title}' has been {action_label}."
+    messages.success(request, msg)
+
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in getattr(request, 'content_type', '')
+    if is_ajax:
+        return JsonResponse({
+            "success": True,
+            "message": msg,
+            "banner_id": banner.id,
+            "status": banner.status,
+            "is_active": banner.status == 'ACTIVE'
+        }, status=200)
+
+    return redirect("admin_banners")
+
+
+@admin_required
+@require_POST
+def admin_banner_delete(request, banner_id):
+    """Permanently delete a promotional banner."""
+    banner = get_object_or_404(Banner, id=banner_id)
+    banner_title = banner.title
+    banner.delete()
+    messages.success(request, f"Banner '{banner_title}' has been permanently deleted.")
+    return redirect("admin_banners")
+
 
     return render(request, "admin/category-form.html", {
         "category": category
@@ -2548,6 +2696,9 @@ def admin_legacy_redirect(request, page=""):
         "vendor-approval": "admin_vendor_approval",
         "categories": "admin_categories",
         "category-form": "admin_category_add",
+        "banners": "admin_banners",
+        "banner-form": "admin_banner_add",
+        "banners-form": "admin_banner_add",
         "products": "admin_products",
         "product-approval": "admin_product_approval",
         "orders": "admin_orders",
