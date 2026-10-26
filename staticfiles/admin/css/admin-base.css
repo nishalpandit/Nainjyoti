@@ -348,15 +348,24 @@ a.btn-primary:hover {
 
 footer {
   text-align: center;
-  color: #9aa49b;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  padding: 28px 0 8px;
+  color: #718096;
+  font-size: 11px;
+  padding: 28px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 footer span {
-  margin: 0 7px;
-  color: #c4cbc3;
+  color: #a0aec0;
+}
+
+footer a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 @media (max-width: 1000px) {
