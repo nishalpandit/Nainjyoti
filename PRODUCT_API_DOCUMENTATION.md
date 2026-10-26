@@ -276,3 +276,44 @@ forbidden_error_response (403):
   "message": "Access denied. You do not have permission to delete this product."
 }
 ```
+
+---
+
+API for Home Promotional Carousel Banners  
+url: http://192.168.1.52:8000/api/user/banners/  
+alias_url: http://192.168.1.52:8000/api/banners/  
+method: GET  
+
+headers:  
+none (Public endpoint for guest and mobile app users)  
+
+params:  
+none  
+
+response:  
+```json
+{
+  "success": true,
+  "message": "Banners fetched successfully",
+  "count": 1,
+  "banners": [
+    {
+      "id": 1,
+      "title": "Super Vendor Super Weekend",
+      "subtitle": "Direct from 85+ verified flagship merchants. Exclusive drops & warranty.",
+      "badge_text": "⚡ FLASH SALE 50% OFF",
+      "image": "http://192.168.1.52:8000/media/banners/super_vendor_weekend.png",
+      "image_url": "http://192.168.1.52:8000/media/banners/super_vendor_weekend.png",
+      "category_id": 43,
+      "category_name": "Japi and Mask Craft",
+      "button_text": "Shop Deals",
+      "link_url": "",
+      "display_order": 1,
+      "status": "ACTIVE",
+      "created_at": "2026-10-26T06:48:46.455904+00:00",
+      "updated_at": "2026-10-26T06:48:46.455930+00:00"
+    }
+  ]
+}
+```
+

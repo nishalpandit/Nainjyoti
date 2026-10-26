@@ -38,7 +38,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 
 from .models import (
-    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Product, ProductVariant, CartItem, WishlistItem,
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Banner, Product, ProductVariant, CartItem, WishlistItem,
 
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
 
@@ -1799,6 +1799,32 @@ def api_user_address_delete(request, address_id):
 
 
 
+
+
+@csrf_exempt
+def api_user_banners(request):
+    """
+    API: Fetch promotional banners for mobile app home screen / web carousel
+    Endpoints: GET /api/user/banners/ or /api/banners/
+    Returns active banners ordered by display_order.
+    Response includes:
+      - image: string (URL to banner image)
+      - title: string (banner headline)
+      - category_id: int | null (target category for 'Shop Deals')
+      - full details: subtitle, badge_text, button_text, link_url, etc.
+    """
+    if request.method != 'GET':
+        return JsonResponse({"success": False, "message": "Method not allowed. Use GET."}, status=405)
+
+    banners_qs = Banner.objects.filter(status='ACTIVE').select_related('category').order_by('display_order', '-created_at')
+    banners_data = [banner.to_dict(request=request) for banner in banners_qs]
+
+    return JsonResponse({
+        "success": True,
+        "message": "Banners fetched successfully",
+        "count": len(banners_data),
+        "banners": banners_data,
+    }, status=200)
 
 
 @csrf_exempt

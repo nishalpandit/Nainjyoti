@@ -1305,3 +1305,50 @@ response (if product not found, inactive, unapproved, vendor unapproved, or cate
   "message": "Product with ID '999' was not found or is unavailable."
 }
 ```
+
+---
+
+## 20. API for Home Promotional Carousel Banners
+**URL**: `http://192.168.1.52:8000/api/user/banners/`  
+**Alias**: `http://192.168.1.52:8000/api/banners/`  
+**Method**: `GET`  
+**Authentication**: None required (Public endpoint for guest and authenticated app users)
+
+**Key Payload Fields**:
+- `image`: URL of the banner graphic (for mobile carousel display)
+- `title`: Headline text (e.g. "Super Vendor Super Weekend")
+- `category_id`: Target Category ID (used by frontend for "Shop Deals" button click navigation)
+- `category_name`: Name of the target category
+- `badge_text`: Promotional tag badge (e.g. "⚡ FLASH SALE 50% OFF")
+- `subtitle`: Subtitle description
+- `button_text`: Call-to-action button label (default: "Shop Deals")
+- `link_url`: Optional custom redirect link
+- `display_order`: Display sequence order
+
+**Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Banners fetched successfully",
+  "count": 1,
+  "banners": [
+    {
+      "id": 1,
+      "title": "Super Vendor Super Weekend",
+      "subtitle": "Direct from 85+ verified flagship merchants. Exclusive drops & warranty.",
+      "badge_text": "⚡ FLASH SALE 50% OFF",
+      "image": "http://192.168.1.52:8000/media/banners/super_vendor_weekend.png",
+      "image_url": "http://192.168.1.52:8000/media/banners/super_vendor_weekend.png",
+      "category_id": 43,
+      "category_name": "Japi and Mask Craft",
+      "button_text": "Shop Deals",
+      "link_url": "",
+      "display_order": 1,
+      "status": "ACTIVE",
+      "created_at": "2026-10-26T06:48:46.455904+00:00",
+      "updated_at": "2026-10-26T06:48:46.455930+00:00"
+    }
+  ]
+}
+```
+
