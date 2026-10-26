@@ -62,16 +62,12 @@
             {% endif %}
 
             {% block vendor_content %}{% endblock %}
-            <footer class="text-center text-secondary mt-4 pb-3" style="font-size:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
-  <span>&copy; 2026 Nainjyoti. All rights reserved.</span>
-  <span>·</span>
-  <span style="display:inline-flex; align-items:center; gap:5px;">
-    Designed &amp; Developed by
-    <a href="https://www.brightcodess.com/" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; text-decoration:none;">
-      <img src="{% static 'img/brightcode.png' %}" alt="Brightcode" style="height:15px; vertical-align:middle; display:inline-block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-      <span style="display:none; color:red; font-weight:700; font-family:sans-serif;">Brightcode</span>
-    </a>
-  </span>
+            <footer class="text-center text-secondary mt-4 pb-3" style="font-size: 13px; font-weight: 500; color: #4b5563; display: flex; align-items: center; justify-content: center; gap: 6px;">
+  <span>Designed &amp; Developed by</span>
+  <a href="https://www.brightcodess.com/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; text-decoration: none;">
+    <img src="{% static 'img/brightcode.png' %}" alt="Brightcode" class="brightcode-logo" style="height: 20px; vertical-align: middle; display: inline-block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+    <span style="display: none; color: red; font-weight: 700; font-family: sans-serif; font-size: 14px;">Brightcode</span>
+  </a>
 </footer>
         </main>
     </div>
