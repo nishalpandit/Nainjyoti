@@ -1,4 +1,4 @@
-/* Bazaar Admin Console - Base Design System */
+/* Nainjyoti Admin Console - Base Design System */
 :root {
   --ink: #202b27;
   --muted: #829089;
@@ -30,6 +30,17 @@ body {
   padding: 21px 14px;
   z-index: 5;
   overflow-y: auto;
+}
+
+
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .brand {
@@ -368,7 +379,18 @@ footer span {
     width: 58px;
     padding: 14px 6px;
   }
-  .brand {
+  
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.brand {
     padding: 0 6px 22px;
   }
   .brand-name,
@@ -410,7 +432,7 @@ footer span {
 }
 
 /* =========================================================================
-   BAZAAR ADMIN - UNIFIED CARD PAGINATION
+   NAINJYOTI ADMIN - UNIFIED CARD PAGINATION
    ========================================================================= */
 .card-footer-pagination {
   display: flex;

@@ -1,4 +1,4 @@
-# Bazaar Admin Dashboard
+# Nainjyoti Admin Dashboard
 
 A standalone multi-page admin console for an India-focused multivendor marketplace. Built with HTML5, CSS3, vanilla JavaScript, Bootstrap 5 and Font Awesome. No React, TSX or other frontend framework is used.
 

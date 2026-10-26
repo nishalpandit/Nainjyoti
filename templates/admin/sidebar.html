@@ -1,7 +1,8 @@
+{% load static %}
 <aside class="sidebar">
   <a class="brand" href="{% url 'admin_dashboard' %}">
-    <span class="brand-mark"><i class="fa-solid fa-shop"></i></span>
-    <span class="brand-name">bazaar<span>admin</span></span>
+    <img src="{% static 'img/logo.png' %}" alt="Nainjyoti" class="brand-logo">
+    <span class="brand-name">Nainjyoti</span>
   </a>
   <div class="nav-label">ADMIN CONSOLE</div>
   <nav>
@@ -22,6 +23,9 @@
     </a>
     <a class="{% if active_nav == 'categories' %}active{% endif %}" href="{% url 'admin_categories' %}">
       <i class="fa-solid fa-layer-group"></i><span>Categories</span>
+    </a>
+    <a class="{% if active_nav == 'banners' %}active{% endif %}" href="{% url 'admin_banners' %}">
+      <i class="fa-solid fa-rectangle-ad"></i><span>Home Banners</span>
     </a>
     <a class="{% if active_nav == 'products' %}active{% endif %}" href="{% url 'admin_products' %}">
       <i class="fa-solid fa-boxes-stacked"></i><span>Products</span>

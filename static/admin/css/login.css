@@ -1,4 +1,4 @@
-/* Bazaar Admin - Login Page Styles */
+/* Nainjyoti Admin - Login Page Styles */
 :root {
   --ink: #202b27;
   --muted: #829089;
@@ -151,4 +151,12 @@ body {
 
 .btn-dark:hover {
   background: #1c3628;
+}
+
+.login-brand .brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

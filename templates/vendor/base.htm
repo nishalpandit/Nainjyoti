@@ -9,7 +9,7 @@
 {% block layout %}
     <aside class="sidebar">
         <a class="brand text-white text-decoration-none" href="{% url 'vendor_dashboard' %}">
-            <span class="brand-mark"><i class="fa-solid fa-store"></i></span>
+            <img src="{% static 'img/logo.png' %}" alt="Nainjyoti" class="brand-logo" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
             <span class="brand-name">Nainjyoti</span>
         </a>
         <div class="nav-label">Workspace</div>
@@ -29,7 +29,7 @@
 
     <div class="workspace">
         <header class="topbar">
-            <div class="crumb"><span class="d-none d-sm-inline">Northstar / </span><strong class="text-dark">{% block breadcrumb %}Dashboard{% endblock %}</strong></div>
+            <div class="crumb"><span class="d-none d-sm-inline">Nainjyoti / </span><strong class="text-dark">{% block breadcrumb %}Dashboard{% endblock %}</strong></div>
             <div class="profile-mini">
                 <button class="btn btn-light border d-none d-sm-inline-block" type="button" aria-label="Notifications"><i class="fa-regular fa-bell"></i></button>
                 <div class="avatar">JD</div>
@@ -42,7 +42,7 @@
 
         <main class="main">
             {% block vendor_content %}{% endblock %}
-            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 BharatBazaar Seller · Sample dashboard data for demonstration</footer>
+            <footer class="text-center text-secondary mt-4" style="font-size:11px">© 2026 Nainjyoti Seller · Sample dashboard data for demonstration</footer>
         </main>
     </div>
 {% endblock %}
