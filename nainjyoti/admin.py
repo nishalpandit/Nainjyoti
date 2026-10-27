@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Banner, Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, CartItem, WishlistItem,
+    Banner, Category, VendorProfile, UserProfile, UserAddress, OTPRecord, Product, ProductVariant, ProductVariantImage, CartItem, WishlistItem,
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
     OrderStatusHistory, VendorEarning, VendorPayout, CommissionSetting, CommissionRateHistory
 )
@@ -56,6 +56,13 @@ class ProductVariantAdmin(FullControlAdminMixin, admin.ModelAdmin):
     list_display = ('title', 'product', 'sku', 'price', 'stock_quantity', 'is_active')
     list_filter = ('is_active', 'color', 'size')
     search_fields = ('title', 'sku', 'product__name')
+
+
+@admin.register(ProductVariantImage)
+class ProductVariantImageAdmin(FullControlAdminMixin, admin.ModelAdmin):
+    list_display = ('product', 'variant', 'color', 'display_order', 'created_at')
+    list_filter = ('color', 'product')
+    search_fields = ('product__name', 'color')
 
 
 @admin.register(CommissionSetting)

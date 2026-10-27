@@ -38,7 +38,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 
 from .models import (
-    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Banner, Product, ProductVariant, CartItem, WishlistItem,
+    UserProfile, UserAddress, OTPRecord, VendorProfile, Category, Banner, Product, ProductVariant, ProductVariantImage, CartItem, WishlistItem,
 
     ProductReview, StockLog, Order, PaymentTransaction, OrderItem, OrderRequest, Notification,
 
@@ -6410,165 +6410,267 @@ def api_product_variant_list(request, product_id):
 
     variants = list(product.variants.all().order_by('id'))
 
+    color_groups = {}
+    for v in variants:
+        c = v.color.strip() if v.color else 'Default'
+        if c not in color_groups:
+            color_groups[c] = {
+                'color': c,
+                'images': [],
+                'variants': [],
+                'total_stock': 0,
+            }
+        vd = v.to_dict()
+        color_groups[c]['variants'].append(vd)
+        color_groups[c]['total_stock'] += (v.stock_quantity or 0)
+        for img in vd.get('images', []):
+            if img not in color_groups[c]['images']:
+                color_groups[c]['images'].append(img)
+
     return JsonResponse({
-
         "success": True,
-
         "product_id": product.id,
-
         "product_name": product.name,
-
         "total_variants": len(variants),
-
         "variants": [variant.to_dict() for variant in variants],
-
+        "color_groups": list(color_groups.values()),
     }, status=200)
 
 
-
-
-
 @csrf_exempt
-
 def api_product_variant_create(request, product_id):
-
-    """Create a product variant as the owning vendor or an administrator."""
-
+    """Create a product variant or multiple size variants by color as the owning vendor or an administrator."""
     if request.method != 'POST':
-
         return JsonResponse({"success": False, "message": "Method not allowed. Use POST."}, status=405)
 
-
-
     product, vendor, error = _managed_variant_product(request, product_id, action='add variants to')
-
     if error:
-
         return error
 
     data = _parse_request_data(request)
 
-    title = str(data.get('title', '')).strip()
+    # Check for multiple sizes (either JSON string or list in 'sizes')
+    raw_sizes = data.get('sizes')
+    sizes_list = []
+    if raw_sizes:
+        if isinstance(raw_sizes, str):
+            try:
+                sizes_list = json.loads(raw_sizes)
+            except Exception:
+                sizes_list = []
+        elif isinstance(raw_sizes, list):
+            sizes_list = raw_sizes
 
+    color = str(data.get('color', '')).strip()
+    material = str(data.get('material', '')).strip()
+    base_title = str(data.get('title', '')).strip()
+
+    is_active = True
+    if 'is_active' in data:
+        is_active, is_valid = _parse_boolean(data['is_active'])
+        if not is_valid:
+            return JsonResponse({"success": False, "message": "Field 'is_active' must be true or false."}, status=400)
+
+    # Collect uploaded image files (supports multiple images via 'images' or single via 'image')
+    uploaded_files = []
+    if hasattr(request, 'FILES'):
+        uploaded_files = list(request.FILES.getlist('images'))
+        single_file = request.FILES.get('image')
+        if single_file and single_file not in uploaded_files:
+            uploaded_files.insert(0, single_file)
+
+    # CASE A: Multiple sizes provided 1 by 1
+    if sizes_list and len(sizes_list) > 0:
+        if not color and not base_title:
+            return JsonResponse({"success": False, "message": "Color or title is required when adding size variants."}, status=400)
+
+        created_variants = []
+        with transaction.atomic():
+            for item in sizes_list:
+                if not isinstance(item, dict):
+                    continue
+                size_name = str(item.get('size', '')).strip()
+                if not size_name:
+                    continue
+
+                try:
+                    stock_qty = int(item.get('stock_quantity', 0))
+                except (ValueError, TypeError):
+                    stock_qty = 0
+
+                item_price = None
+                if item.get('price') not in [None, '']:
+                    try:
+                        item_price = Decimal(str(item.get('price')))
+                    except Exception:
+                        item_price = None
+                if item_price is None and data.get('price') not in [None, '']:
+                    try:
+                        item_price = Decimal(str(data.get('price')))
+                    except Exception:
+                        item_price = None
+
+                item_discount = None
+                if item.get('discount_price') not in [None, '']:
+                    try:
+                        item_discount = Decimal(str(item.get('discount_price')))
+                    except Exception:
+                        item_discount = None
+                if item_discount is None and data.get('discount_price') not in [None, '']:
+                    try:
+                        item_discount = Decimal(str(data.get('discount_price')))
+                    except Exception:
+                        item_discount = None
+
+                item_sku = str(item.get('sku', '')).strip()
+                if item_sku and ProductVariant.objects.filter(sku__iexact=item_sku).exists():
+                    item_sku = ''  # Let save() auto-generate unique SKU
+
+                # Title formatting
+                if base_title:
+                    v_title = f"{base_title} - {size_name}" if size_name else base_title
+                elif color:
+                    v_title = f"{product.name} - {color} ({size_name})"
+                else:
+                    v_title = f"{product.name} ({size_name})"
+
+                v = ProductVariant(
+                    product=product,
+                    title=v_title,
+                    color=color,
+                    size=size_name,
+                    material=material,
+                    sku=item_sku,
+                    price=item_price,
+                    discount_price=item_discount,
+                    stock_quantity=max(stock_qty, 0),
+                    is_active=is_active,
+                )
+
+                # Set primary image if files uploaded
+                if uploaded_files:
+                    v.image = uploaded_files[0]
+                else:
+                    _variant_image_from_request(request, data, v)
+
+                v.save()
+                created_variants.append(v)
+
+                if v.stock_quantity > 0:
+                    StockLog.objects.create(
+                        product=product,
+                        variant=v,
+                        vendor=product.vendor,
+                        movement_type='RESTOCK',
+                        quantity_changed=v.stock_quantity,
+                        previous_stock=0,
+                        new_stock=v.stock_quantity,
+                        reason=f'Initial stock for {v.title}',
+                    )
+
+            # Save all uploaded gallery images
+            if uploaded_files:
+                for idx, img_file in enumerate(uploaded_files):
+                    ProductVariantImage.objects.create(
+                        product=product,
+                        variant=created_variants[0] if created_variants else None,
+                        color=color,
+                        image=img_file,
+                        display_order=idx,
+                    )
+
+        if not created_variants:
+            return JsonResponse({"success": False, "message": "No valid sizes provided. Please add at least one size."}, status=400)
+
+        product.refresh_from_db()
+        return JsonResponse({
+            "success": True,
+            "message": f"Successfully created {len(created_variants)} variant(s) for '{color or base_title}'.",
+            "created_count": len(created_variants),
+            "variants": [v.to_dict() for v in created_variants],
+            "product_stock_quantity": product.stock_quantity,
+        }, status=201)
+
+    # CASE B: Single variant creation (Classic flow)
+    title = base_title
     if not title:
-
-        return JsonResponse({"success": False, "message": "Field 'title' is required."}, status=400)
-
-
+        if color:
+            s = str(data.get('size', '')).strip()
+            title = f"{product.name} - {color}" + (f" ({s})" if s else "")
+        else:
+            return JsonResponse({"success": False, "message": "Field 'title' is required."}, status=400)
 
     sku = str(data.get('sku', '')).strip()
-
     if sku and ProductVariant.objects.filter(sku__iexact=sku).exists():
-
         return JsonResponse({
-
             "success": False,
-
             "message": f"A variant with SKU '{sku}' already exists."
-
         }, status=400)
 
-
-
     price, error_message = _parse_variant_number(data, 'price')
-
     if error_message:
-
         return JsonResponse({"success": False, "message": error_message}, status=400)
 
     discount_price, error_message = _parse_variant_number(data, 'discount_price')
-
     if error_message:
-
         return JsonResponse({"success": False, "message": error_message}, status=400)
 
     stock_quantity, error_message = _parse_variant_number(data, 'stock_quantity', integer=True)
-
     if error_message:
-
         return JsonResponse({"success": False, "message": error_message}, status=400)
 
-
-
-    is_active = True
-
-    if 'is_active' in data:
-
-        is_active, is_valid = _parse_boolean(data['is_active'])
-
-        if not is_valid:
-
-            return JsonResponse({"success": False, "message": "Field 'is_active' must be true or false."}, status=400)
-
-
-
     with transaction.atomic():
-
         variant = ProductVariant(
-
             product=product,
-
             title=title,
-
-            color=str(data.get('color', '')).strip(),
-
+            color=color,
             size=str(data.get('size', '')).strip(),
-
-            material=str(data.get('material', '')).strip(),
-
+            material=material,
             sku=sku,
-
             price=price,
-
             discount_price=discount_price,
-
             stock_quantity=stock_quantity or 0,
-
             is_active=is_active,
-
         )
 
-        _variant_image_from_request(request, data, variant)
+        if uploaded_files:
+            variant.image = uploaded_files[0]
+        else:
+            _variant_image_from_request(request, data, variant)
 
         variant.save()
 
+        # Save all uploaded files to gallery
+        if uploaded_files:
+            for idx, img_file in enumerate(uploaded_files):
+                ProductVariantImage.objects.create(
+                    product=product,
+                    variant=variant,
+                    color=color,
+                    image=img_file,
+                    display_order=idx,
+                )
+
         if variant.stock_quantity > 0:
-
             StockLog.objects.create(
-
                 product=product,
-
                 variant=variant,
-
                 vendor=product.vendor,
-
                 movement_type='RESTOCK',
-
                 quantity_changed=variant.stock_quantity,
-
                 previous_stock=0,
-
                 new_stock=variant.stock_quantity,
-
                 reason='Initial stock upon variant creation',
-
             )
 
-
-
     product.refresh_from_db()
-
     return JsonResponse({
-
         "success": True,
-
         "message": "Product variant created successfully",
-
         "variant": variant.to_dict(),
-
         "product_stock_quantity": product.stock_quantity,
-
     }, status=201)
+
 
 
 
@@ -6698,101 +6800,103 @@ def api_product_variant_update(request, variant_id):
 
         variant.is_active = is_active
 
+    # Collect uploaded files (supports multiple images via 'images' or single via 'image')
+    uploaded_files = []
+    if hasattr(request, 'FILES'):
+        uploaded_files = list(request.FILES.getlist('images'))
+        single_file = request.FILES.get('image')
+        if single_file and single_file not in uploaded_files:
+            uploaded_files.insert(0, single_file)
+
     if str(data.get('remove_image', '')).strip().lower() in ['true', '1', 'yes']:
-
         variant.image = None
-
+    elif uploaded_files:
+        variant.image = uploaded_files[0]
+        for idx, img_file in enumerate(uploaded_files):
+            ProductVariantImage.objects.create(
+                product=variant.product,
+                variant=variant,
+                color=variant.color,
+                image=img_file,
+                display_order=idx,
+            )
     else:
-
         _variant_image_from_request(request, data, variant)
 
-
-
     with transaction.atomic():
-
         variant.save()
-
         if variant.stock_quantity != previous_stock:
-
             StockLog.objects.create(
-
                 product=variant.product,
-
                 variant=variant,
-
                 vendor=variant.product.vendor,
-
                 movement_type='CORRECTION',
-
                 quantity_changed=variant.stock_quantity - previous_stock,
-
                 previous_stock=previous_stock,
-
                 new_stock=variant.stock_quantity,
-
                 reason='Stock updated through variant management API',
-
             )
 
-
-
     variant.product.refresh_from_db()
-
     return JsonResponse({
-
         "success": True,
-
         "message": "Product variant updated successfully",
-
         "variant": variant.to_dict(),
-
         "product_stock_quantity": variant.product.stock_quantity,
-
     }, status=200)
-
-
-
 
 
 @csrf_exempt
-
 def api_product_variant_delete(request, variant_id):
-
     """Delete a variant as the owning vendor or an administrator."""
-
     if request.method not in ['DELETE', 'POST']:
-
         return JsonResponse({"success": False, "message": "Method not allowed. Use DELETE or POST."}, status=405)
 
     variant, vendor, error = _managed_variant(request, variant_id, action='delete this variant for')
-
     if error:
-
         return error
 
     product = variant.product
-
     deleted_id = variant.id
-
     deleted_title = variant.title
-
     variant.delete()
-
     product.refresh_from_db()
 
     return JsonResponse({
-
         "success": True,
-
         "message": "Product variant deleted successfully",
-
         "deleted_variant_id": deleted_id,
-
         "deleted_variant_title": deleted_title,
-
         "product_stock_quantity": product.stock_quantity,
-
     }, status=200)
+
+
+@csrf_exempt
+def api_product_variant_image_delete(request, image_id):
+    """Delete a specific gallery image from a variant / color gallery."""
+    if request.method not in ['DELETE', 'POST']:
+        return JsonResponse({"success": False, "message": "Method not allowed. Use DELETE or POST."}, status=405)
+
+    img = ProductVariantImage.objects.filter(id=image_id).first()
+    if not img:
+        return JsonResponse({"success": False, "message": "Variant image not found."}, status=404)
+
+    user = request.user
+    is_admin = user.is_authenticated and (user.is_staff or user.is_superuser)
+    vendor = getattr(user, 'vendor_profile', None) if user.is_authenticated else None
+
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header.split(' ', 1)[1].strip()
+        vendor = VendorProfile.objects.filter(auth_token=token).first()
+
+    if not is_admin:
+        if not vendor or img.product.vendor_id != vendor.id:
+            return JsonResponse({"success": False, "message": "Permission denied."}, status=403)
+
+    img.delete()
+    return JsonResponse({"success": True, "message": "Variant image deleted successfully."}, status=200)
+
 
 
 

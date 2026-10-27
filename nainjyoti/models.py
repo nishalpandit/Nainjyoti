@@ -1283,35 +1283,41 @@ class ProductVariant(models.Model):
         return commission_amount_for(self.effective_price)
 
 
+    @property
+    def all_images(self):
+        urls = []
+        if self.image:
+            url = self.image_url
+            if url and url not in urls:
+                urls.append(url)
+        from django.db.models import Q
+        q = Q(variant=self)
+        if self.color:
+            q |= (Q(product=self.product) & Q(color__iexact=self.color))
+        gallery = ProductVariantImage.objects.filter(q).distinct().order_by('display_order', 'id')
+        for g in gallery:
+            u = g.image_url
+            if u and u not in urls:
+                urls.append(u)
+        if not urls and self.product and self.product.image_url:
+            urls.append(self.product.image_url)
+        return urls
+
     def to_dict(self):
         regular_price = float(self.price) if self.price is not None else float(self.product.price)
-
         sale_price = float(self.discount_price) if self.discount_price is not None else (
-
             float(self.product.discount_price) if self.product.discount_price is not None else None
-
         )
-
         return {
-
             'id': self.id,
-
             'product_id': self.product.id,
-
             'title': self.title,
-
             'color': self.color,
-
             'size': self.size,
-
             'material': self.material,
-
             'sku': self.sku,
-
             'price': regular_price,
-
             'discount_price': sale_price,
-
             'effective_price': self.effective_price,
             'customer_price': float(self.customer_regular_price),
             'customer_discount_price': (
@@ -1320,14 +1326,54 @@ class ProductVariant(models.Model):
             'customer_effective_price': float(self.customer_effective_price),
             'commission_rate_percent': float(CommissionSetting.current_rate()),
             'stock_quantity': self.stock_quantity,
-
             'in_stock': self.stock_quantity > 0,
-
             'image_url': self.image_url,
-
+            'images': self.all_images,
             'is_active': self.is_active,
-
         }
+
+
+class ProductVariantImage(models.Model):
+    """Gallery image belonging to a product variant or a specific color option of a product."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variant_images')
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='gallery_images')
+    color = models.CharField(max_length=50, blank=True, default='')
+    image = models.ImageField(upload_to='products/variants/gallery/')
+    display_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        verbose_name = 'Product Variant Image'
+        verbose_name_plural = 'Product Variant Images'
+
+    def __str__(self):
+        return f"{self.product.name} - {self.color or 'Variant'} Image #{self.id}"
+
+    @property
+    def image_url(self):
+        if self.image:
+            if hasattr(self.image, 'url'):
+                try:
+                    return self.image.url
+                except Exception:
+                    pass
+            img_str = str(self.image).strip()
+            if img_str.startswith('http://') or img_str.startswith('https://') or img_str.startswith('/media/'):
+                return img_str
+            return f"/media/{img_str}" if img_str else None
+        return None
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'variant_id': self.variant_id,
+            'color': self.color,
+            'image_url': self.image_url,
+            'display_order': self.display_order,
+        }
+
 
 
 

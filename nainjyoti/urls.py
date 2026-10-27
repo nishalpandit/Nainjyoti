@@ -209,6 +209,7 @@ urlpatterns = [
     path('api/vendor/variants/<int:variant_id>/', api_views.api_product_variant_detail, name='api_vendor_product_variant_detail'),
     path('api/vendor/variants/<int:variant_id>/update/', api_views.api_product_variant_update, name='api_vendor_product_variant_update'),
     path('api/vendor/variants/<int:variant_id>/delete/', api_views.api_product_variant_delete, name='api_vendor_product_variant_delete'),
+    path('api/vendor/variants/images/<int:image_id>/delete/', api_views.api_product_variant_image_delete, name='api_vendor_variant_image_delete'),
 
     # =========================================================================
     # Admin Product Management Endpoints (api/admin/product/...)
@@ -223,6 +224,8 @@ urlpatterns = [
     path('api/admin/variants/<int:variant_id>/', admin_api(api_views.api_product_variant_detail), name='api_admin_product_variant_detail'),
     path('api/admin/variants/<int:variant_id>/update/', admin_api(api_views.api_product_variant_update), name='api_admin_product_variant_update'),
     path('api/admin/variants/<int:variant_id>/delete/', admin_api(api_views.api_product_variant_delete), name='api_admin_product_variant_delete'),
+    path('api/admin/variants/images/<int:image_id>/delete/', admin_api(api_views.api_product_variant_image_delete), name='api_admin_variant_image_delete'),
+
 
     # =========================================================================
     # General / Direct Product Endpoints (api/product/...)

@@ -58,6 +58,7 @@ headers:
 Authorization: Bearer VENDOR_TOKEN
 Content-Type: multipart/form-data
 
+### Single Variant Creation:
 params:
 title: Midnight Blue / Large
 color: Blue
@@ -67,31 +68,56 @@ sku: SHIRT-001-L-BLU
 price: 999
 discount_price: 799
 stock_quantity: 20
-image: [binary image file]
+images: [multiple binary image files]
+is_active: true
+
+### Color-based Multi-Size Creation (1-by-1 Sizes & Multi-Image Gallery):
+params:
+color: Crimson Red
+material: Pure Cotton
+price: 999 (default selling price, optional)
+discount_price: 799 (default sale price, optional)
+sizes: JSON string array of sizes added 1 by 1:
+```json
+[
+  {"size": "S", "stock_quantity": 15, "price": "999.00", "discount_price": "799.00"},
+  {"size": "M", "stock_quantity": 25, "price": "999.00", "discount_price": "799.00"},
+  {"size": "L", "stock_quantity": 20, "price": "1049.00", "discount_price": "849.00"},
+  {"size": "XL", "stock_quantity": 10, "price": "1099.00", "discount_price": "899.00"}
+]
+```
+images: [multiple binary image files: front, back, angle, detail]
 is_active: true
 
 response:
 ```json
 {
   "success": true,
-  "message": "Product variant created successfully",
-  "variant": {
-    "id": 10,
-    "product_id": 60,
-    "title": "Midnight Blue / Large",
-    "color": "Blue",
-    "size": "L",
-    "material": "Cotton",
-    "sku": "SHIRT-001-L-BLU",
-    "price": 999.0,
-    "discount_price": 799.0,
-    "effective_price": 799.0,
-    "stock_quantity": 20,
-    "in_stock": true,
-    "image_url": "/media/products/variants/shirt-blue-large.jpg",
-    "is_active": true
-  },
-  "product_stock_quantity": 20
+  "message": "Successfully created 4 variant(s) for 'Crimson Red'.",
+  "created_count": 4,
+  "variants": [
+    {
+      "id": 10,
+      "product_id": 60,
+      "title": "Cotton Casual Denim Shirt - Crimson Red (S)",
+      "color": "Crimson Red",
+      "size": "S",
+      "material": "Pure Cotton",
+      "sku": "SHIRT-001-S-RED",
+      "price": 999.0,
+      "discount_price": 799.0,
+      "effective_price": 799.0,
+      "stock_quantity": 15,
+      "in_stock": true,
+      "image_url": "/media/variants/crimson_front.jpg",
+      "images": [
+        "/media/variants/crimson_front.jpg",
+        "/media/variants/crimson_back.jpg"
+      ],
+      "is_active": true
+    }
+  ],
+  "product_stock_quantity": 70
 }
 ```
 
@@ -101,6 +127,26 @@ url: http://192.168.1.52:8000/api/admin/products/60/variants/create/
 method: POST
 
 params and response are identical to the vendor endpoint.
+
+## Vendor: Delete Variant Gallery Image
+
+url: http://192.168.1.52:8000/api/vendor/variants/images/{image_id}/delete/
+method: POST
+
+headers:
+Authorization: Bearer VENDOR_TOKEN
+
+response:
+```json
+{
+  "success": true,
+  "message": "Variant image deleted successfully."
+}
+```
+
+Admin alias:
+url: http://192.168.1.52:8000/api/admin/variants/images/{image_id}/delete/
+method: POST
 
 ## Vendor: List Product Variants
 
@@ -119,25 +165,40 @@ response:
   "success": true,
   "product_id": 60,
   "product_name": "Cotton Casual Denim Shirt",
-  "total_variants": 2,
-  "variants": [
+  "total_variants": 4,
+  "color_groups": [
     {
-      "id": 10,
-      "product_id": 60,
-      "title": "Midnight Blue / Large",
-      "color": "Blue",
-      "size": "L",
-      "material": "Cotton",
-      "sku": "SHIRT-001-L-BLU",
-      "price": 999.0,
-      "discount_price": 799.0,
-      "effective_price": 799.0,
-      "stock_quantity": 20,
-      "in_stock": true,
-      "image_url": "/media/products/variants/shirt-blue-large.jpg",
-      "is_active": true
+      "color": "Crimson Red",
+      "total_stock": 70,
+      "images": [
+        "/media/variants/crimson_front.jpg",
+        "/media/variants/crimson_back.jpg"
+      ],
+      "variants": [
+        {
+          "id": 10,
+          "product_id": 60,
+          "title": "Cotton Casual Denim Shirt - Crimson Red (S)",
+          "color": "Crimson Red",
+          "size": "S",
+          "material": "Pure Cotton",
+          "sku": "SHIRT-001-S-RED",
+          "price": 999.0,
+          "discount_price": 799.0,
+          "effective_price": 799.0,
+          "stock_quantity": 15,
+          "in_stock": true,
+          "image_url": "/media/variants/crimson_front.jpg",
+          "images": [
+            "/media/variants/crimson_front.jpg",
+            "/media/variants/crimson_back.jpg"
+          ],
+          "is_active": true
+        }
+      ]
     }
-  ]
+  ],
+  "variants": [ ... ]
 }
 ```
 
