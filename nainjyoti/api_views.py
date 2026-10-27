@@ -6823,6 +6823,82 @@ def api_product_variant_update(request, variant_id):
     else:
         _variant_image_from_request(request, data, variant)
 
+    created_extras = []
+    raw_extra_sizes = data.get('extra_sizes') or data.get('sizes')
+    if raw_extra_sizes:
+        extra_sizes_list = []
+        if isinstance(raw_extra_sizes, str):
+            try:
+                extra_sizes_list = json.loads(raw_extra_sizes)
+            except Exception:
+                extra_sizes_list = []
+        elif isinstance(raw_extra_sizes, list):
+            extra_sizes_list = raw_extra_sizes
+
+        for item in extra_sizes_list:
+            if not isinstance(item, dict):
+                continue
+            extra_size_name = str(item.get('size', '')).strip()
+            if not extra_size_name:
+                continue
+
+            try:
+                extra_stock_qty = int(item.get('stock_quantity', 0))
+            except (ValueError, TypeError):
+                extra_stock_qty = 0
+
+            extra_price = None
+            if item.get('price') not in [None, '']:
+                try:
+                    extra_price = Decimal(str(item.get('price')))
+                except Exception:
+                    extra_price = None
+            if extra_price is None:
+                extra_price = variant.price
+
+            extra_discount = None
+            if item.get('discount_price') not in [None, '']:
+                try:
+                    extra_discount = Decimal(str(item.get('discount_price')))
+                except Exception:
+                    extra_discount = None
+            if extra_discount is None:
+                extra_discount = variant.discount_price
+
+            extra_sku = str(item.get('sku', '')).strip()
+            if extra_sku and ProductVariant.objects.filter(sku__iexact=extra_sku).exists():
+                extra_sku = ''
+
+            v_title = f"{variant.product.name} - {variant.color} ({extra_size_name})" if variant.color else f"{variant.product.name} ({extra_size_name})"
+
+            new_v = ProductVariant(
+                product=variant.product,
+                title=v_title,
+                color=variant.color,
+                size=extra_size_name,
+                material=variant.material,
+                sku=extra_sku,
+                price=extra_price,
+                discount_price=extra_discount,
+                stock_quantity=max(extra_stock_qty, 0),
+                is_active=variant.is_active,
+                image=variant.image,
+            )
+            new_v.save()
+            created_extras.append(new_v)
+
+            if new_v.stock_quantity > 0:
+                StockLog.objects.create(
+                    product=variant.product,
+                    variant=new_v,
+                    vendor=variant.product.vendor,
+                    movement_type='RESTOCK',
+                    quantity_changed=new_v.stock_quantity,
+                    previous_stock=0,
+                    new_stock=new_v.stock_quantity,
+                    reason=f'Initial stock for {new_v.title}',
+                )
+
     with transaction.atomic():
         variant.save()
         if variant.stock_quantity != previous_stock:
@@ -6838,10 +6914,14 @@ def api_product_variant_update(request, variant_id):
             )
 
     variant.product.refresh_from_db()
+    msg = "Product variant updated successfully"
+    if created_extras:
+        msg += f" and {len(created_extras)} new size(s) added"
     return JsonResponse({
         "success": True,
-        "message": "Product variant updated successfully",
+        "message": msg,
         "variant": variant.to_dict(),
+        "created_extras_count": len(created_extras),
         "product_stock_quantity": variant.product.stock_quantity,
     }, status=200)
 
