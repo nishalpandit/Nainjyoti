@@ -465,6 +465,8 @@ class AdminDashboardCRUDTests(TestCase):
                 self.assertEqual(self.client.get(reverse(page_name)).status_code, 200)
 
         add_pages = [
+            'admin_category_add',
+            'admin_banner_add',
             'admin_vendor_add',
             'admin_product_add',
             'admin:nainjyoti_userprofile_add',
@@ -477,6 +479,76 @@ class AdminDashboardCRUDTests(TestCase):
                 self.assertEqual(self.client.get(reverse(page_name)).status_code, 200)
 
         self.assertContains(self.client.get(reverse('admin_product_add')), 'Add on behalf of vendor')
+
+    def test_admin_and_api_category_crud_lifecycle(self):
+        self.client.force_login(self.admin_user)
+
+        # 1. GET add category page renders 200
+        get_add = self.client.get(reverse('admin_category_add'))
+        self.assertEqual(get_add.status_code, 200)
+
+        # 2. POST with empty name re-renders with error
+        empty_post = self.client.post(reverse('admin_category_add'), {'name': '  ', 'description': ''})
+        self.assertEqual(empty_post.status_code, 200)
+        self.assertContains(empty_post, 'Category name is required')
+
+        # 3. POST valid category creates record and redirects
+        valid_post = self.client.post(reverse('admin_category_add'), {
+            'name': 'Handmade Pottery',
+            'description': 'Clay & ceramic handcrafted items',
+            'status': 'ACTIVE',
+        })
+        self.assertRedirects(valid_post, reverse('admin_categories'))
+        new_cat = Category.objects.filter(name='Handmade Pottery').first()
+        self.assertIsNotNone(new_cat)
+        self.assertEqual(new_cat.status, 'ACTIVE')
+
+        # 4. POST duplicate category name re-renders with error
+        dup_post = self.client.post(reverse('admin_category_add'), {
+            'name': 'handmade pottery',
+            'description': 'Duplicate attempt',
+        })
+        self.assertEqual(dup_post.status_code, 200)
+        self.assertContains(dup_post, 'already exists')
+
+        # 5. GET edit category page renders 200
+        get_edit = self.client.get(reverse('admin_category_edit', args=[new_cat.id]))
+        self.assertEqual(get_edit.status_code, 200)
+        self.assertContains(get_edit, 'Handmade Pottery')
+
+        # 6. POST edit updates category
+        valid_edit = self.client.post(reverse('admin_category_edit', args=[new_cat.id]), {
+            'name': 'Handmade Pottery & Ceramics',
+            'description': 'Updated ceramics description',
+            'status': 'INACTIVE',
+        })
+        self.assertRedirects(valid_edit, reverse('admin_categories'))
+        new_cat.refresh_from_db()
+        self.assertEqual(new_cat.name, 'Handmade Pottery & Ceramics')
+        self.assertEqual(new_cat.status, 'INACTIVE')
+
+        # 7. POST toggle status toggles back to ACTIVE
+        toggle_res = self.client.post(reverse('admin_category_toggle_status', args=[new_cat.id]))
+        self.assertRedirects(toggle_res, reverse('admin_categories'))
+        new_cat.refresh_from_db()
+        self.assertEqual(new_cat.status, 'ACTIVE')
+
+        # 8. API category create endpoint
+        api_create = self.client.post(
+            reverse('api_category_create'),
+            data=json.dumps({'name': 'Brass Decor', 'description': 'Brass art', 'status': 'ACTIVE'}),
+            content_type='application/json',
+        )
+        self.assertEqual(api_create.status_code, 201)
+        self.assertTrue(Category.objects.filter(name='Brass Decor').exists())
+
+        # 9. API duplicate rejection
+        api_dup = self.client.post(
+            reverse('api_category_create'),
+            data=json.dumps({'name': 'brass decor'}),
+            content_type='application/json',
+        )
+        self.assertEqual(api_dup.status_code, 400)
 
     def test_admin_can_edit_block_and_unblock_vendor_access(self):
         self.vendor.user.set_password('vendor-pass')

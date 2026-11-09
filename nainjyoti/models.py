@@ -2034,21 +2034,15 @@ class Order(models.Model):
     """
 
     STATUS_CHOICES = [
-
         ('PENDING', 'Pending'),
-
         ('CONFIRMED', 'Confirmed'),
-
         ('PROCESSING', 'Processing'),
-
         ('SHIPPED', 'Shipped'),
-
         ('DELIVERED', 'Delivered'),
-
+        ('CANCEL_REQUESTED', 'Cancellation Requested'),
+        ('RETURN_REQUESTED', 'Return Requested'),
         ('CANCELLED', 'Cancelled'),
-
         ('RETURNED', 'Returned'),
-
     ]
 
 
@@ -2163,6 +2157,14 @@ class Order(models.Model):
 
 
 
+    def get_active_request(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'customer_requests' in self._prefetched_objects_cache:
+            for req in self.customer_requests.all():
+                if req.status == 'PENDING':
+                    return req
+            return None
+        return self.customer_requests.filter(status='PENDING').order_by('-created_at').first()
+
     def to_dict(self, vendor=None):
 
         """
@@ -2184,8 +2186,16 @@ class Order(models.Model):
         vendor_subtotal = sum(item['total_price'] for item in items_list) if vendor else float(self.total_amount)
 
         payment_transaction = getattr(self, 'payment_transaction', None)
-
-
+        active_req = self.get_active_request()
+        is_cancel_requested = (self.status == 'CANCEL_REQUESTED') or (active_req is not None and active_req.request_type == 'CANCEL')
+        is_return_requested = (self.status == 'RETURN_REQUESTED') or (active_req is not None and active_req.request_type == 'RETURN')
+        request_msg = None
+        if is_cancel_requested:
+            req_num = f" ({active_req.request_number})" if active_req else ""
+            request_msg = f"A cancellation request{req_num} has been submitted and is currently awaiting confirmation from admin/vendor."
+        elif is_return_requested:
+            req_num = f" ({active_req.request_number})" if active_req else ""
+            request_msg = f"A return request{req_num} has been submitted and is currently awaiting review."
 
         return {
 
@@ -2218,8 +2228,13 @@ class Order(models.Model):
             'payment': payment_transaction.to_dict() if payment_transaction else None,
 
             'status': self.status,
-
             'status_display': self.get_status_display(),
+            'cancellation_requested': is_cancel_requested,
+            'return_requested': is_return_requested,
+            'can_cancel': bool(self.status in ['PENDING', 'CONFIRMED', 'PROCESSING'] and not is_cancel_requested),
+            'can_return': bool(self.status == 'DELIVERED' and not is_return_requested),
+            'active_request': active_req.to_dict() if active_req else None,
+            'request_status_message': request_msg,
 
             'item_count': len(items_list),
 
@@ -2479,7 +2494,28 @@ class OrderItem(models.Model):
 
 
 
+    def get_active_request(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'customer_requests' in self._prefetched_objects_cache:
+            for req in self.customer_requests.all():
+                if req.status == 'PENDING':
+                    return req
+            return None
+        return self.customer_requests.filter(status='PENDING').order_by('-created_at').first()
+
     def to_dict(self):
+        active_req = self.get_active_request()
+        order_active_req = getattr(self.order, 'get_active_request', lambda: None)() if self.order else None
+        effective_req = active_req or order_active_req
+        is_cancel_requested = (self.status == 'CANCEL_REQUESTED') or (effective_req is not None and effective_req.request_type == 'CANCEL')
+        is_return_requested = (self.status == 'RETURN_REQUESTED') or (effective_req is not None and effective_req.request_type == 'RETURN')
+        request_msg = None
+        if is_cancel_requested:
+            req_num = f" ({effective_req.request_number})" if effective_req else ""
+            request_msg = f"Cancellation request{req_num} is awaiting admin/vendor confirmation."
+        elif is_return_requested:
+            req_num = f" ({effective_req.request_number})" if effective_req else ""
+            request_msg = f"Return request{req_num} is awaiting review."
+
 
         return {
 
@@ -2514,8 +2550,13 @@ class OrderItem(models.Model):
             'total_price': float(self.total_price),
 
             'status': self.status,
-
             'status_display': self.get_status_display(),
+            'cancellation_requested': is_cancel_requested,
+            'return_requested': is_return_requested,
+            'can_cancel': bool(self.status in ['PENDING', 'CONFIRMED', 'PROCESSING'] and not is_cancel_requested),
+            'can_return': bool(self.status == 'DELIVERED' and not is_return_requested),
+            'active_request': effective_req.to_dict() if effective_req else None,
+            'request_status_message': request_msg,
 
             'courier_name': self.courier_name,
 

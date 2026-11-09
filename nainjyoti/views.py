@@ -29,6 +29,7 @@ from .models import (
     UserAddress,
     StockLog,
     OrderRequest,
+    OrderStatusHistory,
     Notification,
     PaymentTransaction,
     ProductReview,
@@ -427,7 +428,7 @@ def admin_dashboard(request):
         elif st in ['PROCESSING', 'CONFIRMED']:
             pill = 'amber'
             display = 'Processing'
-        elif st == 'PENDING':
+        elif st in ['PENDING', 'CANCEL_REQUESTED', 'RETURN_REQUESTED']:
             pill = 'amber'
             display = 'Pending'
         else:
@@ -559,6 +560,21 @@ def admin_category_form(request, category_id=None):
         else:
             status_val = "ACTIVE" if request.POST.get("status") in ["on", "1", "true", "ACTIVE"] else "INACTIVE"
 
+        if not name:
+            messages.error(request, "Category name is required.")
+            return render(request, "admin/category-form.html", {
+                "category": category,
+            })
+
+        existing_qs = Category.objects.filter(name__iexact=name)
+        if category:
+            existing_qs = existing_qs.exclude(id=category.id)
+        if existing_qs.exists():
+            messages.error(request, f"Category with name '{name}' already exists.")
+            return render(request, "admin/category-form.html", {
+                "category": category,
+            })
+
         if not category:
             category = Category(name=name, description=description, status=status_val)
         else:
@@ -575,6 +591,10 @@ def admin_category_form(request, category_id=None):
         category.save()
         messages.success(request, f"Category '{category.name}' saved successfully!")
         return redirect("admin_categories")
+
+    return render(request, "admin/category-form.html", {
+        "category": category,
+    })
 
 
 # =========================================================================
@@ -1906,7 +1926,7 @@ def admin_orders(request):
             Q(customer_name__icontains=search_query) |
             Q(customer_phone__icontains=search_query)
         )
-    if status_filter in ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED']:
+    if status_filter in ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'CANCEL_REQUESTED', 'RETURN_REQUESTED']:
         orders_qs = orders_qs.filter(status=status_filter)
 
     p_data = paginate_queryset(request, orders_qs, default_page_size=10)
@@ -1922,7 +1942,7 @@ def admin_orders(request):
             pill = 'blue'
         elif st in ['PROCESSING', 'CONFIRMED']:
             pill = 'amber'
-        elif st == 'PENDING':
+        elif st in ['PENDING', 'CANCEL_REQUESTED', 'RETURN_REQUESTED']:
             pill = 'amber'
         else:
             pill = 'rose'
@@ -2181,12 +2201,12 @@ def admin_order_request_update(request, request_id):
         order_request.admin_notes = request.POST.get('admin_notes', '').strip()
         order_request.save(update_fields=['status', 'admin_notes', 'updated_at'])
 
-        if new_status == 'COMPLETED':
-            if order_request.order_item_id:
-                affected_items = order_request.order.items.filter(pk=order_request.order_item_id)
-            else:
-                affected_items = order_request.order.items.all()
+        if order_request.order_item_id:
+            affected_items = order_request.order.items.filter(pk=order_request.order_item_id)
+        else:
+            affected_items = order_request.order.items.all()
 
+        if new_status in ['APPROVED', 'COMPLETED']:
             if order_request.request_type == 'CANCEL':
                 for order_item in affected_items.select_related('product', 'variant', 'vendor'):
                     reference_id = f"CANCEL-{order_request.request_number}-{order_item.id}"
@@ -2217,6 +2237,33 @@ def admin_order_request_update(request, request_id):
             elif order_request.order_item_id is None:
                 order_request.order.status = 'RETURNED'
                 order_request.order.save(update_fields=['status', 'updated_at'])
+            else:
+                affected_items.update(status='RETURNED')
+
+            OrderStatusHistory.objects.create(
+                order=order_request.order,
+                order_item=order_request.order_item,
+                old_status='CANCEL_REQUESTED' if order_request.request_type == 'CANCEL' else 'RETURN_REQUESTED',
+                new_status=order_request.order.status,
+                notes=f"Admin {new_status.lower()} {order_request.get_request_type_display().lower()} request ({order_request.request_number}). {order_request.admin_notes}".strip(),
+            )
+        elif new_status == 'REJECTED':
+            # Revert order / items back to active status
+            reverted_status = 'CONFIRMED' if order_request.request_type == 'CANCEL' else 'DELIVERED'
+            for order_item in affected_items:
+                order_item.status = reverted_status
+                order_item.save(update_fields=['status', 'updated_at'])
+            if order_request.order_item_id is None or not order_request.order.items.filter(status='CANCEL_REQUESTED').exists():
+                order_request.order.status = reverted_status
+                order_request.order.save(update_fields=['status', 'updated_at'])
+
+            OrderStatusHistory.objects.create(
+                order=order_request.order,
+                order_item=order_request.order_item,
+                old_status='CANCEL_REQUESTED' if order_request.request_type == 'CANCEL' else 'RETURN_REQUESTED',
+                new_status=reverted_status,
+                notes=f"Admin rejected {order_request.get_request_type_display().lower()} request ({order_request.request_number}). Reason: {order_request.admin_notes or 'Order fulfillment continues.'}".strip(),
+            )
 
         Notification.objects.create(
             user=order_request.customer,

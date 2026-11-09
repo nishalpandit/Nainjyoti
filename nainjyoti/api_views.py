@@ -4856,7 +4856,7 @@ def api_user_orders_list(request):
 
     status_filter = request.GET.get('status', '').strip().upper()
 
-    orders_qs = Order.objects.filter(customer=profile).prefetch_related('items', 'payment_transaction').order_by('-created_at')
+    orders_qs = Order.objects.filter(customer=profile).prefetch_related('items', 'payment_transaction', 'customer_requests').order_by('-created_at')
 
     if status_filter and status_filter != 'ALL':
 
@@ -4916,7 +4916,7 @@ def api_user_order_detail(request, order_id):
 
 
 
-    order = Order.objects.filter(pk=order_id, customer=profile).prefetch_related('items', 'payment_transaction').first()
+    order = Order.objects.filter(pk=order_id, customer=profile).prefetch_related('items', 'payment_transaction', 'customer_requests').first()
 
     if not order:
 
@@ -5658,46 +5658,47 @@ def api_user_order_tracking(request, order_id):
 
     history = order.status_history.order_by('-created_at')
 
+    active_req = order.get_active_request()
+    is_cancel_requested = (order.status == 'CANCEL_REQUESTED') or (active_req is not None and active_req.request_type == 'CANCEL')
+    is_return_requested = (order.status == 'RETURN_REQUESTED') or (active_req is not None and active_req.request_type == 'RETURN')
+    request_msg = None
+    if is_cancel_requested:
+        req_num = f" ({active_req.request_number})" if active_req else ""
+        request_msg = f"A cancellation request{req_num} has been submitted and is currently awaiting confirmation from admin/vendor."
+    elif is_return_requested:
+        req_num = f" ({active_req.request_number})" if active_req else ""
+        request_msg = f"A return request{req_num} has been submitted and is currently awaiting review."
+
     return JsonResponse({
-
         'success': True,
-
         'order_id': order.id,
-
         'order_number': order.order_number,
-
         'order_status': order.status,
-
+        'order_status_display': order.get_status_display(),
+        'cancellation_requested': is_cancel_requested,
+        'return_requested': is_return_requested,
+        'can_cancel': bool(order.status in ['PENDING', 'CONFIRMED', 'PROCESSING'] and not is_cancel_requested),
+        'can_return': bool(order.status == 'DELIVERED' and not is_return_requested),
+        'active_request': active_req.to_dict() if active_req else None,
+        'request_status_message': request_msg,
         'payment_status': order.payment_status,
-
         'items': [{
-
             'order_item_id': item.id,
-
             'product_id': item.product_id,
-
             'product_name': item.product_name,
-
             'variant_id': item.variant_id,
-
             'variant_title': item.variant_title or None,
-
             'status': item.status,
-
+            'status_display': item.get_status_display(),
+            'cancellation_requested': (item.status == 'CANCEL_REQUESTED'),
+            'return_requested': (item.status == 'RETURN_REQUESTED'),
             'courier_name': item.courier_name or None,
-
             'tracking_number': item.tracking_number or None,
-
             'dispatch_date': item.dispatch_date.isoformat() if item.dispatch_date else None,
-
             'delivery_date': item.delivery_date.isoformat() if item.delivery_date else None,
-
         } for item in items],
-
         'timeline': [entry.to_dict() for entry in history],
-
         'last_updated': order.updated_at.isoformat() if order.updated_at else None,
-
     }, status=200)
 
 
@@ -5804,100 +5805,109 @@ def api_user_order_request_create(request, order_id):
 
     target_status = order_item.status if order_item else order.status
 
-    if request_type == 'CANCEL' and target_status not in ['PENDING', 'CONFIRMED', 'PROCESSING']:
-
+    # 1. Check for existing pending request first to give an informative duplicate response
+    existing_request = OrderRequest.objects.filter(
+        customer=profile,
+        order=order,
+        order_item=order_item,
+        request_type=request_type,
+        status='PENDING',
+    ).first()
+    if existing_request:
         return JsonResponse({
-
             'success': False,
+            'already_pending': True,
+            'cancellation_requested': (request_type == 'CANCEL'),
+            'return_requested': (request_type == 'RETURN'),
+            'order_status': order.status,
+            'message': f'A pending {request_type.lower()} request already exists for this selection. Your request ({existing_request.request_number}) is awaiting confirmation from admin/vendor.',
+            'active_request': existing_request.to_dict(),
+        }, status=409)
 
+    # 2. Check return vs cancel status conflicts
+    if request_type == 'RETURN' and (target_status == 'CANCEL_REQUESTED' or order.status == 'CANCEL_REQUESTED'):
+        active_cancel = OrderRequest.objects.filter(customer=profile, order=order, request_type='CANCEL', status='PENDING').first()
+        req_ref = f" ({active_cancel.request_number})" if active_cancel else ""
+        return JsonResponse({
+            'success': False,
+            'cancellation_requested': True,
+            'order_status': order.status,
+            'active_request': active_cancel.to_dict() if active_cancel else None,
+            'message': f"Cannot request return. A cancellation request{req_ref} is currently awaiting confirmation from admin/vendor for this order.",
+        }, status=400)
+
+    if request_type == 'CANCEL' and target_status not in ['PENDING', 'CONFIRMED', 'PROCESSING']:
+        return JsonResponse({
+            'success': False,
             'message': f"Cancellation cannot be requested when the status is '{target_status}'.",
-
         }, status=400)
 
     if request_type == 'RETURN' and target_status != 'DELIVERED':
-
         return JsonResponse({
-
             'success': False,
-
             'message': 'A return can only be requested after delivery.',
-
         }, status=400)
 
-
-
-    if OrderRequest.objects.filter(
-
-        customer=profile,
-
-        order=order,
-
-        order_item=order_item,
-
-        request_type=request_type,
-
-        status='PENDING',
-
-    ).exists():
-
-        return JsonResponse({
-
-            'success': False,
-
-            'message': f'A pending {request_type.lower()} request already exists for this selection.',
-
-        }, status=409)
-
-
-
     order_request = OrderRequest.objects.create(
-
         customer=profile,
-
         order=order,
-
         order_item=order_item,
-
         request_type=request_type,
-
         reason=reason,
-
         details=details,
+    )
 
+    old_order_status = order.status
+    new_status = 'CANCEL_REQUESTED' if request_type == 'CANCEL' else 'RETURN_REQUESTED'
+
+    if order_item:
+        old_item_status = order_item.status
+        order_item.status = new_status
+        order_item.save(update_fields=['status'])
+        if not order.items.exclude(status=new_status).exists():
+            order.status = new_status
+            order.save(update_fields=['status', 'updated_at'])
+    else:
+        order.status = new_status
+        order.save(update_fields=['status', 'updated_at'])
+        for it in order.items.all():
+            if request_type == 'CANCEL' and it.status in ['PENDING', 'CONFIRMED', 'PROCESSING']:
+                it.status = new_status
+                it.save(update_fields=['status'])
+            elif request_type == 'RETURN' and it.status == 'DELIVERED':
+                it.status = new_status
+                it.save(update_fields=['status'])
+
+    OrderStatusHistory.objects.create(
+        order=order,
+        order_item=order_item,
+        old_status=old_order_status,
+        new_status=new_status,
+        notes=f"Customer submitted {order_request.get_request_type_display().lower()} request ({order_request.request_number}). Reason: {reason}. Awaiting confirmation from admin/vendor.",
     )
 
     Notification.objects.create(
-
         user=profile,
-
         order=order,
-
         notification_type='CANCELLATION' if request_type == 'CANCEL' else 'RETURN',
-
         title=f'{order_request.get_request_type_display()} request received',
-
-        message=f'Your request {order_request.request_number} is pending review.',
-
+        message=f'Your request {order_request.request_number} has been submitted and is awaiting confirmation from admin/vendor.',
         data={
-
             'request_id': order_request.id,
-
             'request_number': order_request.request_number,
-
             'order_item_id': order_item.id if order_item else None,
-
+            'order_status': new_status,
         },
-
     )
 
     return JsonResponse({
-
         'success': True,
-
-        'message': f'{order_request.get_request_type_display()} request submitted successfully.',
-
+        'message': f'{order_request.get_request_type_display()} request submitted successfully. It is currently awaiting confirmation from admin/vendor.',
+        'cancellation_requested': (request_type == 'CANCEL'),
+        'return_requested': (request_type == 'RETURN'),
+        'order_status': order.status,
         'request': order_request.to_dict(),
-
+        'order': order.to_dict(),
     }, status=201)
 
 
@@ -8271,15 +8281,14 @@ def api_category_create(request):
 
 
     status_val = _normalize_category_status(data.get("status", "ACTIVE"))
-
-
+    description = str(data.get("description", "")).strip()
+    image = request.FILES.get("image")
 
     category = Category.objects.create(
-
         name=name,
-
+        description=description,
+        image=image,
         status=status_val
-
     )
 
 
@@ -8403,10 +8412,15 @@ def api_category_update(request, category_id):
 
 
     if "status" in data:
-
         category.status = _normalize_category_status(data["status"])
 
+    if "description" in data:
+        category.description = str(data["description"]).strip()
 
+    if request.FILES.get("image"):
+        category.image = request.FILES["image"]
+    elif str(data.get("remove_image", "")).lower() in ["1", "true", "on"]:
+        category.image = None
 
     category.save()
 
@@ -10818,7 +10832,7 @@ def api_vendor_order_status_update(request, order_id):
 
     raw_status = str(data.get("status", "")).strip().upper()
 
-    valid_statuses = ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED']
+    valid_statuses = ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURNED', 'CANCEL_REQUESTED', 'RETURN_REQUESTED']
 
     if raw_status not in valid_statuses:
 
@@ -10939,6 +10953,19 @@ def api_vendor_order_status_update(request, order_id):
 
 
     elif raw_status == 'CANCELLED':
+        # Auto-complete pending cancellation requests if present and notify customer
+        for req in order.customer_requests.filter(request_type='CANCEL', status='PENDING'):
+            req.status = 'COMPLETED'
+            req.admin_notes = f"Cancellation confirmed by seller {vendor.business_name}."
+            req.save(update_fields=['status', 'admin_notes', 'updated_at'])
+            Notification.objects.create(
+                user=order.customer,
+                order=order,
+                notification_type='CANCELLATION',
+                title='Cancellation request approved',
+                message=f'Your cancellation request {req.request_number} has been confirmed by the seller.',
+                data={'request_id': req.id, 'request_number': req.request_number, 'order_status': 'CANCELLED'},
+            )
 
         for item in vendor_items:
 
@@ -11007,6 +11034,20 @@ def api_vendor_order_status_update(request, order_id):
             VendorEarning.objects.filter(order=order, order_item=item).update(status='REFUNDED')
 
 
+
+    if old_status == 'CANCEL_REQUESTED' and raw_status in ['CONFIRMED', 'PROCESSING', 'SHIPPED']:
+        for req in order.customer_requests.filter(request_type='CANCEL', status='PENDING'):
+            req.status = 'REJECTED'
+            req.admin_notes = notes or f"Seller {vendor.business_name} proceeded with fulfillment ({raw_status}). Cancellation request rejected."
+            req.save(update_fields=['status', 'admin_notes', 'updated_at'])
+            Notification.objects.create(
+                user=order.customer,
+                order=order,
+                notification_type='CANCELLATION',
+                title='Cancellation request update',
+                message=f'Your cancellation request {req.request_number} could not be approved as the seller has proceeded with fulfillment ({raw_status}).',
+                data={'request_id': req.id, 'request_number': req.request_number, 'order_status': raw_status},
+            )
 
     first_item = vendor_items.first()
 

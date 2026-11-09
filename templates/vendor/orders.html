@@ -40,6 +40,10 @@
            class="btn btn-sm {% if current_status == 'CANCELLED' %}btn-danger text-white{% else %}btn-light border{% endif %}">
             Cancelled ({{ counts.CANCELLED }})
         </a>
+        <a href="?status=CANCEL_REQUESTED{% if search_query %}&q={{ search_query }}{% endif %}"
+           class="btn btn-sm {% if current_status == 'CANCEL_REQUESTED' %}btn-warning text-dark{% else %}btn-light border{% endif %}">
+            Cancel Requested ({{ counts.CANCEL_REQUESTED }})
+        </a>
     </div>
 
     <div class="card shadow-sm">
@@ -118,6 +122,10 @@
                                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">Pending</span>
                                 {% elif row.order.status == 'CANCELLED' %}
                                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">Cancelled</span>
+                                {% elif row.order.status == 'CANCEL_REQUESTED' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill"><i class="fa-solid fa-triangle-exclamation me-1"></i>Cancel Requested</span>
+                                {% elif row.order.status == 'RETURN_REQUESTED' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-2 py-1 rounded-pill"><i class="fa-solid fa-rotate-left me-1"></i>Return Requested</span>
                                 {% else %}
                                     <span class="badge bg-dark-subtle text-dark border px-2 py-1 rounded-pill">{{ row.order.get_status_display }}</span>
                                 {% endif %}
