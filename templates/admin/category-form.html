@@ -36,7 +36,7 @@
       </div>
 
       {% if messages %}
-      <div class="container-fluid px-0 mb-3" style="max-width: 600px;">
+      <div class="container-fluid px-0 mb-3">
         {% for message in messages %}
         <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
           {{ message }}
@@ -46,54 +46,100 @@
       </div>
       {% endif %}
 
-      <section class="card form-card" style="max-width: 600px;">
-        <div class="card-body p-4">
-          <form method="post" enctype="multipart/form-data" class="row g-4">
-            {% csrf_token %}
+      <div class="row g-4">
+        <!-- Main Form Column -->
+        <div class="col-lg-7 col-xl-8">
+          <section class="card form-card border-0 shadow-sm">
+            <div class="card-body p-4">
+              <form method="post" enctype="multipart/form-data" class="row g-4">
+                {% csrf_token %}
 
-            <div class="col-12">
-              <label class="form-label fw-semibold" for="name">Category Name <span class="text-danger">*</span></label>
-              <input class="form-control form-control-lg" id="name" name="name" type="text" value="{{ category.name|default:'' }}" placeholder="e.g. Handicrafts & Handlooms" required autofocus>
-              <div class="form-text">Unique master name for the product category.</div>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-semibold" for="description">Description</label>
-              <textarea class="form-control" id="description" name="description" rows="3" placeholder="Short description of products in this category">{{ category.description|default:'' }}</textarea>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-semibold" for="image">Category Display Image / Thumbnail</label>
-              {% if category.image_url %}
-                <div class="d-flex align-items-center gap-3 mb-2">
-                  <img src="{{ category.image_url }}" alt="{{ category.name }}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;border:1px solid #ddd;">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
-                    <label class="form-check-label text-muted small" for="remove_image">Remove current image</label>
-                  </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold" for="name">Category Name <span class="text-danger">*</span></label>
+                  <input class="form-control form-control-lg" id="name" name="name" type="text" value="{{ category.name|default:'' }}" placeholder="e.g. Handicrafts & Handlooms" required autofocus>
+                  <div class="form-text">Unique master name for the product category.</div>
                 </div>
-              {% endif %}
-              <input class="form-control" id="image" name="image" type="file" accept="image/*">
-              <div class="form-text">Used on the customer app and homepage category grid.</div>
-            </div>
 
-            <div class="col-12">
-              <label class="form-label fw-semibold" for="status">Category Status</label>
-              <select class="form-select" id="status" name="status">
-                <option value="ACTIVE" {% if not category or category.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Visible for Product Listings)</option>
-                <option value="INACTIVE" {% if category and category.status == 'INACTIVE' %}selected{% endif %}>INACTIVE (Hidden)</option>
-              </select>
-            </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold" for="description">Description</label>
+                  <textarea class="form-control" id="description" name="description" rows="4" placeholder="Short description of products in this category">{{ category.description|default:'' }}</textarea>
+                  <div class="form-text">Brief overview displayed on customer app category screens and SEO tags.</div>
+                </div>
 
-            <div class="col-12 pt-3 border-top">
-              <button class="btn btn-dark px-4" type="submit">
-                <i class="fa-solid fa-floppy-disk me-2"></i>{% if category %}Update Category{% else %}Save Category{% endif %}
-              </button>
-              <a class="btn btn-outline-secondary ms-2" href="{% url 'admin_categories' %}">Cancel</a>
+                <div class="col-12">
+                  <label class="form-label fw-semibold" for="image">Category Display Image / Thumbnail</label>
+                  {% if category.image_url %}
+                    <div class="d-flex align-items-center gap-3 mb-2 p-2 bg-light rounded border">
+                      <img src="{{ category.image_url }}" alt="{{ category.name }}" style="width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid #ddd;">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
+                        <label class="form-check-label text-muted small fw-medium" for="remove_image">Remove current image</label>
+                      </div>
+                    </div>
+                  {% endif %}
+                  <input class="form-control" id="image" name="image" type="file" accept="image/*">
+                  <div class="form-text">Recommended square ratio (500x500px, PNG or JPG). Used across the mobile app explore grid and homepage.</div>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-semibold" for="status">Category Status</label>
+                  <select class="form-select form-select-lg" id="status" name="status">
+                    <option value="ACTIVE" {% if not category or category.status == 'ACTIVE' %}selected{% endif %}>ACTIVE (Visible for Product Listings)</option>
+                    <option value="INACTIVE" {% if category and category.status == 'INACTIVE' %}selected{% endif %}>INACTIVE (Hidden from App)</option>
+                  </select>
+                  <div class="form-text">Active categories are visible to customers for browsing and shopping.</div>
+                </div>
+
+                <div class="col-12 pt-3 border-top d-flex gap-2">
+                  <button class="btn btn-dark px-4 py-2" type="submit">
+                    <i class="fa-solid fa-floppy-disk me-2"></i>{% if category %}Update Category{% else %}Save Category{% endif %}
+                  </button>
+                  <a class="btn btn-outline-secondary px-3 py-2" href="{% url 'admin_categories' %}">Cancel</a>
+                </div>
+              </form>
             </div>
-          </form>
+          </section>
         </div>
-      </section>
+
+        <!-- Live Customer App Preview Column -->
+        <div class="col-lg-5 col-xl-4">
+          <div class="card border-0 shadow-sm p-4 sticky-top" style="top: 80px;">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+              <span class="text-uppercase fw-bold text-muted small"><i class="fa-solid fa-mobile-screen me-2 text-primary"></i>Live App Preview</span>
+              <span id="previewStatusBadge" class="badge {% if category and category.status == 'INACTIVE' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-success-subtle text-success border border-success-subtle{% endif %} px-2 py-1">
+                {{ category.status|default:'ACTIVE' }}
+              </span>
+            </div>
+
+            <div class="p-3 bg-light rounded-3 text-center border mb-3">
+              <div class="d-flex justify-content-center mb-3">
+                {% if category.image_url %}
+                  <img id="previewCategoryImg" src="{{ category.image_url }}" alt="Preview" style="width:84px;height:84px;border-radius:16px;object-fit:cover;box-shadow: 0 4px 12px rgba(0,0,0,0.08);border: 2px solid #fff;">
+                  <div id="previewIconPlaceholder" style="display:none;width:84px;height:84px;border-radius:16px;background:#e9f0e8;color:#2e573a;display:grid;place-items:center;font-size:32px;box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                    <i class="fa-solid fa-layer-group"></i>
+                  </div>
+                {% else %}
+                  <img id="previewCategoryImg" src="" alt="Preview" style="display:none;width:84px;height:84px;border-radius:16px;object-fit:cover;box-shadow: 0 4px 12px rgba(0,0,0,0.08);border: 2px solid #fff;">
+                  <div id="previewIconPlaceholder" style="width:84px;height:84px;border-radius:16px;background:#e9f0e8;color:#2e573a;display:grid;place-items:center;font-size:32px;box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+                    <i class="fa-solid fa-layer-group"></i>
+                  </div>
+                {% endif %}
+              </div>
+              <h5 class="fw-bold mb-1 text-dark" id="previewCategoryName">{{ category.name|default:'Category Name' }}</h5>
+              <p class="text-muted small mb-0" id="previewCategoryDesc">{{ category.description|default:'Category description will appear here on customer explore screens.' }}</p>
+            </div>
+
+            <div class="p-3 bg-white rounded border small text-secondary">
+              <div class="fw-bold text-dark mb-2"><i class="fa-solid fa-circle-info text-primary me-2"></i>Category Guidelines</div>
+              <ul class="mb-0 ps-3">
+                <li class="mb-1"><strong>Name:</strong> Must be unique across all marketplace categories.</li>
+                <li class="mb-1"><strong>Image:</strong> Displayed on homepage category circles and navigation tabs.</li>
+                <li><strong>Status:</strong> Setting to <code>ACTIVE</code> enables vendors to list products under this category immediately.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <footer>
   <span style="font-size: 13px; font-weight: 500; color: #4b5563; display: inline-flex; align-items: center; gap: 6px;">
@@ -107,5 +153,69 @@
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const nameInput = document.getElementById('name');
+    const descInput = document.getElementById('description');
+    const statusSelect = document.getElementById('status');
+    const imageInput = document.getElementById('image');
+    const removeImgCheck = document.getElementById('remove_image');
+
+    const previewName = document.getElementById('previewCategoryName');
+    const previewDesc = document.getElementById('previewCategoryDesc');
+    const previewBadge = document.getElementById('previewStatusBadge');
+    const previewImg = document.getElementById('previewCategoryImg');
+    const previewPlaceholder = document.getElementById('previewIconPlaceholder');
+
+    if (nameInput && previewName) {
+      nameInput.addEventListener('input', () => {
+        previewName.textContent = nameInput.value.trim() || 'Category Name';
+      });
+    }
+
+    if (descInput && previewDesc) {
+      descInput.addEventListener('input', () => {
+        previewDesc.textContent = descInput.value.trim() || 'Category description will appear here on customer explore screens.';
+      });
+    }
+
+    if (statusSelect && previewBadge) {
+      statusSelect.addEventListener('change', () => {
+        if (statusSelect.value === 'ACTIVE') {
+          previewBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2 py-1';
+          previewBadge.textContent = 'ACTIVE';
+        } else {
+          previewBadge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1';
+          previewBadge.textContent = 'INACTIVE';
+        }
+      });
+    }
+
+    if (imageInput && previewImg) {
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            previewImg.src = evt.target.result;
+            previewImg.style.display = 'block';
+            if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    if (removeImgCheck) {
+      removeImgCheck.addEventListener('change', () => {
+        if (removeImgCheck.checked) {
+          previewImg.style.display = 'none';
+          if (previewPlaceholder) previewPlaceholder.style.display = 'grid';
+        } else if (previewImg.getAttribute('src')) {
+          previewImg.style.display = 'block';
+          if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+        }
+      });
+    }
+  </script>
 </body>
 </html>
