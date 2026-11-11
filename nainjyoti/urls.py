@@ -1,4 +1,6 @@
+from django.templatetags.static import static
 from django.urls import path, re_path
+from django.views.generic import RedirectView
 from . import views
 from . import api_views
 from . import user_views
@@ -7,6 +9,7 @@ from . import vendor_views
 admin_api = api_views.admin_api_required
 
 urlpatterns = [
+    path('favicon.ico', RedirectView.as_view(url=static('img/logo.png'), permanent=False), name='favicon'),
     # Public Vendor Portal & Unified Admin/Vendor Authentication
     path('', views.login_view, name='login'),
     path('login/', views.login_view, name='login_page'),

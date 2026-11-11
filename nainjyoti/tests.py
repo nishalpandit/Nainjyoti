@@ -786,24 +786,31 @@ class AdminDashboardCRUDTests(TestCase):
         self.assertFalse(User.objects.filter(id=vendor_user_id).exists())
 
     def test_assam_crafts_branding_and_login_logo(self):
+        favicon_resp = self.client.get(reverse('favicon'))
+        self.assertEqual(favicon_resp.status_code, 302)
+        self.assertEqual(favicon_resp['Location'], '/static/img/logo.png')
+
         for route_name in ('login', 'login_page', 'user_login', 'user_register', 'vendor_register'):
             with self.subTest(route=route_name):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 body = response.content.decode('utf-8')
                 self.assertIn('/static/img/logo.png', body)
+                self.assertIn('<link rel="icon" type="image/png" href="/static/img/logo.png">', body)
+                self.assertIn('<title>Assam Crafts', body)
                 self.assertIn('Assam', body)
                 self.assertIn('Crafts', body)
                 self.assertNotIn('Nainjyoti', body)
 
         self.client.force_login(self.admin_user)
-        for route_name in ('admin_dashboard', 'admin_settings'):
+        for route_name in ('admin_dashboard', 'admin_settings', 'admin_categories', 'admin_commissions'):
             with self.subTest(route=route_name):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 body = response.content.decode('utf-8')
                 self.assertIn('/static/img/logo.png', body)
-                self.assertIn('Assam Crafts', body)
+                self.assertIn('<link rel="icon" type="image/png" href="/static/img/logo.png">', body)
+                self.assertIn('<title>Assam Crafts Admin |', body)
                 self.assertNotIn('Nainjyoti', body)
 
         exported = self.client.get(reverse('admin_reports_export'), {'report': 'orders'})
@@ -815,5 +822,6 @@ class AdminDashboardCRUDTests(TestCase):
         self.assertEqual(vendor_response.status_code, 200)
         vendor_body = vendor_response.content.decode('utf-8')
         self.assertIn('/static/img/logo.png', vendor_body)
-        self.assertIn('Assam Crafts', vendor_body)
+        self.assertIn('<link rel="icon" type="image/png" href="/static/img/logo.png">', vendor_body)
+        self.assertIn('<title>Assam Crafts |', vendor_body)
         self.assertNotIn('Nainjyoti', vendor_body)

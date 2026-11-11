@@ -1,6 +1,7 @@
 {% extends "vendor/base.html" %}
 {% load static %}
 
+{% block title %}Assam Crafts | Order #{{ order.order_number }}{% endblock %}
 {% block breadcrumb %}Order #{{ order.order_number }}{% endblock %}
 {% block nav_orders %}active{% endblock %}
 

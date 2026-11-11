@@ -1,6 +1,7 @@
 {% extends "vendor/base.html" %}
 {% load static %}
 
+{% block title %}Assam Crafts | {% if is_edit %}Edit Product{% else %}Add Product{% endif %}{% endblock %}
 {% block breadcrumb %}{% if is_edit %}Edit Product{% else %}Add Product{% endif %}{% endblock %}
 {% block nav_products %}active{% endblock %}
 

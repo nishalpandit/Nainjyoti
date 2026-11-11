@@ -215,3 +215,8 @@ class VendorPayoutAdmin(FullControlAdminMixin, admin.ModelAdmin):
     ordering = ('-requested_at',)
 
 
+admin.site.site_header = "Assam Crafts Admin"
+admin.site.site_title = "Assam Crafts"
+admin.site.index_title = "Assam Crafts Control Panel"
+
+
