@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ profile.full_name }} · User Profile · Nainjyoti</title>
+    <title>{{ profile.full_name }} &middot; User Profile &middot; Assam Crafts</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,8 +18,8 @@
         <div class="user-auth-card">
             <div class="user-auth-header">
                 <a href="{% url 'user_profile' %}" class="brand-emblem">
-                    <div class="emblem-icon">N</div>
-                    <div class="emblem-text">Nain<span>jyoti</span></div>
+                    <img src="{% static 'img/logo.png' %}" alt="Assam Crafts" class="brand-logo">
+                    <div class="emblem-text">Assam <span>Crafts</span></div>
                 </a>
             </div>
 

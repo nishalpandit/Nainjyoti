@@ -191,7 +191,7 @@ def user_register_view(request):
 
         login(request, user)
         request.session.pop('user_reg_phone', None)
-        messages.success(request, f"Welcome to Nainjyoti, {first_name}! Your profile is ready.")
+        messages.success(request, f"Welcome to Assam Crafts, {first_name}! Your profile is ready.")
         return redirect('user_profile')
 
     default_form_data = {

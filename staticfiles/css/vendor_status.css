@@ -1,4 +1,4 @@
-/* Nainjyoti Marketplace - Vendor Status Styles */
+/* Assam Crafts Marketplace - Vendor Status Styles */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Outfit:wght@500;600;700;800&display=swap');
 
 :root {
@@ -67,6 +67,16 @@ body {
   place-items: center;
   color: #fff;
   font-size: 13px;
+}
+
+.brand-badge .brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(18, 40, 30, 0.14);
 }
 
 .brand-title {

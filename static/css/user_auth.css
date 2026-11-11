@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Nainjyoti Marketplace - Customer User Mobile & Web Auth Styles
+   Assam Crafts Marketplace - Customer User Mobile & Web Auth Styles
    Design System: Matching Dashboard Aesthetic
    - Canvas: #f4f5f1
    - Brand Accent: #cde4b8 / #bdd89f (sage)
@@ -94,6 +94,21 @@ body {
 }
 
 .brand-emblem:hover .emblem-icon {
+  transform: scale(1.05);
+}
+
+.brand-emblem .brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(25, 43, 35, 0.14);
+  transition: transform 0.2s ease;
+}
+
+.brand-emblem:hover .brand-logo {
   transform: scale(1.05);
 }
 

@@ -274,7 +274,7 @@ def format_inr(amount):
 
 def paginate_queryset(request, queryset, default_page_size=10):
     """
-    Standard pagination helper for Nainjyoti Admin tables.
+    Standard pagination helper for Assam Crafts Admin tables.
     Preserves all active filters and URL parameters across page navigation.
     """
     try:
@@ -2650,7 +2650,7 @@ def admin_reports_export(request):
         return JsonResponse({'success': False, 'message': ' '.join(errors)}, status=400)
 
     response = HttpResponse(content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = f'attachment; filename="nainjyoti-{report_type}-report-{timezone.localdate().isoformat()}.csv"'
+    response['Content-Disposition'] = f'attachment; filename="assam-crafts-{report_type}-report-{timezone.localdate().isoformat()}.csv"'
     response.write('\ufeff')
     writer = csv.writer(response)
 

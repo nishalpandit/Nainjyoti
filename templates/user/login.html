@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Customer Sign In · Phone &amp; OTP · Nainjyoti</title>
+    <title>Customer Sign In &middot; Phone &amp; OTP &middot; Assam Crafts</title>
 
     <!-- Google Fonts Inter matching Dashboard -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +19,8 @@
             <!-- Brand Emblem matching Dashboard -->
             <div class="user-auth-header">
                 <a href="{% url 'user_login' %}" class="brand-emblem">
-                    <div class="emblem-icon"><i class="fa-solid fa-shop"></i></div>
-                    <div class="emblem-text">Nain<span>jyoti</span></div>
+                    <img src="{% static 'img/logo.png' %}" alt="Assam Crafts" class="brand-logo">
+                    <div class="emblem-text">Assam <span>Crafts</span></div>
                 </a>
 
                 <div class="auth-badge-tag">
@@ -111,7 +111,7 @@
             {% endif %}
 
             <div class="auth-footer-prompt">
-                <div>New to Nainjyoti? <a href="{% url 'user_register' %}">Create customer account</a></div>
+                <div>New to Assam Crafts? <a href="{% url 'user_register' %}">Create customer account</a></div>
                 <a href="{% url 'login' %}" class="seller-switch-link">
                     <i class="fa-solid fa-store"></i> Are you a seller or administrator? Sign In here →
                 </a>

@@ -784,3 +784,36 @@ class AdminDashboardCRUDTests(TestCase):
         self.client.post(reverse('admin_vendor_delete', args=[vendor_id]))
         self.assertFalse(VendorProfile.objects.filter(id=vendor_id).exists())
         self.assertFalse(User.objects.filter(id=vendor_user_id).exists())
+
+    def test_assam_crafts_branding_and_login_logo(self):
+        for route_name in ('login', 'login_page', 'user_login', 'user_register', 'vendor_register'):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode('utf-8')
+                self.assertIn('/static/img/logo.png', body)
+                self.assertIn('Assam', body)
+                self.assertIn('Crafts', body)
+                self.assertNotIn('Nainjyoti', body)
+
+        self.client.force_login(self.admin_user)
+        for route_name in ('admin_dashboard', 'admin_settings'):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                body = response.content.decode('utf-8')
+                self.assertIn('/static/img/logo.png', body)
+                self.assertIn('Assam Crafts', body)
+                self.assertNotIn('Nainjyoti', body)
+
+        exported = self.client.get(reverse('admin_reports_export'), {'report': 'orders'})
+        self.assertEqual(exported.status_code, 200)
+        self.assertIn('filename="assam-crafts-orders-report-', exported['Content-Disposition'])
+
+        self.client.force_login(self.vendor.user)
+        vendor_response = self.client.get(reverse('vendor_dashboard'))
+        self.assertEqual(vendor_response.status_code, 200)
+        vendor_body = vendor_response.content.decode('utf-8')
+        self.assertIn('/static/img/logo.png', vendor_body)
+        self.assertIn('Assam Crafts', vendor_body)
+        self.assertNotIn('Nainjyoti', vendor_body)
