@@ -825,3 +825,82 @@ class AdminDashboardCRUDTests(TestCase):
         self.assertIn('<link rel="icon" type="image/png" href="/static/img/logo.png">', vendor_body)
         self.assertIn('<title>Assam Crafts |', vendor_body)
         self.assertNotIn('Nainjyoti', vendor_body)
+
+    def test_privacy_policy_and_play_store_account_deletion_pages(self):
+        self.client.logout()
+        public_routes = [
+            ('privacy_policy', 'Assam Crafts | Privacy Policy'),
+            ('privacy_policy_alias', 'Assam Crafts | Privacy Policy'),
+            ('account_deletion', 'Assam Crafts | Account &amp; Data Deletion'),
+            ('account_deletion_alias', 'Assam Crafts | Account &amp; Data Deletion'),
+        ]
+        for route_name, expected_title in public_routes:
+            response = self.client.get(reverse(route_name))
+            self.assertEqual(response.status_code, 200)
+            body = response.content.decode('utf-8')
+            self.assertIn(f'<title>{expected_title}</title>', body)
+            self.assertIn('<link rel="icon" type="image/png" href="/static/img/logo.png">', body)
+            self.assertIn('/static/img/logo.png', body)
+            self.assertIn('/static/css/legal.css', body)
+            self.assertNotIn('Nainjyoti', body)
+
+        privacy_body = self.client.get(reverse('privacy_policy')).content.decode('utf-8')
+        self.assertIn(reverse('account_deletion'), privacy_body)
+
+        deletion_body = self.client.get(reverse('account_deletion')).content.decode('utf-8')
+        self.assertIn(reverse('privacy_policy'), deletion_body)
+
+        missing_name = self.client.post(
+            reverse('account_deletion'),
+            {'full_name': '', 'phone': '9876543210', 'confirm_delete': '1'},
+        )
+        self.assertEqual(missing_name.status_code, 200)
+        missing_name_body = missing_name.content.decode('utf-8')
+        self.assertIn('Please enter your full name.', missing_name_body)
+        self.assertNotIn('Account Deletion Request Received', missing_name_body)
+
+        bad_phone = self.client.post(
+            reverse('account_deletion'),
+            {'full_name': 'Ananya Das', 'phone': '12345', 'confirm_delete': '1'},
+        )
+        self.assertEqual(bad_phone.status_code, 200)
+        self.assertIn(
+            'Please enter a valid 10-digit registered mobile number.',
+            bad_phone.content.decode('utf-8'),
+        )
+
+        missing_confirm = self.client.post(
+            reverse('account_deletion'),
+            {'full_name': 'Ananya Das', 'phone': '9876543210'},
+        )
+        self.assertEqual(missing_confirm.status_code, 200)
+        self.assertIn(
+            'Please tick the confirmation box to submit your deletion request.',
+            missing_confirm.content.decode('utf-8'),
+        )
+
+        initial_users = User.objects.count()
+        initial_profiles = UserProfile.objects.count()
+        submitted = self.client.post(
+            reverse('account_deletion'),
+            {
+                'full_name': 'Ananya Das',
+                'phone': self.customer.phone,
+                'email': 'ananya@example.com',
+                'account_type': 'Customer (Assam Crafts App / Web)',
+                'request_scope': 'Delete entire account and personal data',
+                'reason': 'No longer needed',
+                'confirm_delete': '1',
+            },
+        )
+        self.assertEqual(submitted.status_code, 200)
+        submitted_body = submitted.content.decode('utf-8')
+        self.assertIn('Account Deletion Request Received', submitted_body)
+        self.assertIn('AC-DEL-', submitted_body)
+        self.assertEqual(User.objects.count(), initial_users)
+        self.assertEqual(UserProfile.objects.count(), initial_profiles)
+
+        for auth_route in ('login', 'user_login', 'user_register', 'vendor_register'):
+            auth_body = self.client.get(reverse(auth_route)).content.decode('utf-8')
+            self.assertIn(reverse('privacy_policy'), auth_body)
+            self.assertIn(reverse('account_deletion'), auth_body)

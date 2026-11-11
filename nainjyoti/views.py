@@ -15,6 +15,7 @@ from datetime import timedelta, datetime
 from decimal import Decimal, InvalidOperation
 import json
 import csv
+import secrets
 from django.utils.text import slugify
 from .models import (
     VendorProfile,
@@ -2758,3 +2759,57 @@ def admin_legacy_redirect(request, page=""):
     if target:
         return redirect(target)
     return redirect("admin_dashboard")
+
+
+def privacy_policy_view(request):
+    """Public Google Play Store & marketplace Privacy Policy page."""
+    return render(request, "privacy_policy.html")
+
+
+def account_deletion_view(request):
+    """Public Google Play Store Account & Data Deletion request form."""
+    context = {
+        "submitted": False,
+        "error_message": "",
+        "reference_id": "",
+        "form_data": {},
+        "submitted_data": {},
+    }
+    if request.method == "POST":
+        full_name = request.POST.get("full_name", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        email = request.POST.get("email", "").strip()
+        account_type = request.POST.get("account_type", "Customer (Assam Crafts App / Web)").strip()
+        request_scope = request.POST.get("request_scope", "Delete entire account and personal data").strip()
+        reason = request.POST.get("reason", "").strip()
+        confirm_delete = request.POST.get("confirm_delete") == "1"
+
+        form_data = {
+            "full_name": full_name,
+            "phone": phone,
+            "email": email,
+            "account_type": account_type,
+            "request_scope": request_scope,
+            "reason": reason,
+            "confirm_delete": confirm_delete,
+        }
+        digits = "".join(ch for ch in phone if ch.isdigit())
+
+        if not full_name:
+            context["error_message"] = "Please enter your full name."
+            context["form_data"] = form_data
+        elif len(digits) < 10:
+            context["error_message"] = "Please enter a valid 10-digit registered mobile number."
+            context["form_data"] = form_data
+        elif email and "@" not in email:
+            context["error_message"] = "Please enter a valid email address or leave it blank."
+            context["form_data"] = form_data
+        elif not confirm_delete:
+            context["error_message"] = "Please tick the confirmation box to submit your deletion request."
+            context["form_data"] = form_data
+        else:
+            context["submitted"] = True
+            context["reference_id"] = f"AC-DEL-{timezone.localdate().strftime('%Y%m%d')}-{secrets.token_hex(2).upper()}"
+            context["submitted_data"] = form_data
+
+    return render(request, "account_deletion.html", context)

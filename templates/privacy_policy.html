@@ -1,0 +1,204 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assam Crafts | Privacy Policy</title>
+  <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+  <link rel="shortcut icon" type="image/png" href="{% static 'img/logo.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/logo.png' %}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="{% static 'css/legal.css' %}" rel="stylesheet">
+</head>
+<body>
+  <header class="legal-topbar">
+    <div class="legal-topbar-inner">
+      <a href="{% url 'login' %}" class="legal-brand">
+        <img src="{% static 'img/logo.png' %}" alt="Assam Crafts" class="brand-logo">
+        <div class="legal-brand-text">
+          <span class="legal-brand-name">Assam <span>Crafts</span></span>
+          <span class="legal-brand-sub">Official Marketplace &middot; India</span>
+        </div>
+      </a>
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a href="{% url 'privacy_policy' %}" class="legal-nav-link active">Privacy Policy</a>
+        <a href="{% url 'account_deletion' %}" class="legal-nav-link">Account Deletion</a>
+        <a href="{% url 'user_login' %}" class="legal-nav-link outline">Customer Sign In</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main">
+    <section class="legal-hero">
+      <div class="legal-eyebrow">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Privacy &amp; Data Protection Policy</span>
+      </div>
+      <h1>Assam Crafts Privacy Policy</h1>
+      <p>
+        We respect your privacy and are committed to safeguarding personal information collected through the Assam Crafts mobile application, buyer web experience, and merchant portal.
+      </p>
+      <div class="legal-meta-row">
+        <span><strong>Platform:</strong> Assam Crafts Marketplace</span>
+        <span><strong>Last Updated:</strong> November 2026</span>
+        <span><strong>Jurisdiction:</strong> India (Hajo, Kamrup, Assam)</span>
+        <span><strong>Privacy Contact:</strong> privacy@assamcrafts.in</span>
+      </div>
+    </section>
+
+    <div class="policy-layout">
+      <aside class="policy-toc" aria-label="Table of contents">
+        <div class="policy-toc-title">On This Page</div>
+        <a href="#overview">1. Overview &amp; Scope</a>
+        <a href="#data-collected">2. Information We Collect</a>
+        <a href="#how-we-use">3. How We Use Information</a>
+        <a href="#permissions">4. App Permissions</a>
+        <a href="#sharing">5. Sharing &amp; Third Parties</a>
+        <a href="#security">6. Data Security</a>
+        <a href="#retention-deletion">7. Retention &amp; Deletion</a>
+        <a href="#your-rights">8. Your Privacy Rights</a>
+        <a href="#children">9. Children&rsquo;s Privacy</a>
+        <a href="#contact">10. Changes &amp; Contact</a>
+      </aside>
+
+      <article class="legal-card">
+        <section id="overview" class="policy-section">
+          <h2>1. Overview &amp; Scope</h2>
+          <p>
+            This Privacy Policy explains how <strong>Assam Crafts</strong> (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) collects, uses, stores, shares, and protects information when you use the Assam Crafts Android/mobile application, customer web login, or artisan/vendor portal.
+          </p>
+          <p>
+            By registering an account, signing in with OTP, browsing handcrafted products, placing an order, or onboarding as a seller on Assam Crafts, you agree to the practices described in this Privacy Policy.
+          </p>
+        </section>
+
+        <section id="data-collected" class="policy-section">
+          <h2>2. Information We Collect</h2>
+          <p>We collect only the information needed to operate a safe, reliable multi-vendor marketplace:</p>
+          <ul>
+            <li><strong>Customer Account &amp; Identity Details:</strong> Full name, mobile phone number (for OTP authentication), optional email address, date of birth, gender, and optional profile photo.</li>
+            <li><strong>Shipping &amp; Delivery Addresses:</strong> Recipient full name, contact phone number, street address, city, state, and PIN code required for order delivery.</li>
+            <li><strong>Shopping, Orders &amp; Reviews:</strong> Items in your cart and wishlist, order history, cancellation/return requests, tracking updates, product ratings, written reviews, and review images.</li>
+            <li><strong>Payment &amp; Transaction Metadata:</strong> Payment method (COD, UPI, Card, NetBanking, Online Payment), transaction reference ID, payment verification status, and invoice amount. Card numbers and UPI PINs are entered directly via third-party PCI-DSS compliant payment gateways and are never stored in plain text on Assam Crafts servers.</li>
+            <li><strong>Seller / Artisan Onboarding Data (Vendors Only):</strong> Business name, owner name, phone, business address, GST number, PAN details, bank settlement account details, and verification documents uploaded during merchant onboarding.</li>
+            <li><strong>Technical &amp; Session Data:</strong> Basic server request logs, authentication tokens, and essential session cookies required to keep you signed in securely.</li>
+          </ul>
+        </section>
+
+        <section id="how-we-use" class="policy-section">
+          <h2>3. How We Use Information</h2>
+          <ul>
+            <li>Verify customer identity via One-Time Passwords (OTP) and maintain secure user sessions.</li>
+            <li>Process, pack, ship, and deliver orders purchased from Assam Crafts artisans and sellers.</li>
+            <li>Manage cancellations, returns, refunds, and vendor payout settlements.</li>
+            <li>Send essential transactional alerts and in-app notifications regarding order confirmations, shipping milestones, and account updates.</li>
+            <li>Prevent fraud, duplicate registrations, unauthorized account access, and policy abuse.</li>
+            <li>Comply with Indian tax, GST invoicing, and statutory record-keeping obligations.</li>
+          </ul>
+        </section>
+
+        <section id="permissions" class="policy-section">
+          <h2>4. Device &amp; App Permissions</h2>
+          <p>
+            The Assam Crafts mobile app only requests device permissions strictly needed when you actively trigger a feature:
+          </p>
+          <ul>
+            <li><strong>Photos / Media / Camera:</strong> Requested only when you choose to upload a profile photo, product review image, or seller store/KYC verification document.</li>
+            <li><strong>Notifications:</strong> Used to deliver order status updates (Confirmed, Processing, Shipped, Delivered, Cancellation/Return status) and platform alerts.</li>
+            <li><strong>Network Access:</strong> Required to fetch live catalog listings, sync cart/wishlist state, verify OTPs, and complete payments.</li>
+          </ul>
+          <div class="highlight-callout">
+            Assam Crafts does <strong>not</strong> sell your personal data to advertisers or third-party data brokers, and does not track background device location.
+          </div>
+        </section>
+
+        <section id="sharing" class="policy-section">
+          <h2>5. How We Share Information</h2>
+          <p>We share personal information only on a strict need-to-know basis to fulfill marketplace services:</p>
+          <ul>
+            <li><strong>Verified Assam Crafts Sellers:</strong> Order item details, recipient name, phone number, and shipping address are shared with the specific seller fulfilling your order.</li>
+            <li><strong>Logistics &amp; Courier Partners:</strong> Delivery address, contact number, and airway bill tracking details are shared with shipping carriers to dispatch your package.</li>
+            <li><strong>Payment Gateway Providers:</strong> Order totals and transaction references are processed through integrated online payment providers to verify digital payments and refunds.</li>
+            <li><strong>Legal &amp; Regulatory Authorities:</strong> Disclosed only when required by applicable Indian law, court order, or tax/regulatory audit.</li>
+          </ul>
+        </section>
+
+        <section id="security" class="policy-section">
+          <h2>6. Data Security</h2>
+          <p>
+            We implement appropriate administrative, technical, and organizational safeguards to protect your data, including HTTPS/TLS encrypted transport, token-based API authentication, OTP expiration controls, role-based access enforcement, and multi-tenant isolation separating each seller&rsquo;s inventory, orders, and payouts.
+          </p>
+        </section>
+
+        <section id="retention-deletion" class="policy-section">
+          <h2>7. Data Retention &amp; Account Deletion</h2>
+          <p>
+            We retain personal data only as long as necessary to provide your Assam Crafts account, complete pending deliveries or refunds, and satisfy statutory GST/tax or dispute-resolution requirements.
+          </p>
+          <p>
+            You may request deletion of your account and associated personal data at any time through our dedicated web portal without needing to reinstall the mobile app:
+          </p>
+          <p>
+            <a href="{% url 'account_deletion' %}" style="display:inline-flex;align-items:center;gap:8px;background:#192b23;color:#ffffff;padding:10px 18px;border-radius:9px;text-decoration:none;font-weight:700;font-size:13.5px;">
+              <i class="fa-solid fa-user-xmark"></i>
+              <span>Go to Account &amp; Data Deletion Page</span>
+            </a>
+          </p>
+        </section>
+
+        <section id="your-rights" class="policy-section">
+          <h2>8. Your Rights &amp; Controls</h2>
+          <ul>
+            <li><strong>Access &amp; Correction:</strong> View and update your profile details, email, profile photo, and saved delivery addresses directly in the app or customer portal.</li>
+            <li><strong>Account &amp; Data Deletion:</strong> Request deletion of your account and personal profile data via our <a href="{% url 'account_deletion' %}" style="color:#244536;font-weight:600;">Account Deletion page</a>.</li>
+            <li><strong>Order Cancellations &amp; Returns:</strong> Raise cancellation or return requests directly on eligible orders and track resolution status.</li>
+          </ul>
+        </section>
+
+        <section id="children" class="policy-section">
+          <h2>9. Children&rsquo;s Privacy</h2>
+          <p>
+            Assam Crafts is not intended for children under the age of 13 (or under 18 without parental/guardian supervision for online purchases). We do not knowingly collect personal information from children. If you believe a child has registered personal details with us, please contact us immediately for removal.
+          </p>
+        </section>
+
+        <section id="contact" class="policy-section">
+          <h2>10. Changes to This Policy &amp; Grievance Contact</h2>
+          <p>
+            We may update this Privacy Policy periodically to reflect improvements or legal requirements. Changes become effective once posted on this page with an updated revision date.
+          </p>
+          <div class="contact-grid">
+            <div class="contact-item">
+              <small>Organization / Developer</small>
+              <strong>Assam Crafts Marketplace</strong><br>
+              <span>Hajo, Kamrup, Assam, India</span>
+            </div>
+            <div class="contact-item">
+              <small>Privacy &amp; Grievance Email</small>
+              <strong>privacy@assamcrafts.in</strong><br>
+              <span>support@assamcrafts.in</span>
+            </div>
+            <div class="contact-item">
+              <small>Customer Support Helpline</small>
+              <strong>+91 98765 43210</strong><br>
+              <span>Mon&ndash;Sat, 10:00 AM &ndash; 6:00 PM IST</span>
+            </div>
+          </div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="legal-footer">
+    <div>&copy; {% now "Y" %} Assam Crafts &middot; Hajo, Kamrup (Assam), India. All rights reserved.</div>
+    <div class="legal-footer-links">
+      <a href="{% url 'privacy_policy' %}">Privacy Policy</a>
+      <a href="{% url 'account_deletion' %}">Account Deletion</a>
+      <a href="{% url 'user_login' %}">Customer Login</a>
+      <a href="{% url 'login' %}">Seller &amp; Admin Portal</a>
+    </div>
+  </footer>
+</body>
+</html>
+

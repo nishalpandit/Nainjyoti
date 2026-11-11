@@ -227,7 +227,11 @@
 
                 <!-- Back to Sign In Link -->
                 <div class="reg-bottom-login-prompt">
-                    Already registered as a seller? <a href="{% url 'login' %}">Sign in to Seller Hub →</a>
+                    Already registered as a seller? <a href="{% url 'login' %}">Sign in to Seller Hub &rarr;</a>
+                    <div style="margin-top: 8px; font-size: 12.5px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;">
+                        <a href="{% url 'privacy_policy' %}">Privacy Policy</a>
+                        <a href="{% url 'account_deletion' %}">Account Deletion</a>
+                    </div>
                 </div>
             </form>
         </main>

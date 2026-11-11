@@ -19,6 +19,10 @@ urlpatterns = [
     path('status/<str:vendor_code>/', views.vendor_status_view, name='vendor_status'),
     path('status-lookup/', views.vendor_status_lookup_view, name='vendor_status_lookup'),
     path('logout/', views.logout_view, name='logout'),
+    path('privacy-policy/', views.privacy_policy_view, name='privacy_policy'),
+    path('privacy/', views.privacy_policy_view, name='privacy_policy_alias'),
+    path('account-deletion/', views.account_deletion_view, name='account_deletion'),
+    path('delete-account/', views.account_deletion_view, name='account_deletion_alias'),
 
     # Admin Protected Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),

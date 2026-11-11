@@ -1,0 +1,259 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assam Crafts | Account &amp; Data Deletion</title>
+  <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+  <link rel="shortcut icon" type="image/png" href="{% static 'img/logo.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/logo.png' %}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <link href="{% static 'css/legal.css' %}" rel="stylesheet">
+</head>
+<body>
+  <header class="legal-topbar">
+    <div class="legal-topbar-inner">
+      <a href="{% url 'login' %}" class="legal-brand">
+        <img src="{% static 'img/logo.png' %}" alt="Assam Crafts" class="brand-logo">
+        <div class="legal-brand-text">
+          <span class="legal-brand-name">Assam <span>Crafts</span></span>
+          <span class="legal-brand-sub">Official Marketplace &middot; India</span>
+        </div>
+      </a>
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a href="{% url 'privacy_policy' %}" class="legal-nav-link">Privacy Policy</a>
+        <a href="{% url 'account_deletion' %}" class="legal-nav-link active">Account Deletion</a>
+        <a href="{% url 'user_login' %}" class="legal-nav-link outline">Customer Sign In</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="legal-main">
+    <section class="legal-hero">
+      <div class="legal-eyebrow">
+        <i class="fa-solid fa-user-shield"></i>
+        <span>Google Play Data Safety &amp; Account Deletion</span>
+      </div>
+      <h1>Request Account &amp; Data Deletion</h1>
+      <p>
+        This page allows <strong>Assam Crafts</strong> mobile app customers and registered sellers to request permanent deletion of their account and associated personal data in accordance with Google Play Store Data Safety guidelines.
+      </p>
+      <div class="legal-meta-row">
+        <span><strong>App &amp; Developer:</strong> Assam Crafts</span>
+        <span><strong>Location:</strong> Hajo, Kamrup, Assam, India</span>
+        <span><strong>Support Email:</strong> support@assamcrafts.in</span>
+        <span><strong>Processing Time:</strong> Up to 7&ndash;30 days</span>
+      </div>
+    </section>
+
+    <div class="deletion-grid">
+      <section class="legal-card">
+        <h2 class="legal-card-title">
+          <i class="fa-solid fa-file-circle-xmark"></i>
+          <span>Submit Deletion Request Form</span>
+        </h2>
+        <p class="legal-card-sub">
+          Complete the form below using the mobile number or email registered with your Assam Crafts account. Our support team verifies ownership and processes your request without requiring app reinstallation.
+        </p>
+
+        {% if submitted %}
+          <div class="legal-alert success" role="status">
+            <i class="fa-solid fa-circle-check" style="font-size: 18px; margin-top: 2px;"></i>
+            <div>
+              <strong>Account Deletion Request Received</strong><br>
+              Thank you, {{ submitted_data.full_name }}. Your request has been logged for review by the Assam Crafts privacy team.
+              <div class="receipt-box">
+                <div><strong>Reference ID:</strong> {{ reference_id }}</div>
+                <div><strong>Account Type:</strong> {{ submitted_data.account_type }}</div>
+                <div><strong>Registered Phone / Email:</strong> {{ submitted_data.phone }}{% if submitted_data.email %} / {{ submitted_data.email }}{% endif %}</div>
+                <div><strong>Scope Requested:</strong> {{ submitted_data.request_scope }}</div>
+                <div><strong>Expected Completion:</strong> Verified within 7 business days (full purge within 30 days)</div>
+              </div>
+            </div>
+          </div>
+        {% elif error_message %}
+          <div class="legal-alert error" role="alert">
+            <i class="fa-solid fa-circle-exclamation" style="font-size: 18px; margin-top: 2px;"></i>
+            <div>{{ error_message }}</div>
+          </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'account_deletion' %}" class="legal-form" novalidate>
+          {% csrf_token %}
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="field-label" for="full_name">Full Name *</label>
+              <input
+                type="text"
+                id="full_name"
+                name="full_name"
+                class="field-control"
+                required
+                placeholder="e.g. Ananya Das"
+                value="{{ form_data.full_name|default:'' }}"
+              >
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="phone">Registered Mobile Number *</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                class="field-control"
+                required
+                placeholder="+91 98765 43210"
+                value="{{ form_data.phone|default:'' }}"
+              >
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="field-label" for="email">Email Address (Optional for Customers)</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                class="field-control"
+                placeholder="you@example.com"
+                value="{{ form_data.email|default:'' }}"
+              >
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="account_type">Account Type *</label>
+              <select id="account_type" name="account_type" class="field-control">
+                <option value="Customer (Assam Crafts App / Web)" {% if form_data.account_type == 'Customer (Assam Crafts App / Web)' or not form_data.account_type %}selected{% endif %}>Customer (Assam Crafts App / Web)</option>
+                <option value="Registered Seller / Artisan" {% if form_data.account_type == 'Registered Seller / Artisan' %}selected{% endif %}>Registered Seller / Artisan</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="request_scope">Deletion Scope *</label>
+            <select id="request_scope" name="request_scope" class="field-control">
+              <option value="Delete entire account and personal data" {% if form_data.request_scope == 'Delete entire account and personal data' or not form_data.request_scope %}selected{% endif %}>Delete entire account and personal data</option>
+              <option value="Delete specific personal data only (keep account inactive)" {% if form_data.request_scope == 'Delete specific personal data only (keep account inactive)' %}selected{% endif %}>Delete specific personal data only (saved addresses, photo, wishlist, notifications)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="field-label" for="reason">Additional Notes or Specific Data Details (Optional)</label>
+            <textarea
+              id="reason"
+              name="reason"
+              class="field-control"
+              placeholder="Optional: Tell us why you are leaving or specify which personal records to delete..."
+            >{{ form_data.reason|default:'' }}</textarea>
+          </div>
+
+          <label class="legal-checkbox-box" for="confirm_delete">
+            <input type="checkbox" id="confirm_delete" name="confirm_delete" value="1" {% if form_data.confirm_delete %}checked{% endif %} required>
+            <span>
+              I confirm that I am the rightful holder of this <strong>Assam Crafts</strong> account and understand that once processed, account deletion is permanent and removes saved addresses, cart, wishlist, and active login access.
+            </span>
+          </label>
+
+          <button type="submit" class="btn-legal-danger">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Submit Account Deletion Request</span>
+          </button>
+        </form>
+      </section>
+
+      <div>
+        <section class="legal-card">
+          <h2 class="legal-card-title">
+            <i class="fa-solid fa-list-check"></i>
+            <span>How Account Deletion Works</span>
+          </h2>
+          <p class="legal-card-sub">Follow either method to request removal of your Assam Crafts account.</p>
+          <ol class="step-list">
+            <li>
+              <span class="step-num">1</span>
+              <div><strong>Via This Web Page:</strong> Submit your registered phone number and request scope in the form on this page. A confirmation reference ID is generated immediately.</div>
+            </li>
+            <li>
+              <span class="step-num">2</span>
+              <div><strong>Inside the Mobile App:</strong> Open <em>Assam Crafts</em> &rarr; go to <em>Profile / Account</em> &rarr; select <em>Delete Account</em> or contact support directly from the help menu.</div>
+            </li>
+            <li>
+              <span class="step-num">3</span>
+              <div><strong>Via Support Email:</strong> Email <strong>support@assamcrafts.in</strong> from your registered address with subject <em>"Account Deletion Request &ndash; &lt;Mobile Number&gt;"</em>.</div>
+            </li>
+            <li>
+              <span class="step-num">4</span>
+              <div><strong>Verification &amp; Removal:</strong> We confirm ownership (and ensure no active dispute/shipment is pending), then permanently erase eligible personal data within 7&ndash;30 days.</div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="legal-card">
+          <h2 class="legal-card-title">
+            <i class="fa-solid fa-headset"></i>
+            <span>Support &amp; Grievance Contact</span>
+          </h2>
+          <p class="legal-card-sub">Need help checking an active order refund before deleting your account?</p>
+          <div class="contact-grid">
+            <div class="contact-item">
+              <small>Support Email</small>
+              <strong>support@assamcrafts.in</strong>
+            </div>
+            <div class="contact-item">
+              <small>Privacy &amp; Data Desk</small>
+              <strong>privacy@assamcrafts.in</strong>
+            </div>
+            <div class="contact-item">
+              <small>Helpline (IST 10 AM&ndash;6 PM)</small>
+              <strong>+91 98765 43210</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="legal-card">
+      <h2 class="legal-card-title">
+        <i class="fa-solid fa-database"></i>
+        <span>Types of Data Deleted vs. Retained</span>
+      </h2>
+      <p class="legal-card-sub">
+        Transparency summary required for Google Play Data Safety compliance.
+      </p>
+      <div class="data-impact-grid">
+        <div class="impact-panel deleted">
+          <h3><i class="fa-solid fa-trash-can"></i> Permanently Deleted Data (Within 7&ndash;30 Days)</h3>
+          <ul>
+            <li><strong>Account &amp; Profile Details:</strong> First name, last name, registered mobile number, email address, date of birth, gender, and uploaded profile photo.</li>
+            <li><strong>Saved Delivery Addresses:</strong> Home, work, and custom recipient addresses stored in your address book.</li>
+            <li><strong>Shopping Activity:</strong> Active shopping cart items, saved wishlist items, and unread/read customer notification feeds.</li>
+            <li><strong>Credentials &amp; Sessions:</strong> Authentication tokens, active login sessions, and temporary OTP verification records.</li>
+          </ul>
+        </div>
+        <div class="impact-panel retained">
+          <h3><i class="fa-solid fa-scale-balanced"></i> Data Temporarily Retained &amp; Retention Reason</h3>
+          <ul>
+            <li><strong>Order &amp; Tax/GST Invoices:</strong> Completed purchase summaries, seller settlement records, and GST billing invoices are retained only for statutory accounting periods required under Indian tax law.</li>
+            <li><strong>Payment &amp; Refund Audit Logs:</strong> Payment transaction references (UPI/card/netbanking/COD status) are retained for fraud prevention, chargeback resolution, and regulatory compliance.</li>
+            <li><strong>Ongoing Fulfillments:</strong> If you have an open shipment, cancellation, or refund request, deletion finalizes once the transaction is settled.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="highlight-callout" style="margin-top: 18px; margin-bottom: 0;">
+        For full details on how we collect, process, protect, and retain data, please read our <a href="{% url 'privacy_policy' %}" style="color: #192b23; font-weight: 700;">Assam Crafts Privacy Policy</a>.
+      </div>
+    </section>
+  </main>
+
+  <footer class="legal-footer">
+    <div>&copy; {% now "Y" %} Assam Crafts &middot; Hajo, Kamrup (Assam), India. All rights reserved.</div>
+    <div class="legal-footer-links">
+      <a href="{% url 'privacy_policy' %}">Privacy Policy</a>
+      <a href="{% url 'account_deletion' %}">Account Deletion</a>
+      <a href="{% url 'user_login' %}">Customer Login</a>
+      <a href="{% url 'login' %}">Seller &amp; Admin Portal</a>
+    </div>
+  </footer>
+</body>
+</html>
+
