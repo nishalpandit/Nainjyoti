@@ -846,9 +846,17 @@ class AdminDashboardCRUDTests(TestCase):
 
         privacy_body = self.client.get(reverse('privacy_policy')).content.decode('utf-8')
         self.assertIn(reverse('account_deletion'), privacy_body)
+        self.assertIn('Sukesh Kumar Roy', privacy_body)
+        self.assertIn('assamcraftguwahati@gmail.com', privacy_body)
+        self.assertNotIn('privacy@assamcrafts.in', privacy_body)
+        self.assertNotIn('support@assamcrafts.in', privacy_body)
 
         deletion_body = self.client.get(reverse('account_deletion')).content.decode('utf-8')
         self.assertIn(reverse('privacy_policy'), deletion_body)
+        self.assertIn('Sukesh Kumar Roy', deletion_body)
+        self.assertIn('assamcraftguwahati@gmail.com', deletion_body)
+        self.assertNotIn('privacy@assamcrafts.in', deletion_body)
+        self.assertNotIn('support@assamcrafts.in', deletion_body)
 
         missing_name = self.client.post(
             reverse('account_deletion'),
